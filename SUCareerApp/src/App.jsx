@@ -120,3 +120,26 @@ function App() {
 }
 
 export default App
+
+// // 1. Make sure useEffect is imported at the top!
+// import { useEffect } from 'react'; 
+// import './App.css'; // (You might have other imports here, leave them as is)
+
+// function App() {
+  
+//   // 2. Paste the sanity check right here!
+//   useEffect(() => {
+//     console.log("--- Configuration Sanity Check ---");
+//     console.log("Firebase Project ID:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
+//     console.log("Cloudinary Cloud Name:", import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
+//   }, []);
+
+//   // 3. Leave everything below this exactly as your teammate wrote it
+//   return (
+//     <div className="App">
+//        {/* Your teammate's frontend code will be here */}
+//     </div>
+//   );
+// }
+
+// export default App;
