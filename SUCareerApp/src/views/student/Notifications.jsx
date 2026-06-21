@@ -96,6 +96,11 @@ function Notifications() {
                     </button>
                   </div>
                   <p>{notification.message}</p>
+                  {notification.deadlineLabel && (
+                    <div className="notification-deadline">
+                      {notification.deadlineLabel}
+                    </div>
+                  )}
                   <small>{notification.date}</small>
                   {notification.opportunityID && (
                     <div className="notification-actions">

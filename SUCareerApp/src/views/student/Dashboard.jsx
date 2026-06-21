@@ -10,13 +10,55 @@ import { useAuth } from "../../Context/authContext";
 import { mapOpportunityDoc } from "../../utils/opportunityMapper";
 import "./Dashboard.css";
 
-// These are the filter options shown on the left sidebar
-const jobTypes = ["Internship", "Graduate Program", "Part-time", "Full-time"];
-const industries = ["Tech", "Finance", "Consulting", "Healthcare", "Marketing", "Design"];
+const defaultJobTypes = ["Internship", "Graduate Program", "Part-time", "Full-time"];
+const defaultCategories = ["Tech", "Finance", "Consulting", "Healthcare", "Marketing", "Design"];
 
 function normalizeFilterValue(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .replace(/["']/g, "")
+    .replace(/[-_]/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
+
+function compactFilterValue(value) {
+  return normalizeFilterValue(value).replace(/\s+/g, "");
+}
+
+function singularizeFilterValue(value) {
+  const normalizedValue = normalizeFilterValue(value);
+
+  return normalizedValue.endsWith("s") ? normalizedValue.slice(0, -1) : normalizedValue;
+}
+
+function getCanonicalDefaultOption(defaultOptions, value) {
+  const compactValue = compactFilterValue(value);
+
+  return defaultOptions.find((option) => compactFilterValue(option) === compactValue) || value;
+}
+
+function buildFilterOptions(defaultOptions, opportunities, fieldName, config = {}) {
+  const firestoreOptions = opportunities
+    .map((opp) => opp[fieldName])
+    .filter(Boolean)
+    .filter((value) => !config.blocklist?.includes(singularizeFilterValue(value)));
+
+  const filterOptions = [...defaultOptions, ...firestoreOptions].reduce((acc, value) => {
+      const canonicalValue = getCanonicalDefaultOption(defaultOptions, value);
+      const normalizedValue = singularizeFilterValue(canonicalValue);
+
+      if (!normalizedValue || acc.some((item) => singularizeFilterValue(item) === normalizedValue)) {
+        return acc;
+      }
+
+      return [...acc, canonicalValue];
+    }, []);
+
+  return filterOptions.sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+const categoryBlocklist = ["general", ...defaultJobTypes.map(singularizeFilterValue)];
 
 function Dashboard() {
   // selectedTypes holds an array of the checked job types 
@@ -31,6 +73,10 @@ function Dashboard() {
   const { user } = useAuth();
   const searchText = (searchParams.get("search") || "").trim().toLowerCase();
   const opportunityIdFromUrl = searchParams.get("opportunity");
+  const jobTypes = buildFilterOptions(defaultJobTypes, opportunities, "type");
+  const categories = buildFilterOptions(defaultCategories, opportunities, "industry", {
+    blocklist: categoryBlocklist,
+  });
 
   useEffect(() => {
     async function loadOpportunities() {
@@ -78,13 +124,15 @@ function Dashboard() {
   }, [user]);
 
   // This function adds or removes a filter when checkbox is clicked
-  function toggleFilter(value, list, setList) {
-    if (list.includes(value)) {
+  function toggleFilter(value, list, setList, normalizeValue = normalizeFilterValue) {
+    const normalizedValue = normalizeValue(value);
+
+    if (list.includes(normalizedValue)) {
       // If already in list, remove it
-      setList(list.filter((item) => item !== value));
+      setList(list.filter((item) => item !== normalizedValue));
     } else {
       // If not in list, add it
-      setList([...list, value]);
+      setList([...list, normalizedValue]);
     }
   }
 
@@ -100,13 +148,13 @@ function Dashboard() {
 
     // If no filters selected, show all. Otherwise check if it matches.
     const opportunityType = normalizeFilterValue(opp.type);
-    const opportunityIndustry = normalizeFilterValue(opp.industry);
+    const opportunityCategory = singularizeFilterValue(opp.industry);
     const matchesType =
       selectedTypes.length === 0 ||
-      selectedTypes.map(normalizeFilterValue).includes(opportunityType);
+      selectedTypes.map(compactFilterValue).includes(compactFilterValue(opportunityType));
     const matchesIndustry =
       selectedIndustries.length === 0 ||
-      selectedIndustries.map(normalizeFilterValue).includes(opportunityIndustry);
+      selectedIndustries.map(singularizeFilterValue).includes(opportunityCategory);
 
     return matchesSearch && matchesType && matchesIndustry;
   });
@@ -136,23 +184,25 @@ function Dashboard() {
           <label key={type} className="filter-option">
             <input
               type="checkbox"
-              checked={selectedTypes.includes(type)}
-              onChange={() => toggleFilter(type, selectedTypes, setSelectedTypes)}
+              checked={selectedTypes.includes(compactFilterValue(type))}
+              onChange={() => toggleFilter(type, selectedTypes, setSelectedTypes, compactFilterValue)}
             />
-            {type}
+            {String(type).replace(/["']/g, "")}
           </label>
         ))}
 
-        {/* Industry filters */}
-        <p className="filter-label">INDUSTRY</p>
-        {industries.map((industry) => (
-          <label key={industry} className="filter-option">
+        {/* Category filters */}
+        <p className="filter-label">CATEGORY</p>
+        {categories.map((category) => (
+          <label key={category} className="filter-option">
             <input
               type="checkbox"
-              checked={selectedIndustries.includes(industry)}
-              onChange={() => toggleFilter(industry, selectedIndustries, setSelectedIndustries)}
+              checked={selectedIndustries.includes(singularizeFilterValue(category))}
+              onChange={() =>
+                toggleFilter(category, selectedIndustries, setSelectedIndustries, singularizeFilterValue)
+              }
             />
-            {industry}
+            {String(category).replace(/["']/g, "")}
           </label>
         ))}
       </aside>

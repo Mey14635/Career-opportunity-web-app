@@ -7,6 +7,18 @@ import { useAuth } from "../../Context/authContext";
 import { mapOpportunityDoc } from "../../utils/opportunityMapper";
 import "./Favorites.css";
 
+function formatDaysLeft(daysLeft) {
+  if (daysLeft === null || daysLeft === undefined) {
+    return "Deadline not set";
+  }
+
+  if (daysLeft === 0) {
+    return "Due today";
+  }
+
+  return `${daysLeft} ${daysLeft === 1 ? "day" : "days"} left`;
+}
+
 function Favorites() {
   const [searchParams] = useSearchParams();
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
@@ -123,7 +135,9 @@ function Favorites() {
 
                   <div className="favorite-footer">
                     <span className="favorite-badge">{opp.type}</span>
-                    <span className="favorite-closes">Deadline: {opp.deadline}</span>
+                    <span className={`favorite-closes ${opp.daysLeft !== null && opp.daysLeft <= 2 ? "urgent" : ""}`}>
+                      {formatDaysLeft(opp.daysLeft)}
+                    </span>
                   </div>
                 </div>
               </article>

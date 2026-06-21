@@ -125,6 +125,11 @@
   white-space: nowrap;
 }
 
+.favorite-closes.urgent {
+  color: #c62828;
+  font-weight: 800;
+}
+
 .favorites-empty {
   width: min(520px, 100%);
   padding: 36px;

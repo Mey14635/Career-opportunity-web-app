@@ -35,6 +35,40 @@ function formatNotificationDate(value) {
   });
 }
 
+function getDaysLeftLabel(value) {
+  const deadline = toDate(value);
+
+  if (!deadline) {
+    return "";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  deadline.setHours(0, 0, 0, 0);
+
+  const daysLeft = Math.max(0, Math.ceil((deadline - today) / (1000 * 60 * 60 * 24)));
+
+  if (daysLeft === 0) {
+    return "Due today";
+  }
+
+  return `${daysLeft} ${daysLeft === 1 ? "day" : "days"} left`;
+}
+
+function getCalendarDaysLeft(value) {
+  const deadline = toDate(value);
+
+  if (!deadline) {
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  deadline.setHours(0, 0, 0, 0);
+
+  return Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+}
+
 function getDeadlineValue(opportunityData = {}) {
   return (
     opportunityData.deadline ||
@@ -50,6 +84,22 @@ function getOpportunityTitle(opportunityData = {}) {
   return opportunityData.title || opportunityData.jobTitle || opportunityData.position || "This opportunity";
 }
 
+async function getOpportunitySnapByReference(opportunityID) {
+  const opportunitySnap = await getDoc(doc(db, "opportunities", opportunityID));
+
+  if (opportunitySnap.exists()) {
+    return opportunitySnap;
+  }
+
+  const opportunityIdQuery = query(
+    collection(db, "opportunities"),
+    where("opportunityID", "==", opportunityID)
+  );
+  const opportunityIdSnap = await getDocs(opportunityIdQuery);
+
+  return opportunityIdSnap.docs[0] || null;
+}
+
 function mapNotificationDoc(docSnap) {
   const data = docSnap.data();
 
@@ -62,9 +112,54 @@ function mapNotificationDoc(docSnap) {
     sentAt: data.sentAt,
     date: formatNotificationDate(data.sentAt),
     readAt: data.readAt,
-    opportunityID: data.opportunityID,
+    opportunityID: data.opportunityID || data.opportunityId,
+    deadlineAt: data.deadlineAt,
+    deadlineDate: formatNotificationDate(data.deadlineAt),
+    deadlineLabel: getDaysLeftLabel(data.deadlineAt),
+    dedupeKey: data.dedupeKey,
     type: data.type,
   };
+}
+
+function getNotificationDedupeKey(notification) {
+  if (notification.dedupeKey) {
+    return notification.dedupeKey;
+  }
+
+  if (notification.opportunityID && notification.type) {
+    return `${notification.opportunityID}_${notification.type}`;
+  }
+
+  if (notification.opportunityID && notification.title === "Application deadline approaching") {
+    return `${notification.opportunityID}_deadline_48h`;
+  }
+
+  return notification.id;
+}
+
+function isNotificationStillRelevant(notification) {
+  const deadline = toDate(notification.deadlineAt);
+
+  if (!deadline) {
+    return true;
+  }
+
+  return deadline > new Date();
+}
+
+function dedupeNotifications(notifications) {
+  const seen = new Set();
+
+  return notifications.filter((notification) => {
+    const key = getNotificationDedupeKey(notification);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
 
 export function subscribeToUserNotifications(userId, onNext, onError) {
@@ -78,13 +173,14 @@ export function subscribeToUserNotifications(userId, onNext, onError) {
     (snapshot) => {
       const notifications = snapshot.docs
         .map(mapNotificationDoc)
+        .filter(isNotificationStillRelevant)
         .sort((a, b) => {
           const dateA = toDate(a.sentAt)?.getTime() || 0;
           const dateB = toDate(b.sentAt)?.getTime() || 0;
           return dateB - dateA;
         });
 
-      onNext(notifications);
+      onNext(dedupeNotifications(notifications));
     },
     onError
   );
@@ -97,19 +193,6 @@ export async function markNotificationAsRead(notificationId) {
   });
 }
 
-async function notificationAlreadyExists(userId, opportunityID, type) {
-  const notificationsQuery = query(
-    collection(db, "notifications"),
-    where("userId", "==", userId)
-  );
-  const notificationsSnap = await getDocs(notificationsQuery);
-
-  return notificationsSnap.docs.some((notificationDoc) => {
-    const data = notificationDoc.data();
-    return data.opportunityID === opportunityID && data.type === type;
-  });
-}
-
 function buildDeadlineNotificationId(userId, opportunityID) {
   return `${userId}_${opportunityID}_deadline_48h`;
 }
@@ -117,30 +200,31 @@ function buildDeadlineNotificationId(userId, opportunityID) {
 async function createDeadlineNotification(userId, opportunityID, opportunityData) {
   const type = "deadline_48h";
   const notificationId = buildDeadlineNotificationId(userId, opportunityID);
-  const notificationSnap = await getDoc(doc(db, "notifications", notificationId));
-
-  if (notificationSnap.exists()) {
-    return;
-  }
-
-  const exists = await notificationAlreadyExists(userId, opportunityID, type);
-
-  if (exists) {
-    return;
-  }
-
   const title = getOpportunityTitle(opportunityData);
-  await setDoc(doc(db, "notifications", notificationId), {
+  const baseNotificationData = {
     userId,
     opportunityID,
     notificationId,
+    dedupeKey: notificationId,
     type,
     title: "Application deadline approaching",
     message: `Your deadline for ${title} is within 48 hours.`,
+    deadlineAt: getDeadlineValue(opportunityData),
+  };
+  const newNotificationData = {
+    ...baseNotificationData,
     isRead: false,
     sentAt: serverTimestamp(),
     readAt: null,
-  });
+  };
+  const notificationSnap = await getDoc(doc(db, "notifications", notificationId));
+
+  if (notificationSnap.exists()) {
+    await setDoc(doc(db, "notifications", notificationId), baseNotificationData, { merge: true });
+    return;
+  }
+
+  await setDoc(doc(db, "notifications", notificationId), newNotificationData);
 }
 
 export async function checkSavedOpportunityDeadlines(userId) {
@@ -149,8 +233,6 @@ export async function checkSavedOpportunityDeadlines(userId) {
     where("userId", "==", userId)
   );
   const savedSnap = await getDocs(savedQuery);
-  const now = new Date();
-  const fortyEightHoursFromNow = new Date(now.getTime() + 48 * 60 * 60 * 1000);
 
   await Promise.all(
     savedSnap.docs.map(async (savedDoc) => {
@@ -161,20 +243,37 @@ export async function checkSavedOpportunityDeadlines(userId) {
         return;
       }
 
-      const opportunitySnap = await getDoc(doc(db, "opportunities", opportunityID));
+      const opportunitySnap = await getOpportunitySnapByReference(opportunityID);
 
-      if (!opportunitySnap.exists()) {
+      if (!opportunitySnap) {
         return;
       }
 
       const opportunityData = opportunitySnap.data();
-      const deadline = toDate(getDeadlineValue(opportunityData));
+      const daysLeft = getCalendarDaysLeft(getDeadlineValue(opportunityData));
 
-      if (!deadline || deadline <= now || deadline > fortyEightHoursFromNow) {
+      if (daysLeft === null || daysLeft < 0 || daysLeft > 2) {
         return;
       }
 
       await createDeadlineNotification(userId, opportunityID, opportunityData);
     })
   );
+}
+
+export async function checkOpportunityDeadlineForUser(userId, opportunityID) {
+  const opportunitySnap = await getOpportunitySnapByReference(opportunityID);
+
+  if (!opportunitySnap) {
+    return;
+  }
+
+  const opportunityData = opportunitySnap.data();
+  const daysLeft = getCalendarDaysLeft(getDeadlineValue(opportunityData));
+
+  if (daysLeft === null || daysLeft < 0 || daysLeft > 2) {
+    return;
+  }
+
+  await createDeadlineNotification(userId, opportunityID, opportunityData);
 }

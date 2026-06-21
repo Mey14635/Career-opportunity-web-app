@@ -1,5 +1,6 @@
 import { addDoc, collection, deleteDoc, getDocs, query, serverTimestamp, where } from "firebase/firestore";
 import { db } from "../firebase";
+import { checkOpportunityDeadlineForUser } from "../services/notificationService";
 
 async function findSavedOpportunityDocs(userId, opportunityID) {
   const existingUppercaseSaveQuery = query(
@@ -47,5 +48,6 @@ export async function toggleSavedOpportunityForUser(userId, opportunityID, curre
   }
 
   await saveOpportunityForUser(userId, opportunityID);
+  await checkOpportunityDeadlineForUser(userId, opportunityID);
   return true;
 }

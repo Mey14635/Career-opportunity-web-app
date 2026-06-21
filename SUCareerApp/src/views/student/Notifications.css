@@ -123,6 +123,19 @@
   margin: 8px 0 10px;
 }
 
+.notification-deadline {
+  display: inline-flex;
+  align-items: center;
+  background: #fff1f1;
+  border: 1px solid #ffc7c7;
+  border-radius: 8px;
+  color: #c62828;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 10px;
+  padding: 7px 10px;
+}
+
 .notification-card small {
   color: var(--su-muted);
   font-size: 12px;

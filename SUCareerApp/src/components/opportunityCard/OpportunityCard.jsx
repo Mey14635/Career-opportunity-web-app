@@ -18,6 +18,7 @@ function OpportunityCard({
   onOpen,
 }) {
   const { user } = useAuth();
+  const isDeadlineUrgent = daysLeft !== null && daysLeft <= 2;
 
   function handleCardKeyDown(e) {
     if ((e.key === "Enter" || e.key === " ") && onOpen) {
@@ -69,7 +70,7 @@ function OpportunityCard({
       {/* Bottom row: type badge + closing info */}
       <div className="card-footer">
         <span className="badge">{type}</span>
-        <span className="closes">
+        <span className={`closes ${isDeadlineUrgent ? "urgent" : ""}`}>
           Deadline: {deadline || (daysLeft === null ? "Not set" : `${daysLeft} days`)}
         </span>
       </div>
