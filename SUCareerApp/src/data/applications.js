@@ -1,0 +1,40 @@
+const applications = [
+  {
+    id: 1,
+    title: "Software Engineer Intern",
+    company: "Google",
+    location: "Nairobi, Kenya",
+    type: "Internship",
+    appliedDate: "10 July 2026",
+    deadline: "24 July 2026",
+    status: "Shortlisted",
+    statusTone: "shortlisted",
+    note: "Your profile matched the technical internship requirements. Prepare for the next interview stage.",
+  },
+  {
+    id: 2,
+    title: "Investment Banking Analyst",
+    company: "Goldman Sachs",
+    location: "Nairobi, Kenya",
+    type: "Graduate Program",
+    appliedDate: "7 July 2026",
+    deadline: "31 July 2026",
+    status: "Under Review",
+    statusTone: "review",
+    note: "The employer is reviewing your documents and academic background.",
+  },
+  {
+    id: 4,
+    title: "UX Design Intern",
+    company: "Figma",
+    location: "Nairobi, Kenya",
+    type: "Internship",
+    appliedDate: "28 June 2026",
+    deadline: "22 July 2026",
+    status: "Declined",
+    statusTone: "declined",
+    note: "The employer moved forward with other candidates for this application cycle.",
+  },
+];
+
+export default applications;

@@ -1,0 +1,40 @@
+.su-btn {
+	border: none;
+	border-radius: 12px;
+	padding: 0.85rem 1rem;
+	font-size: 0.95rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: transform 0.12s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.su-btn:disabled {
+	opacity: 0.65;
+	cursor: not-allowed;
+}
+
+.su-btn:not(:disabled):active {
+	transform: translateY(1px);
+}
+
+.su-btn-primary {
+	background: var(--su-blue);
+	color: #ffffff;
+}
+
+.su-btn-primary:hover:not(:disabled) {
+	background: var(--su-blue-dark);
+}
+
+.su-btn-secondary {
+	background: var(--su-blue-soft);
+	color: var(--su-blue);
+}
+
+.su-btn-secondary:hover:not(:disabled) {
+	background: #dfe8ff;
+}
+
+.su-btn-full {
+	width: 100%;
+}

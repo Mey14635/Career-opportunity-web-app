@@ -1,0 +1,84 @@
+
+
+.card {
+  background: var(--su-panel);
+  border: 1px solid #92afe9;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: var(--su-blue);
+  box-shadow: 0 14px 32px rgba(36, 70, 157, 0.12);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--su-text);
+  margin: 0;
+}
+
+.heart-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #d1d5db;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* When saved is true, the heart turns gold */
+.heart-btn.saved {
+  color: var(--su-gold);
+}
+
+.card-company {
+  font-size: 13px;
+  color: var(--su-muted);
+  margin: 0;
+}
+
+.card-description {
+  font-size: 13px;
+  color: var(--su-heading);
+  margin: 0;
+  overflow: hidden;
+  max-height: 2.8em;   
+  line-height: 1.4;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.badge {
+  background: var(--su-blue-soft);
+  color: var(--su-blue);
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.closes {
+  font-size: 12px;
+  color: var(--su-muted);
+}
