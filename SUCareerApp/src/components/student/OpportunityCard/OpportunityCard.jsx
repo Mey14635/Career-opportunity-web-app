@@ -1,7 +1,7 @@
 // src/components/OpportunityCard/OpportunityCard.jsx
 
-import { useAuth } from "../../Context/authContext";
-import { toggleSavedOpportunityForUser } from "../../utils/saveOpportunity";
+import { useAuth } from "../../../contexts/AuthContext";
+import { toggleSavedOpportunityForUser } from "../../../utils/saveOpportunity";
 import "./OpportunityCard.css";
 
 function OpportunityCard({

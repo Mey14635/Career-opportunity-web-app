@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { auth } from "../../firebase";
+import { auth } from "../../../config/firebase";
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -7,12 +7,12 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import AuthAlert from "../../components/Auth/AuthAlert";
-import AuthCard from "../../components/Auth/AuthCard";
-import AuthFooter from "../../components/Auth/AuthFooter";
-import AuthInput from "../../components/Auth/AuthInput";
-import AuthTabs from "../../components/Auth/AuthTabs";
-import Button from "../../components/Button/Button";
+import AuthAlert from "../../../components/shared/Auth/AuthAlert";
+import AuthCard from "../../../components/shared/Auth/AuthCard";
+import AuthFooter from "../../../components/shared/Auth/AuthFooter";
+import AuthInput from "../../../components/shared/Auth/AuthInput";
+import AuthTabs from "../../../components/shared/Auth/AuthTabs";
+import Button from "../../../components/shared/Button/Button";
 
 const SignUp = () => {
   const navigate = useNavigate();

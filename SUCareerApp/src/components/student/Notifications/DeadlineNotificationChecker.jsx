@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { useAuth } from "../../Context/authContext";
-import { db } from "../../firebase";
-import { checkSavedOpportunityDeadlines } from "../../services/notificationService";
+import { useAuth } from "../../../contexts/AuthContext";
+import { db } from "../../../config/firebase";
+import { checkSavedOpportunityDeadlines } from "../../../services/notificationService";
 
 function DeadlineNotificationChecker() {
   const { user } = useAuth();

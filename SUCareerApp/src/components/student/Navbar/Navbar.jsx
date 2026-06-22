@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../../firebase";
-import { useAuth } from "../../Context/authContext";
-import { subscribeToUserNotifications } from "../../services/notificationService";
+import { auth, db } from "../../../config/firebase";
+import { useAuth } from "../../../contexts/AuthContext";
+import { subscribeToUserNotifications } from "../../../services/notificationService";
 import "./Navbar.css";
 
 function Navbar() {

@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import JobDetailsModal from "../../components/JobDetailsModal/JobDetailsModal";
-import { useAuth } from "../../Context/authContext";
-import { db } from "../../firebase";
+import JobDetailsModal from "../../../components/student/JobDetailsModal/JobDetailsModal";
+import { useAuth } from "../../../contexts/AuthContext";
+import { db } from "../../../config/firebase";
 import {
   markNotificationAsRead,
   subscribeToUserNotifications,
-} from "../../services/notificationService";
-import { mapOpportunityDoc } from "../../utils/opportunityMapper";
+} from "../../../services/notificationService";
+import { mapOpportunityDoc } from "../../../utils/opportunityMapper";
 import "./Notifications.css";
 
 function Notifications() {

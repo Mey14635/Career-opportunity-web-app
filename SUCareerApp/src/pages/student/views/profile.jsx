@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { db, auth } from "../../firebase";
+import { db, auth } from "../../../config/firebase";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../Context/authContext"; // Imported useAuth context hook
-import Button from "../../components/Button/Button";
+import { useAuth } from "../../../contexts/AuthContext"; // Imported useAuth context hook
+import Button from "../../../components/shared/Button/Button";
 import "./profile.css";
 
 const Profile = () => {

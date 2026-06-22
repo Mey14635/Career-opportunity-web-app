@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
-import JobDetailsModal from "../../components/JobDetailsModal/JobDetailsModal";
-import { db } from "../../firebase";
-import { useAuth } from "../../Context/authContext";
-import { mapOpportunityDoc } from "../../utils/opportunityMapper";
+import JobDetailsModal from "../../../components/student/JobDetailsModal/JobDetailsModal";
+import { db } from "../../../config/firebase";
+import { useAuth } from "../../../contexts/AuthContext";
+import { mapOpportunityDoc } from "../../../utils/opportunityMapper";
 import "./Favorites.css";
 
 function formatDaysLeft(daysLeft) {

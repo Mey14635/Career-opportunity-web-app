@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useAuth } from "../../Context/authContext";
-import { submitApplication } from "../../services/applicationService";
-import { toggleSavedOpportunityForUser } from "../../utils/saveOpportunity";
+import { useAuth } from "../../../contexts/AuthContext";
+import { submitApplication } from "../../../services/applicationService";
+import { toggleSavedOpportunityForUser } from "../../../utils/saveOpportunity";
 import "./JobDetailsModal.css";
 
 function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSaveButton = false }) {

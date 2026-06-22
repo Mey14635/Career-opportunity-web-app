@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import OpportunityCard from "../../components/opportunityCard/OpportunityCard";
-import JobDetailsModal from "../../components/JobDetailsModal/JobDetailsModal";
-import { db } from "../../firebase";
-import { useAuth } from "../../Context/authContext";
-import { mapOpportunityDoc } from "../../utils/opportunityMapper";
+import OpportunityCard from "../../../components/student/OpportunityCard/OpportunityCard";
+import JobDetailsModal from "../../../components/student/JobDetailsModal/JobDetailsModal";
+import { db } from "../../../config/firebase";
+import { useAuth } from "../../../contexts/AuthContext";
+import { mapOpportunityDoc } from "../../../utils/opportunityMapper";
 import "./Dashboard.css";
 
 const defaultJobTypes = ["Internship", "Graduate Program", "Part-time", "Full-time"];

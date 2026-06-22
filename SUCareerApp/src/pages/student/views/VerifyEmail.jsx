@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { applyActionCode } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { auth, db } from "../../firebase";
-import AuthAlert from "../../components/Auth/AuthAlert";
-import AuthCard from "../../components/Auth/AuthCard";
+import { auth, db } from "../../../config/firebase";
+import AuthAlert from "../../../components/shared/Auth/AuthAlert";
+import AuthCard from "../../../components/shared/Auth/AuthCard";
 
 const VerifyEmail = () => {
   const navigate = useNavigate();

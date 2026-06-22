@@ -1,5 +1,5 @@
 import { addDoc, collection, deleteDoc, getDocs, query, serverTimestamp, where } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../config/firebase";
 import { checkOpportunityDeadlineForUser } from "../services/notificationService";
 
 async function findSavedOpportunityDocs(userId, opportunityID) {

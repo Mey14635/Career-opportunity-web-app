@@ -1,5 +1,5 @@
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../config/firebase";
 import { uploadApplicationDocument } from "./cloudinaryUpload";
 
 export async function hasStudentApplied(studentId, opportunityId) {

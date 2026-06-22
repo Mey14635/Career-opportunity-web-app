@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { auth, db } from "../../firebase";
+import { auth, db } from "../../../config/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import AuthAlert from "../../components/Auth/AuthAlert";
-import AuthCard from "../../components/Auth/AuthCard";
-import AuthFooter from "../../components/Auth/AuthFooter";
-import AuthInput from "../../components/Auth/AuthInput";
-import AuthTabs from "../../components/Auth/AuthTabs";
-import Button from "../../components/Button/Button";
+import AuthAlert from "../../../components/shared/Auth/AuthAlert";
+import AuthCard from "../../../components/shared/Auth/AuthCard";
+import AuthFooter from "../../../components/shared/Auth/AuthFooter";
+import AuthInput from "../../../components/shared/Auth/AuthInput";
+import AuthTabs from "../../../components/shared/Auth/AuthTabs";
+import Button from "../../../components/shared/Button/Button";
 
 const Login = () => {
   const [formData, setFormData] = useState({

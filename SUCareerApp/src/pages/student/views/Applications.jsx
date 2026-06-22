@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
-import { useAuth } from "../../Context/authContext";
-import { db } from "../../firebase";
-import { mapOpportunityDoc } from "../../utils/opportunityMapper";
+import { useAuth } from "../../../contexts/AuthContext";
+import { db } from "../../../config/firebase";
+import { mapOpportunityDoc } from "../../../utils/opportunityMapper";
 import "./Applications.css";
 
 function formatDate(value) {
