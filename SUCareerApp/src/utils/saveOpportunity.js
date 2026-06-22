@@ -1,24 +1,33 @@
-import { addDoc, collection, deleteDoc, getDocs, query, serverTimestamp, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { db } from "../config/firebase";
-import { checkOpportunityDeadlineForUser } from "../services/notificationService";
+import {
+  checkOpportunityDeadlineForUser,
+  checkSavedOpportunityDeadlines,
+} from "../services/notificationService";
 
 async function findSavedOpportunityDocs(userId, opportunityID) {
-  const existingUppercaseSaveQuery = query(
-    collection(db, "saved_opportunities"),
-    where("userId", "==", userId),
-    where("opportunityID", "==", opportunityID)
+  const savedCollection = collection(db, "saved_opportunities");
+  const userFields = ["userId", "studentId"];
+  const opportunityFields = ["opportunityID", "opportunityId"];
+  const savedQueries = userFields.flatMap((userField) =>
+    opportunityFields.map((opportunityField) =>
+      query(
+        savedCollection,
+        where(userField, "==", userId),
+        where(opportunityField, "==", opportunityID)
+      )
+    )
   );
-  const existingLowercaseSaveQuery = query(
-    collection(db, "saved_opportunities"),
-    where("userId", "==", userId),
-    where("opportunityId", "==", opportunityID)
-  );
-  const [existingUppercaseSaveSnap, existingLowercaseSaveSnap] = await Promise.all([
-    getDocs(existingUppercaseSaveQuery),
-    getDocs(existingLowercaseSaveQuery),
-  ]);
+  const savedSnaps = await Promise.all(savedQueries.map((savedQuery) => getDocs(savedQuery)));
+  const savedDocsById = new Map();
 
-  return [...existingUppercaseSaveSnap.docs, ...existingLowercaseSaveSnap.docs];
+  savedSnaps.forEach((savedSnap) => {
+    savedSnap.docs.forEach((savedDoc) => {
+      savedDocsById.set(savedDoc.id, savedDoc);
+    });
+  });
+
+  return [...savedDocsById.values()];
 }
 
 export async function saveOpportunityForUser(userId, opportunityID) {
@@ -28,7 +37,11 @@ export async function saveOpportunityForUser(userId, opportunityID) {
     return;
   }
 
-  await addDoc(collection(db, "saved_opportunities"), {
+  const savedRef = doc(collection(db, "saved_opportunities"));
+
+  await setDoc(savedRef, {
+    BookmarkID: savedRef.id,
+    studentId: userId,
     userId,
     opportunityID,
     savedAt: serverTimestamp(),
@@ -49,5 +62,6 @@ export async function toggleSavedOpportunityForUser(userId, opportunityID, curre
 
   await saveOpportunityForUser(userId, opportunityID);
   await checkOpportunityDeadlineForUser(userId, opportunityID);
+  await checkSavedOpportunityDeadlines(userId);
   return true;
 }

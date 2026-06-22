@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
 import JobDetailsModal from "../../../components/student/JobDetailsModal/JobDetailsModal";
 import { useAuth } from "../../../contexts/AuthContext";
-import { db } from "../../../config/firebase";
 import {
+  deleteNotification,
+  getOpportunitySnapByReference,
   markNotificationAsRead,
   subscribeToUserNotifications,
 } from "../../../services/notificationService";
@@ -45,18 +45,26 @@ function Notifications() {
       return;
     }
 
-    if (!notification.isRead) {
-      await handleMarkRead(notification.id);
-    }
-
     try {
-      const opportunitySnap = await getDoc(doc(db, "opportunities", notification.opportunityID));
+      if (!notification.isRead) {
+        await markNotificationAsRead(notification.id);
+      }
 
-      if (opportunitySnap.exists()) {
+      const opportunitySnap = await getOpportunitySnapByReference(notification.opportunityID);
+
+      if (opportunitySnap) {
         setSelectedOpportunity(mapOpportunityDoc(opportunitySnap));
       }
     } catch (err) {
-      console.error("Failed to load opportunity from notification:", err);
+      console.error("Failed to open opportunity from notification:", err);
+    }
+  }
+
+  async function handleDelete(notificationId) {
+    try {
+      await deleteNotification(notificationId);
+    } catch (err) {
+      console.error("Failed to delete notification:", err);
     }
   }
 
@@ -86,21 +94,25 @@ function Notifications() {
 
                 <div className="notification-card-content">
                   <div className="notification-card-top">
-                    <h2>{notification.title}</h2>
-                    <button
-                      type="button"
-                      disabled={notification.isRead}
-                      onClick={() => handleMarkRead(notification.id)}
-                    >
-                      {notification.isRead ? "Read" : "Mark read"}
-                    </button>
+                    <h2>Deadline reminder</h2>
+                    <div className="notification-card-buttons">
+                      <button
+                        type="button"
+                        disabled={notification.isRead}
+                        onClick={() => handleMarkRead(notification.id)}
+                      >
+                        {notification.isRead ? "Read" : "Mark read"}
+                      </button>
+                      <button
+                        className="delete-notification-btn"
+                        type="button"
+                        onClick={() => handleDelete(notification.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                   <p>{notification.message}</p>
-                  {notification.deadlineLabel && (
-                    <div className="notification-deadline">
-                      {notification.deadlineLabel}
-                    </div>
-                  )}
                   <small>{notification.date}</small>
                   {notification.opportunityID && (
                     <div className="notification-actions">

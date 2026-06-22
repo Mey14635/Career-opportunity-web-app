@@ -20,21 +20,34 @@ function DeadlineNotificationChecker() {
 
     runDeadlineCheck();
 
-    const savedQuery = query(
-      collection(db, "saved_opportunities"),
-      where("userId", "==", user.uid)
-    );
-    const unsubscribeSaved = onSnapshot(
-      savedQuery,
+    const savedCollection = collection(db, "saved_opportunities");
+    const unsubscribeUserSaved = onSnapshot(
+      query(savedCollection, where("userId", "==", user.uid)),
       () => runDeadlineCheck(),
       (err) => {
         console.error("Failed to watch saved opportunities:", err);
       }
     );
+    const unsubscribeStudentSaved = onSnapshot(
+      query(savedCollection, where("studentId", "==", user.uid)),
+      () => runDeadlineCheck(),
+      (err) => {
+        console.error("Failed to watch student saved opportunities:", err);
+      }
+    );
+    const unsubscribeOpportunities = onSnapshot(
+      collection(db, "opportunities"),
+      () => runDeadlineCheck(),
+      (err) => {
+        console.error("Failed to watch opportunities:", err);
+      }
+    );
     const intervalId = window.setInterval(runDeadlineCheck, 60 * 1000);
 
     return () => {
-      unsubscribeSaved();
+      unsubscribeUserSaved();
+      unsubscribeStudentSaved();
+      unsubscribeOpportunities();
       window.clearInterval(intervalId);
     };
   }, [user]);

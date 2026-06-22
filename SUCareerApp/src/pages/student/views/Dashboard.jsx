@@ -11,7 +11,7 @@ import { mapOpportunityDoc } from "../../../utils/opportunityMapper";
 import "./Dashboard.css";
 
 const defaultJobTypes = ["Internship", "Graduate Program", "Part-time", "Full-time"];
-const defaultCategories = ["Tech", "Finance", "Consulting", "Healthcare", "Marketing", "Design"];
+const defaultCategories = ["Technology", "Finance", "Consulting", "Healthcare", "Marketing", "Design"];
 
 function normalizeFilterValue(value) {
   return String(value || "")
@@ -32,8 +32,18 @@ function singularizeFilterValue(value) {
   return normalizedValue.endsWith("s") ? normalizedValue.slice(0, -1) : normalizedValue;
 }
 
+function normalizeCategoryValue(value) {
+  const normalizedValue = singularizeFilterValue(value);
+
+  return normalizedValue === "tech" ? "technology" : normalizedValue;
+}
+
 function getCanonicalDefaultOption(defaultOptions, value) {
   const compactValue = compactFilterValue(value);
+
+  if (compactValue === "tech" && defaultOptions.some((option) => compactFilterValue(option) === "technology")) {
+    return "Technology";
+  }
 
   return defaultOptions.find((option) => compactFilterValue(option) === compactValue) || value;
 }
@@ -46,9 +56,16 @@ function buildFilterOptions(defaultOptions, opportunities, fieldName, config = {
 
   const filterOptions = [...defaultOptions, ...firestoreOptions].reduce((acc, value) => {
       const canonicalValue = getCanonicalDefaultOption(defaultOptions, value);
-      const normalizedValue = singularizeFilterValue(canonicalValue);
+      const normalizedValue = config.normalizeValue
+        ? config.normalizeValue(canonicalValue)
+        : singularizeFilterValue(canonicalValue);
 
-      if (!normalizedValue || acc.some((item) => singularizeFilterValue(item) === normalizedValue)) {
+      if (
+        !normalizedValue ||
+        acc.some((item) =>
+          (config.normalizeValue ? config.normalizeValue(item) : singularizeFilterValue(item)) === normalizedValue
+        )
+      ) {
         return acc;
       }
 
@@ -76,6 +93,7 @@ function Dashboard() {
   const jobTypes = buildFilterOptions(defaultJobTypes, opportunities, "type");
   const categories = buildFilterOptions(defaultCategories, opportunities, "industry", {
     blocklist: categoryBlocklist,
+    normalizeValue: normalizeCategoryValue,
   });
 
   useEffect(() => {
@@ -105,14 +123,18 @@ function Dashboard() {
       }
 
       try {
-        const savedQuery = query(
-          collection(db, "saved_opportunities"),
-          where("userId", "==", user.uid)
-        );
-        const savedSnap = await getDocs(savedQuery);
-        const ids = savedSnap.docs
-          .map((docSnap) => docSnap.data().opportunityID || docSnap.data().opportunityId)
-          .filter(Boolean);
+        const savedCollection = collection(db, "saved_opportunities");
+        const [userSavedSnap, studentSavedSnap] = await Promise.all([
+          getDocs(query(savedCollection, where("userId", "==", user.uid))),
+          getDocs(query(savedCollection, where("studentId", "==", user.uid))),
+        ]);
+        const ids = [
+          ...new Set(
+            [...userSavedSnap.docs, ...studentSavedSnap.docs]
+              .map((docSnap) => docSnap.data().opportunityID || docSnap.data().opportunityId)
+              .filter(Boolean)
+          ),
+        ];
 
         setSavedOpportunityIds(ids);
       } catch (err) {
@@ -148,13 +170,13 @@ function Dashboard() {
 
     // If no filters selected, show all. Otherwise check if it matches.
     const opportunityType = normalizeFilterValue(opp.type);
-    const opportunityCategory = singularizeFilterValue(opp.industry);
+    const opportunityCategory = normalizeCategoryValue(opp.industry);
     const matchesType =
       selectedTypes.length === 0 ||
       selectedTypes.map(compactFilterValue).includes(compactFilterValue(opportunityType));
     const matchesIndustry =
       selectedIndustries.length === 0 ||
-      selectedIndustries.map(singularizeFilterValue).includes(opportunityCategory);
+      selectedIndustries.map(normalizeCategoryValue).includes(opportunityCategory);
 
     return matchesSearch && matchesType && matchesIndustry;
   });
@@ -197,9 +219,9 @@ function Dashboard() {
           <label key={category} className="filter-option">
             <input
               type="checkbox"
-              checked={selectedIndustries.includes(singularizeFilterValue(category))}
+              checked={selectedIndustries.includes(normalizeCategoryValue(category))}
               onChange={() =>
-                toggleFilter(category, selectedIndustries, setSelectedIndustries, singularizeFilterValue)
+                toggleFilter(category, selectedIndustries, setSelectedIndustries, normalizeCategoryValue)
               }
             />
             {String(category).replace(/["']/g, "")}

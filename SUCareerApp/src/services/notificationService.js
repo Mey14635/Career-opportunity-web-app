@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -21,6 +22,32 @@ function toDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function normalizeKey(key) {
+  return String(key).toLowerCase().replace(/[\s_-]/g, "");
+}
+
+function normalizeText(value) {
+  return String(value || "").replace(/^["']|["']$/g, "").trim();
+}
+
+function pickField(data, fieldNames) {
+  const normalizedEntries = Object.entries(data || {}).map(([key, value]) => [
+    normalizeKey(key),
+    value,
+  ]);
+
+  for (const fieldName of fieldNames) {
+    const normalizedFieldName = normalizeKey(fieldName);
+    const matchingEntry = normalizedEntries.find(([key]) => key === normalizedFieldName);
+
+    if (matchingEntry && matchingEntry[1] !== undefined && matchingEntry[1] !== null && matchingEntry[1] !== "") {
+      return matchingEntry[1];
+    }
+  }
+
+  return undefined;
+}
+
 function formatNotificationDate(value) {
   const date = toDate(value);
 
@@ -35,116 +62,135 @@ function formatNotificationDate(value) {
   });
 }
 
-function getDaysLeftLabel(value) {
+function isDeadlineWithin48Hours(value) {
   const deadline = toDate(value);
 
   if (!deadline) {
-    return "";
+    return false;
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  deadline.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const fortyEightHours = 48 * 60 * 60 * 1000;
+  const deadlineTime = deadline.getTime();
+  const timeUntilDeadline = deadlineTime - now.getTime();
 
-  const daysLeft = Math.max(0, Math.ceil((deadline - today) / (1000 * 60 * 60 * 24)));
-
-  if (daysLeft === 0) {
-    return "Due today";
+  if (timeUntilDeadline >= 0 && timeUntilDeadline <= fortyEightHours) {
+    return true;
   }
 
-  return `${daysLeft} ${daysLeft === 1 ? "day" : "days"} left`;
-}
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfTomorrow = new Date(startOfToday);
+  endOfTomorrow.setDate(endOfTomorrow.getDate() + 2);
+  endOfTomorrow.setMilliseconds(endOfTomorrow.getMilliseconds() - 1);
 
-function getCalendarDaysLeft(value) {
-  const deadline = toDate(value);
-
-  if (!deadline) {
-    return null;
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  deadline.setHours(0, 0, 0, 0);
-
-  return Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+  return deadlineTime >= startOfToday.getTime() && deadlineTime <= endOfTomorrow.getTime();
 }
 
 function getDeadlineValue(opportunityData = {}) {
-  return (
-    opportunityData.deadline ||
-    opportunityData.Deadline ||
-    opportunityData.applicationDeadline ||
-    opportunityData.application_deadline ||
-    opportunityData.closingDate ||
-    opportunityData.deadlineDate
-  );
+  return pickField(opportunityData, [
+    "deadline",
+    "applicationDeadline",
+    "application deadline",
+    "application_deadline",
+    "closingDate",
+    "closing date",
+    "closing_date",
+    "deadlineDate",
+    "deadline date",
+    "endDate",
+    "end date",
+  ]);
 }
 
 function getOpportunityTitle(opportunityData = {}) {
-  return opportunityData.title || opportunityData.jobTitle || opportunityData.position || "This opportunity";
+  return (
+    pickField(opportunityData, ["title", "jobTitle", "job title", "position"]) ||
+    "This opportunity"
+  );
 }
 
-async function getOpportunitySnapByReference(opportunityID) {
-  const opportunitySnap = await getDoc(doc(db, "opportunities", opportunityID));
+function getSavedOpportunityReference(savedData = {}) {
+  const referenceValue = pickField(savedData, [
+    "opportunityID",
+    "opportunityId",
+    "opportunity id",
+    "opportunity_id",
+    "opportunityRef",
+    "opportunity reference",
+    "jobId",
+    "job id",
+  ]);
+
+  if (!referenceValue) {
+    return "";
+  }
+
+  if (typeof referenceValue === "object" && referenceValue.id) {
+    return referenceValue.id;
+  }
+
+  return normalizeText(referenceValue);
+}
+
+export async function getOpportunitySnapByReference(opportunityID) {
+  const normalizedOpportunityID = normalizeText(opportunityID);
+
+  if (!normalizedOpportunityID) {
+    return null;
+  }
+
+  const opportunitySnap = await getDoc(doc(db, "opportunities", normalizedOpportunityID));
 
   if (opportunitySnap.exists()) {
     return opportunitySnap;
   }
 
-  const opportunityIdQuery = query(
-    collection(db, "opportunities"),
-    where("opportunityID", "==", opportunityID)
-  );
-  const opportunityIdSnap = await getDocs(opportunityIdQuery);
+  const referenceFields = ["opportunityID", "opportunityId"];
 
-  return opportunityIdSnap.docs[0] || null;
+  for (const fieldName of referenceFields) {
+    const opportunityIdQuery = query(
+      collection(db, "opportunities"),
+      where(fieldName, "==", normalizedOpportunityID)
+    );
+    const opportunityIdSnap = await getDocs(opportunityIdQuery);
+
+    if (!opportunityIdSnap.empty) {
+      return opportunityIdSnap.docs[0];
+    }
+  }
+
+  return null;
 }
 
 function mapNotificationDoc(docSnap) {
   const data = docSnap.data();
+  const notificationId = data.notificationId || docSnap.id;
+  const userId = data.userId || "";
+  const opportunityID =
+    userId && notificationId.startsWith(`${userId}_`) && notificationId.endsWith("_deadline_48h")
+      ? notificationId.slice(userId.length + 1, -"_deadline_48h".length)
+      : "";
 
   return {
     id: docSnap.id,
-    notificationId: data.notificationId || docSnap.id,
-    title: data.title || "Deadline reminder",
+    notificationId,
+    userId,
+    opportunityID,
     message: data.message || "You have a new notification.",
     isRead: data.isRead === true,
     sentAt: data.sentAt,
     date: formatNotificationDate(data.sentAt),
     readAt: data.readAt,
-    opportunityID: data.opportunityID || data.opportunityId,
-    deadlineAt: data.deadlineAt,
-    deadlineDate: formatNotificationDate(data.deadlineAt),
-    deadlineLabel: getDaysLeftLabel(data.deadlineAt),
-    dedupeKey: data.dedupeKey,
-    type: data.type,
   };
 }
 
 function getNotificationDedupeKey(notification) {
-  if (notification.dedupeKey) {
-    return notification.dedupeKey;
-  }
-
-  if (notification.opportunityID && notification.type) {
-    return `${notification.opportunityID}_${notification.type}`;
-  }
-
-  if (notification.opportunityID && notification.title === "Application deadline approaching") {
-    return `${notification.opportunityID}_deadline_48h`;
-  }
-
-  return notification.id;
+  return normalizeText(notification.message).toLowerCase() || notification.notificationId || notification.id;
 }
 
 function isNotificationStillRelevant(notification) {
-  const deadline = toDate(notification.deadlineAt);
-
-  if (!deadline) {
-    return true;
-  }
-
-  return deadline > new Date();
+  return Boolean(notification.message);
 }
 
 function dedupeNotifications(notifications) {
@@ -193,51 +239,66 @@ export async function markNotificationAsRead(notificationId) {
   });
 }
 
-function buildDeadlineNotificationId(userId, opportunityID) {
-  return `${userId}_${opportunityID}_deadline_48h`;
+export async function deleteNotification(notificationId) {
+  await deleteDoc(doc(db, "notifications", notificationId));
 }
 
 async function createDeadlineNotification(userId, opportunityID, opportunityData) {
-  const type = "deadline_48h";
-  const notificationId = buildDeadlineNotificationId(userId, opportunityID);
+  const normalizedOpportunityID = normalizeText(opportunityID);
   const title = getOpportunityTitle(opportunityData);
-  const baseNotificationData = {
-    userId,
-    opportunityID,
-    notificationId,
-    dedupeKey: notificationId,
-    type,
-    title: "Application deadline approaching",
-    message: `Your deadline for ${title} is within 48 hours.`,
-    deadlineAt: getDeadlineValue(opportunityData),
-  };
-  const newNotificationData = {
-    ...baseNotificationData,
-    isRead: false,
-    sentAt: serverTimestamp(),
-    readAt: null,
-  };
-  const notificationSnap = await getDoc(doc(db, "notifications", notificationId));
+  const message = `Your deadline for ${title} is 48hrs away!`;
+  const existingNotificationsQuery = query(
+    collection(db, "notifications"),
+    where("userId", "==", userId)
+  );
+  const existingNotificationsSnap = await getDocs(existingNotificationsQuery);
+  const alreadyExists = existingNotificationsSnap.docs.some((notificationDoc) => {
+    const notificationData = notificationDoc.data();
 
-  if (notificationSnap.exists()) {
-    await setDoc(doc(db, "notifications", notificationId), baseNotificationData, { merge: true });
+    return normalizeText(notificationData.message) === message;
+  });
+
+  if (alreadyExists) {
     return;
   }
 
-  await setDoc(doc(db, "notifications", notificationId), newNotificationData);
+  const notificationRef = doc(
+    db,
+    "notifications",
+    `${userId}_${normalizedOpportunityID}_deadline_48h`
+  );
+  const notificationSnap = await getDoc(notificationRef);
+
+  if (notificationSnap.exists()) {
+    return;
+  }
+
+  await setDoc(notificationRef, {
+    notificationId: notificationRef.id,
+    userId,
+    message,
+    isRead: false,
+    sentAt: serverTimestamp(),
+    readAt: null,
+  });
 }
 
 export async function checkSavedOpportunityDeadlines(userId) {
-  const savedQuery = query(
-    collection(db, "saved_opportunities"),
-    where("userId", "==", userId)
-  );
-  const savedSnap = await getDocs(savedQuery);
+  const savedCollection = collection(db, "saved_opportunities");
+  const [userSavedSnap, studentSavedSnap] = await Promise.all([
+    getDocs(query(savedCollection, where("userId", "==", userId))),
+    getDocs(query(savedCollection, where("studentId", "==", userId))),
+  ]);
+  const savedDocsById = new Map();
+
+  [...userSavedSnap.docs, ...studentSavedSnap.docs].forEach((savedDoc) => {
+    savedDocsById.set(savedDoc.id, savedDoc);
+  });
 
   await Promise.all(
-    savedSnap.docs.map(async (savedDoc) => {
+    [...savedDocsById.values()].map(async (savedDoc) => {
       const savedData = savedDoc.data();
-      const opportunityID = savedData.opportunityID || savedData.opportunityId;
+      const opportunityID = getSavedOpportunityReference(savedData);
 
       if (!opportunityID) {
         return;
@@ -250,9 +311,8 @@ export async function checkSavedOpportunityDeadlines(userId) {
       }
 
       const opportunityData = opportunitySnap.data();
-      const daysLeft = getCalendarDaysLeft(getDeadlineValue(opportunityData));
 
-      if (daysLeft === null || daysLeft < 0 || daysLeft > 2) {
+      if (!isDeadlineWithin48Hours(getDeadlineValue(opportunityData))) {
         return;
       }
 
@@ -269,9 +329,8 @@ export async function checkOpportunityDeadlineForUser(userId, opportunityID) {
   }
 
   const opportunityData = opportunitySnap.data();
-  const daysLeft = getCalendarDaysLeft(getDeadlineValue(opportunityData));
 
-  if (daysLeft === null || daysLeft < 0 || daysLeft > 2) {
+  if (!isDeadlineWithin48Hours(getDeadlineValue(opportunityData))) {
     return;
   }
 

@@ -145,7 +145,7 @@ function Navbar() {
                         !
                       </div>
                       <div>
-                        <h3>{notification.title}</h3>
+                        <h3>Deadline reminder</h3>
                         <p>{notification.message}</p>
                         {notification.date && <small>{notification.date}</small>}
                       </div>

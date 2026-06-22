@@ -93,7 +93,14 @@
   margin: 0;
 }
 
-.notification-card-top button {
+.notification-card-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.notification-card-buttons button {
   background: var(--su-blue-soft);
   border: 1px solid #c8d7fb;
   border-radius: 999px;
@@ -105,15 +112,25 @@
   white-space: nowrap;
 }
 
-.notification-card-top button:hover {
+.notification-card-buttons button:hover {
   background: #dfe8ff;
 }
 
-.notification-card-top button:disabled {
+.notification-card-buttons button:disabled {
   background: var(--su-field);
   border-color: var(--su-border);
   color: var(--su-muted);
   cursor: default;
+}
+
+.notification-card-buttons .delete-notification-btn {
+  background: #fff1f1;
+  border-color: #ffc7c7;
+  color: #c62828;
+}
+
+.notification-card-buttons .delete-notification-btn:hover {
+  background: #ffe4e4;
 }
 
 .notification-card p {

@@ -40,14 +40,14 @@ function Favorites() {
       setSavedError("");
 
       try {
-        const savedQuery = query(
-          collection(db, "saved_opportunities"),
-          where("userId", "==", user.uid)
-        );
-        const savedSnap = await getDocs(savedQuery);
+        const savedCollection = collection(db, "saved_opportunities");
+        const [userSavedSnap, studentSavedSnap] = await Promise.all([
+          getDocs(query(savedCollection, where("userId", "==", user.uid))),
+          getDocs(query(savedCollection, where("studentId", "==", user.uid))),
+        ]);
         const opportunityIds = [
           ...new Set(
-            savedSnap.docs
+            [...userSavedSnap.docs, ...studentSavedSnap.docs]
               .map((docSnap) => docSnap.data().opportunityID || docSnap.data().opportunityId)
               .filter(Boolean)
           ),
