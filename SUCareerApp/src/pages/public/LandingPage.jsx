@@ -31,7 +31,8 @@ export default function LandingPage() {
             Help Center
           </button>
           <button 
-            onClick={() => navigate('/login')}
+            // FIXED: Point to the new student login
+            onClick={() => navigate('/student-dashboard/login')}
             style={{ padding: '12px 28px', backgroundColor: GOLD, color: NAVY, borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', transition: 'transform 0.2s', boxShadow: '0 4px 12px rgba(201, 162, 48, 0.2)' }}
           >
             Portal Login
@@ -48,7 +49,13 @@ export default function LandingPage() {
             The centralized hub for empowering student careers and enabling top-tier corporate partnerships across the continent.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
-            <button style={{ padding: '16px 36px', backgroundColor: GOLD, color: NAVY, borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '16px', cursor: 'pointer' }}>Get Started</button>
+            <button 
+              // FIXED: Added onClick to point to the new student signup
+              onClick={() => navigate('/student-dashboard/signup')}
+              style={{ padding: '16px 36px', backgroundColor: GOLD, color: NAVY, borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '16px', cursor: 'pointer' }}
+            >
+              Get Started
+            </button>
             <button 
               onClick={() => navigate('/employer-access')}
               style={{ padding: '16px 36px', backgroundColor: 'rgba(255,255,255,0.1)', color: '#ffffff', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', fontWeight: 600, fontSize: '16px', cursor: 'pointer' }}
@@ -70,7 +77,8 @@ export default function LandingPage() {
               Launch your career. Discover exclusive internships, build your profile, and connect with top recruiters.
             </p>
             <button 
-              onClick={() => navigate('/login')}
+              // FIXED: Point to the new student login
+              onClick={() => navigate('/student-dashboard/login')}
               style={{ padding: '14px 32px', backgroundColor: '#f1f5f9', color: NAVY, borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', width: '100%', marginTop: 'auto' }}
             >
               Discover Opportunities

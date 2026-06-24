@@ -25,7 +25,7 @@ export default function App() {
           {/* Dashboard Routes */}
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           <Route path="/employer-dashboard" element={<EmployerDashboard />} />
-          <Route path="/student-dashboard" element={<StudentDashboard />} />
+          <Route path="/student-dashboard/*" element={<StudentDashboard />} />
 
           {/* Catch-all redirect for bad URLs */}
           <Route path="*" element={<Navigate to="/" />} />

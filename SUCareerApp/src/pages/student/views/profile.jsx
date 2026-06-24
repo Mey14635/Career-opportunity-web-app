@@ -3,12 +3,12 @@ import { db, auth } from "../../../config/firebase";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../contexts/AuthContext"; // Imported useAuth context hook
+import { useAuth } from "../../../contexts/AuthContext"; 
 import Button from "../../../components/shared/Button/Button";
 import "./profile.css";
 
 const Profile = () => {
-  const { user, hasProfile, refreshAuthStatus } = useAuth(); // Destructured the refresh action
+  const { user, hasProfile, refreshAuthStatus } = useAuth(); 
   const [academicStatus, setAcademicStatus] = useState("");
   const [course, setCourse] = useState("");
   const [selectedInterests, setSelectedInterests] = useState([]);
@@ -73,7 +73,6 @@ const Profile = () => {
     setProfileForm({ ...profileForm, [e.target.name]: e.target.value });
   };
 
-  // Toggle interest tags in and out of the array
   const handleTagToggle = (interest) => {
     if (selectedInterests.includes(interest)) {
       setSelectedInterests(selectedInterests.filter((item) => item !== interest));
@@ -153,28 +152,25 @@ const Profile = () => {
 
     if (user) {
       try {
-        // 1. Update the student metadata profile document
         const profileRef = doc(db, "student_profiles", user.uid);
         await setDoc(profileRef, {
           yearOfStudy: academicStatus,
           course: course,
           interests: selectedInterests,
-          profileCompleted: true, // Renamed from isOnboarded to maintain alignment
+          profileCompleted: true, 
           updatedAt: serverTimestamp(),
         }, { merge: true });
 
-        // 2. Update the main authorization user document
         const userRef = doc(db, "user", user.uid);
         await setDoc(userRef, {
-          profileCompleted: true, // Renamed from isOnboarded to maintain alignment
+          profileCompleted: true, 
           updatedAt: serverTimestamp(),
         }, { merge: true });
 
-        // 3. Force AuthContext to read the updated database values before migrating routes
         await refreshAuthStatus();
 
-        // 4. Smooth execution into the dashboard
-        navigate("/dashboard", { replace: true });
+        // FIXED: Added full path to ensure it stays within the student portal
+        navigate("/student-dashboard/dashboard", { replace: true });
       } catch (err) {
         console.error(err);
         setError("Failed to save profile configuration: " + err.message);
@@ -194,7 +190,8 @@ const Profile = () => {
       <div className="profile-page">
         <div className="profile-shell">
           <div className="profile-header-card">
-            <button className="profile-back-btn" type="button" onClick={() => navigate("/dashboard")}>
+            {/* FIXED: Added full path to the back button */}
+            <button className="profile-back-btn" type="button" onClick={() => navigate("/student-dashboard/dashboard")}>
               Back to Dashboard
             </button>
             <div className="profile-avatar">{initial}</div>
@@ -305,7 +302,6 @@ const Profile = () => {
           <p>SU Career Portal</p>
         </div>
 
-        {/* Step Indicator Header matching your design layout */}
         <div className="onboard-steps">
           <div className="step-item completed">
             <span className="step-badge">✓</span>
@@ -327,7 +323,6 @@ const Profile = () => {
 
         <form onSubmit={handleSaveProfile} className="onboard-form">
           
-          {/* Academic Status Select Dropdown */}
           <div className="select-group">
             <label>Current Academic Status</label>
             <select 
@@ -344,7 +339,6 @@ const Profile = () => {
             </select>
           </div>
 
-          {/* Course of Study Select Dropdown */}
           <div className="select-group">
             <label>Course of Study</label>
             <select 
@@ -360,7 +354,6 @@ const Profile = () => {
             </select>
           </div>
 
-          {/* Professional Interest Pill Badges Selection Grid */}
           <div className="interests-section">
             <label>Professional Interests</label>
             <p className="interests-sub">Select all that apply</p>
