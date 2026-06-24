@@ -1,0 +1,58 @@
+import { NAVY, GOLD } from '../constants';
+
+export default function NotificationsView({ notificationsData, setNotifications }) {
+  const unreadCount = notificationsData.filter(n => !n.read).length;
+  const markAllAsRead = () => {
+    setNotifications(notificationsData.map(n => ({ ...n, read: true })));
+  };
+  const handleDismiss = (id) => {
+    setNotifications(notificationsData.filter(n => n.id !== id));
+  };
+
+  return (
+    <div style={{ maxWidth: '1200px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
+        <div>
+          <h1 style={{ margin: '0 0 8px 0', fontSize: 24, fontWeight: 800, color: NAVY }}>System Alerts & Notifications</h1>
+          <p style={{ margin: 0, fontSize: 14, color: '#64748b' }}>
+            {unreadCount === 0 ? "You're all caught up." : `${unreadCount} unread alerts requiring review.`}
+          </p>
+        </div>
+        {unreadCount > 0 && (
+          <button onClick={markAllAsRead} style={{ background: 'none', border: 'none', color: GOLD, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+            Mark all as read
+          </button>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {notificationsData.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '64px', background: 'white', borderRadius: 12, color: '#94a3b8' }}>No notifications to display.</div>
+        )}
+        {notificationsData.map(note => (
+          <div key={note.id} style={{
+            background: '#ffffff', borderRadius: 12, padding: '24px 32px', display: 'flex', alignItems: 'flex-start', gap: 20,
+            border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+          }}>
+            <div style={{ marginTop: 6 }}>
+              {note.read ? (
+                <div style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #cbd5e1' }} />
+              ) : (
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: GOLD }} />
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: 15, fontWeight: note.read ? 600 : 700, color: note.read ? '#64748b' : NAVY }}>{note.title}</h3>
+              <p style={{ margin: '0 0 12px 0', fontSize: 14, color: note.read ? '#94a3b8' : '#475569', lineHeight: 1.6 }}>{note.desc}</p>
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>{note.time}</div>
+            </div>
+            {!note.read && (
+              <button onClick={() => handleDismiss(note.id)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: '4px 8px' }}>
+                Dismiss
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
