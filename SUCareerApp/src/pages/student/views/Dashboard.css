@@ -1,0 +1,89 @@
+/* src/views/student/Dashboard.css */
+
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--su-page);
+}
+
+/* --- Sidebar --- */
+.sidebar {
+  width: 200px;
+  min-width: 200px;
+  padding: 24px 16px;
+  border-right: 1px solid var(--su-border);
+  background: var(--su-panel);
+}
+
+.sidebar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--su-text);
+  margin-bottom: 16px;
+}
+
+.filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--su-blue);
+  letter-spacing: 0.05em;
+  margin: 16px 0 8px;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--su-heading);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.main-content {
+  flex: 1;
+  padding: 24px 32px;
+}
+
+
+
+.section-heading h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--su-text);
+  margin: 0;
+}
+
+.section-heading p {
+  font-size: 13px;
+  color: var(--su-muted);
+  margin: 4px 0 24px;
+}
+
+/* Grid: 3 columns on big screens, 2 on medium, 1 on small */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    display: none; 
+  }
+}
+
+.no-results {
+  color: var(--su-muted);
+  font-size: 14px;
+  grid-column: 1 / -1;
+}

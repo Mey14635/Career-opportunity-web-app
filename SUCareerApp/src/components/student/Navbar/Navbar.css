@@ -1,0 +1,265 @@
+/* src/components/Navbar/Navbar.css */
+
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 24px;
+  height: 56px;
+  background: var(--su-panel);
+  border-bottom: 1px solid var(--su-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Logo circle */
+.navbar-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.navbar-brand {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--su-text);
+  white-space: nowrap;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Tab links */
+.navbar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+
+.nav-tab {
+  padding: 0 12px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--su-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-tab:hover {
+  color: var(--su-text);
+}
+
+/* Active tab gets blue underline */
+.active-tab {
+  color: var(--su-blue);
+  border-bottom: 2px solid var(--su-blue);
+  font-weight: 500;
+}
+
+/* Search */
+.navbar-search {
+  flex: 1;
+  max-width: 360px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--su-field);
+  border: 1px solid var(--su-border);
+  border-radius: 24px;
+  padding: 6px 14px;
+}
+
+.search-icon {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.navbar-search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: var(--su-heading);
+  width: 100%;
+}
+
+/* Right side */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.bell-btn {
+  width: 34px;
+  height: 34px;
+  position: relative;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  color: var(--su-gold);
+}
+
+.bell-btn:hover {
+  color: #b77f08;
+  background: var(--su-blue-soft);
+}
+
+.bell-btn::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--su-panel);
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.notification-menu {
+  position: relative;
+}
+
+.notification-popover {
+  position: absolute;
+  top: 46px;
+  right: -10px;
+  width: 320px;
+  overflow: hidden;
+  background: var(--su-panel);
+  border: 1px solid var(--su-border);
+  border-top: 4px solid var(--su-gold);
+  border-radius: 8px;
+  box-shadow: 0 18px 38px rgba(7, 21, 47, 0.16);
+  z-index: 250;
+}
+
+.notification-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--su-border);
+}
+
+.notification-popover-header h2 {
+  color: var(--su-text);
+  font-size: 16px;
+  margin: 0;
+}
+
+.notification-popover-header span {
+  color: #dc2626;
+  background: #fff1f1;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+}
+
+.notification-popover-list {
+  display: grid;
+}
+
+.notification-preview {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--su-border);
+}
+
+.notification-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #fff7e3;
+  color: var(--su-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.notification-preview h3 {
+  color: var(--su-text);
+  font-size: 14px;
+  line-height: 1.3;
+  margin: 0 0 5px;
+}
+
+.notification-preview p {
+  color: var(--su-heading);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.notification-preview small {
+  color: var(--su-muted);
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.view-notifications-btn {
+  width: 100%;
+  border: none;
+  background: var(--su-panel);
+  color: var(--su-blue);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 16px;
+}
+
+.view-notifications-btn:hover {
+  background: var(--su-blue-soft);
+}
+
+/* Avatar circle */
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--su-blue);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.avatar:hover {
+  background: var(--su-blue-dark);
+}
+
+.logout-btn {
+  border: 1px solid var(--su-border);
+  background: var(--su-blue-soft);
+  color: var(--su-blue);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.logout-btn:hover {
+  background: #dfe8ff;
+}
