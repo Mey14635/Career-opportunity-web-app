@@ -1,0 +1,32 @@
+.su-input-group {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.su-input-label {
+	color: var(--su-heading);
+	font-size: 0.85rem;
+	font-weight: 600;
+}
+
+.su-input {
+	width: 100%;
+	border: 1px solid var(--su-border);
+	border-radius: 10px;
+	padding: 0.75rem 0.9rem;
+	font-size: 0.95rem;
+	color: var(--su-text);
+	background: var(--su-panel);
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.su-input::placeholder {
+	color: #97a3bb;
+}
+
+.su-input:focus {
+	outline: none;
+	border-color: var(--su-blue);
+	box-shadow: 0 0 0 3px rgba(46, 91, 191, 0.14);
+}
