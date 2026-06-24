@@ -73,7 +73,8 @@ function Navbar() {
   async function handleLogout() {
     try {
       await signOut(auth);
-      navigate("/login", { replace: true });
+      // FIXED: Route back to the student login
+      navigate("/student-dashboard/login", { replace: true });
     } catch (err) {
       console.error("Logout failed:", err);
     }
@@ -89,22 +90,22 @@ function Navbar() {
         <span className="navbar-brand">SU Career Portal</span>
       </div>
 
-      {/*  Tab links */}
+      {/* FIXED: Tab links updated with full paths */}
       <div className="navbar-tabs">
         <NavLink
-          to="/dashboard"
+          to="/student-dashboard/dashboard"
           className={({ isActive }) => isActive ? "nav-tab active-tab" : "nav-tab"}
         >
           Dashboard
         </NavLink>
         <NavLink
-          to="/favorites"
+          to="/student-dashboard/favorites"
           className={({ isActive }) => isActive ? "nav-tab active-tab" : "nav-tab"}
         >
           Favorites
         </NavLink>
         <NavLink
-          to="/applications"
+          to="/student-dashboard/applications"
           className={({ isActive }) => isActive ? "nav-tab active-tab" : "nav-tab"}
         >
           My Applications
@@ -173,7 +174,8 @@ function Navbar() {
                 type="button"
                 onClick={() => {
                   setShowNotifications(false);
-                  navigate("/notifications");
+                  // FIXED: Added full path
+                  navigate("/student-dashboard/notifications");
                 }}
               >
                 View all notifications
@@ -181,6 +183,7 @@ function Navbar() {
             </div>
           )}
         </div>
+<<<<<<< HEAD
         <div className="user-menu">
           <button
             className="avatar-btn"
@@ -222,6 +225,15 @@ function Navbar() {
               </button>
             </div>
           )}
+=======
+        <div
+          className="avatar"
+          // FIXED: Added full path
+          onClick={() => navigate("/student-dashboard/profile")}
+          title="Go to profile"
+        >
+          {avatarInitial}
+>>>>>>> origin/feat/employer-admin-integration
         </div>
       </div>
     </nav>

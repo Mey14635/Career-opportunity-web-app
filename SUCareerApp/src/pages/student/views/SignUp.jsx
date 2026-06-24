@@ -7,6 +7,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react"; // Added icon
 import AuthAlert from "../../../components/shared/Auth/AuthAlert";
 import AuthCard from "../../../components/shared/Auth/AuthCard";
 import AuthFooter from "../../../components/shared/Auth/AuthFooter";
@@ -34,10 +35,11 @@ const SignUp = () => {
 
   const sendStudentVerificationEmail = async (user) => {
     await sendEmailVerification(user, {
-      url: `${window.location.origin}/verify-email`,
+      // FIXED: Added full path for the email redirect
+      url: `${window.location.origin}/student-dashboard/verify-email`,
       handleCodeInApp: false,
     });
-    setSuccess("Verification email sent. Please check your inbox  .");
+    setSuccess("Verification email sent. Please check your inbox.");
   };
 
   const savePendingRegistration = (user, firstName, lastName, email) => {
@@ -61,7 +63,6 @@ const SignUp = () => {
     const trimmedLastName = lastName.trim();
     const trimmedEmail = email.trim().toLowerCase();
 
-    // 1. Client-Side Input Validations
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -75,21 +76,19 @@ const SignUp = () => {
     setLoading(true);
 
     try {
-      // 2. Create the Account in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
       const user = userCredential.user;
 
-      
       await updateProfile(user, {
         displayName: `${trimmedFirstName} ${trimmedLastName}`,
       });
 
-      // 4. Trigger Verification Email immediately
-
       await sendStudentVerificationEmail(user);
       savePendingRegistration(user, trimmedFirstName, trimmedLastName, trimmedEmail);
       setFormData({ firstName: trimmedFirstName, lastName: trimmedLastName, email: trimmedEmail, password: "", confirmPassword: "" });
-      navigate("/verify-email", { replace: true });
+      
+      // FIXED: Added full path
+      navigate("/student-dashboard/verify-email", { replace: true });
     } catch (err) {
       console.error(err);
       if (err.code === "auth/email-already-in-use") {
@@ -105,7 +104,9 @@ const SignUp = () => {
           await sendStudentVerificationEmail(existingUser);
           savePendingRegistration(existingUser, trimmedFirstName, trimmedLastName, trimmedEmail);
           setFormData({ firstName: trimmedFirstName, lastName: trimmedLastName, email: trimmedEmail, password: "", confirmPassword: "" });
-          navigate("/verify-email", { replace: true });
+          
+          // FIXED: Added full path
+          navigate("/student-dashboard/verify-email", { replace: true });
         } catch (signInErr) {
           console.error(signInErr);
           setError("This email is already registered. Please log in or reset your password.");
@@ -123,30 +124,43 @@ const SignUp = () => {
   };
 
   return (
-    <AuthCard>
-      <AuthTabs activeTab="signup" />
-      <AuthAlert message={error} type="danger" />
-      <AuthAlert message={success} type="success" />
+    <>
+      {/* ADDED: Absolute positioned Back Button */}
+      <div style={{ position: 'absolute', top: '24px', left: '24px', zIndex: 50 }}>
+        <button 
+          onClick={() => navigate('/')}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: '#1B3A6B', fontWeight: 600, cursor: 'pointer', fontSize: '15px', fontFamily: 'Inter' }}
+        >
+          <ArrowLeft size={18} /> Back to Home
+        </button>
+      </div>
 
-      <form onSubmit={handleSignUp} className="auth-form">
-        <div className="form-row">
-          <AuthInput type="text" name="firstName" value={formData.firstName} required onChange={handleChange} label="First Name" placeholder="John" />
-          <AuthInput type="text" name="lastName" value={formData.lastName} required onChange={handleChange} label="Last Name" placeholder="Doe" />
-        </div>
+      <AuthCard>
+        <AuthTabs activeTab="signup" />
+        <AuthAlert message={error} type="danger" />
+        <AuthAlert message={success} type="success" />
 
-        <AuthInput type="email" name="email" value={formData.email} required onChange={handleChange} label="Strathmore Email Address" placeholder="username@strathmore.edu" />
+        <form onSubmit={handleSignUp} className="auth-form">
+          <div className="form-row">
+            <AuthInput type="text" name="firstName" value={formData.firstName} required onChange={handleChange} label="First Name" placeholder="John" />
+            <AuthInput type="text" name="lastName" value={formData.lastName} required onChange={handleChange} label="Last Name" placeholder="Doe" />
+          </div>
 
-        <AuthInput type="password" name="password" value={formData.password} required onChange={handleChange} label="Password" placeholder="••••••••" />
+          <AuthInput type="email" name="email" value={formData.email} required onChange={handleChange} label="Strathmore Email Address" placeholder="username@strathmore.edu" />
 
-        <AuthInput type="password" name="confirmPassword" value={formData.confirmPassword} required onChange={handleChange} label="Confirm Password" placeholder="••••••••" />
+          <AuthInput type="password" name="password" value={formData.password} required onChange={handleChange} label="Password" placeholder="••••••••" />
 
-        <Button type="submit" className="auth-btn" disabled={loading}>
-          {loading ? "Creating Account..." : "Register Account"}
-        </Button>
-      </form>
+          <AuthInput type="password" name="confirmPassword" value={formData.confirmPassword} required onChange={handleChange} label="Confirm Password" placeholder="••••••••" />
 
-      <AuthFooter text="Already have an account?" linkText="Log In" to="/login" />
-    </AuthCard>
+          <Button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? "Creating Account..." : "Register Account"}
+          </Button>
+        </form>
+
+        {/* FIXED: Footer link updated to point to the correct student login route */}
+        <AuthFooter text="Already have an account?" linkText="Log In" to="/student-dashboard/login" />
+      </AuthCard>
+    </>
   );
 };
 

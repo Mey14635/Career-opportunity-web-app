@@ -1,8 +1,8 @@
-// Import the functions you need from the SDKs you need
+// Core Firebase imports combined cleanly
 import { initializeApp } from "firebase/app";
-import { browserLocalPersistence, getAuth, setPersistence } from "firebase/auth";
+import { getAuth, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getAnalytics, isSupported } from "firebase/analytics";
+import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,7 +18,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Core services used across frontend components
+// Export core services for your team to use across the frontend
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
@@ -43,8 +43,6 @@ isSupported()
 // A clean function your team can safely call anywhere without crashing the app
 export const logEventSafely = (eventName, eventParams = {}) => {
   if (analyticsInstance) {
-    import("firebase/analytics").then(({ logEvent }) => {
-      logEvent(analyticsInstance, eventName, eventParams);
-    });
+    logEvent(analyticsInstance, eventName, eventParams);
   }
 };
