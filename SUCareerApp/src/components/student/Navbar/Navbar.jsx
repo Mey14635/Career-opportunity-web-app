@@ -13,6 +13,7 @@ function Navbar() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [avatarInitial, setAvatarInitial] = useState("U");
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const searchText = searchParams.get("search") || "";
   const newNotificationsCount = notifications.filter((item) => !item.isRead).length;
@@ -125,7 +126,10 @@ function Navbar() {
             className="bell-btn"
             aria-label="Notifications"
             aria-expanded={showNotifications}
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              setShowUserMenu(false);
+            }}
           >
             <span aria-hidden="true">🔔</span>
           </button>
@@ -177,16 +181,48 @@ function Navbar() {
             </div>
           )}
         </div>
-        <div
-          className="avatar"
-          onClick={() => navigate("/profile")}
-          title="Go to profile"
-        >
-          {avatarInitial}
+        <div className="user-menu">
+          <button
+            className="avatar-btn"
+            type="button"
+            aria-label="User menu"
+            aria-expanded={showUserMenu}
+            onClick={() => {
+              setShowUserMenu(!showUserMenu);
+              setShowNotifications(false);
+            }}
+          >
+            <span className="avatar">{avatarInitial}</span>
+          </button>
+
+          {showUserMenu && (
+            <div className="user-menu-popover">
+              <button
+                className="user-menu-item"
+                type="button"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  navigate("/profile");
+                }}
+              >
+                <span className="user-menu-icon" aria-hidden="true">◎</span>
+                <span>Profile</span>
+              </button>
+
+              <button
+                className="user-menu-item danger"
+                type="button"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  handleLogout();
+                }}
+              >
+                <span className="user-menu-icon" aria-hidden="true">↪</span>
+                <span>Sign out</span>
+              </button>
+            </div>
+          )}
         </div>
-        <button className="logout-btn" type="button" onClick={handleLogout}>
-          Logout
-        </button>
       </div>
     </nav>
   );

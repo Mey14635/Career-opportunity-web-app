@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { auth, db } from "../../../config/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import AuthAlert from "../../../components/shared/Auth/AuthAlert";
@@ -16,7 +16,9 @@ const Login = () => {
     password: "",
   });
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -26,7 +28,8 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    setSuccess("");
+    setLoginLoading(true);
 
     const { email, password } = formData;
     const trimmedEmail = email.trim().toLowerCase();
@@ -72,7 +75,36 @@ const Login = () => {
         setError(err.message);
       }
     } finally {
-      setLoading(false);
+      setLoginLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const trimmedEmail = formData.email.trim().toLowerCase();
+    setError("");
+    setSuccess("");
+
+    if (!trimmedEmail) {
+      setError("Enter your email address first, then use forgot password.");
+      return;
+    }
+
+    setResetLoading(true);
+
+    try {
+      await sendPasswordResetEmail(auth, trimmedEmail);
+      setSuccess("Password reset email sent. Check your inbox for Firebase's reset link.");
+    } catch (err) {
+      console.error(err);
+      if (err.code === "auth/invalid-email") {
+        setError("Enter a valid email address before requesting a password reset.");
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Too many reset attempts. Please wait a moment and try again.");
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -80,6 +112,7 @@ const Login = () => {
     <AuthCard>
       <AuthTabs activeTab="login" />
       <AuthAlert message={error} type="danger" />
+      <AuthAlert message={success} type="success" />
 
       <form onSubmit={handleLogin} className="auth-form">
         <AuthInput 
@@ -102,8 +135,17 @@ const Login = () => {
           placeholder="••••••••" 
         />
 
-        <Button type="submit" className="auth-btn" disabled={loading}>
-          {loading ? "Signing In..." : "Log In"}
+        <button
+          type="button"
+          className="auth-link-btn"
+          onClick={handleForgotPassword}
+          disabled={resetLoading || loginLoading}
+        >
+          {resetLoading ? "Sending reset email..." : "Forgot password?"}
+        </button>
+
+        <Button type="submit" className="auth-btn" disabled={loginLoading || resetLoading}>
+          {loginLoading ? "Signing In..." : "Log In"}
         </Button>
       </form>
 

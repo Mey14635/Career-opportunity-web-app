@@ -2,54 +2,68 @@
 
 .dashboard-layout {
   display: flex;
-  min-height: 100vh;
-  background: var(--su-page);
+  min-height: calc(100vh - 64px);
+  background: transparent;
 }
 
 /* --- Sidebar --- */
 .sidebar {
-  width: 200px;
-  min-width: 200px;
-  padding: 24px 16px;
-  border-right: 1px solid var(--su-border);
-  background: var(--su-panel);
+  width: 220px;
+  min-width: 220px;
+  padding: 26px 18px;
+  border-right: 1px solid rgba(226, 231, 240, 0.85);
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+  box-shadow: 10px 0 30px rgba(7, 21, 47, 0.04);
 }
 
 .sidebar-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 800;
   color: var(--su-text);
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .filter-label {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--su-blue);
-  letter-spacing: 0.05em;
-  margin: 16px 0 8px;
+  margin: 18px 0 9px;
 }
 
 .filter-option {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 13px;
   color: var(--su-heading);
-  margin-bottom: 8px;
+  margin-bottom: 7px;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.filter-option:hover {
+  background: var(--su-blue-soft);
+  border-color: #c8d7fb;
+  color: var(--su-blue);
+}
+
+.filter-option input {
+  accent-color: var(--su-blue);
+  width: 15px;
+  height: 15px;
 }
 
 .main-content {
   flex: 1;
-  padding: 24px 32px;
+  padding: 30px 34px 48px;
 }
 
-
-
 .section-heading h1 {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 850;
   color: var(--su-text);
   margin: 0;
 }
@@ -57,14 +71,14 @@
 .section-heading p {
   font-size: 13px;
   color: var(--su-muted);
-  margin: 4px 0 24px;
+  margin: 6px 0 26px;
 }
 
 /* Grid: 3 columns on big screens, 2 on medium, 1 on small */
 .cards-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 22px;
 }
 
 @media (max-width: 1024px) {
@@ -79,6 +93,10 @@
   }
   .sidebar {
     display: none; 
+  }
+
+  .main-content {
+    padding: 22px 16px 36px;
   }
 }
 
