@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import { ChevronDown, LogOut, UserCircle } from "lucide-react";
 import { auth, db } from "../../../config/firebase";
 import { useAuth } from "../../../contexts/AuthContext";
 import { subscribeToUserNotifications } from "../../../services/notificationService";
@@ -13,6 +14,7 @@ function Navbar() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [avatarInitial, setAvatarInitial] = useState("U");
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const searchText = searchParams.get("search") || "";
   const newNotificationsCount = notifications.filter((item) => !item.isRead).length;
@@ -72,7 +74,7 @@ function Navbar() {
   async function handleLogout() {
     try {
       await signOut(auth);
-      navigate("/login", { replace: true });
+      navigate("/student-dashboard/login", { replace: true });
     } catch (err) {
       console.error("Logout failed:", err);
     }
@@ -80,7 +82,6 @@ function Navbar() {
 
   return (
     <nav className="navbar">
-      {/* Left: Logo + brand name */}
       <div className="navbar-left">
         <div className="navbar-logo su-logo-mark" aria-hidden="true">
           <span />
@@ -91,19 +92,19 @@ function Navbar() {
       {/*  Tab links */}
       <div className="navbar-tabs">
         <NavLink
-          to="/dashboard"
+          to="/student-dashboard/dashboard"
           className={({ isActive }) => isActive ? "nav-tab active-tab" : "nav-tab"}
         >
           Dashboard
         </NavLink>
         <NavLink
-          to="/favorites"
+          to="/student-dashboard/favorites"
           className={({ isActive }) => isActive ? "nav-tab active-tab" : "nav-tab"}
         >
           Favorites
         </NavLink>
         <NavLink
-          to="/applications"
+          to="/student-dashboard/applications"
           className={({ isActive }) => isActive ? "nav-tab active-tab" : "nav-tab"}
         >
           My Applications
@@ -145,7 +146,7 @@ function Navbar() {
                         !
                       </div>
                       <div>
-                        <h3>Deadline reminder</h3>
+                        <h3>{notification.title}</h3>
                         <p>{notification.message}</p>
                         {notification.date && <small>{notification.date}</small>}
                       </div>
@@ -169,7 +170,7 @@ function Navbar() {
                 type="button"
                 onClick={() => {
                   setShowNotifications(false);
-                  navigate("/notifications");
+                  navigate("/student-dashboard/notifications");
                 }}
               >
                 View all notifications
@@ -177,16 +178,38 @@ function Navbar() {
             </div>
           )}
         </div>
-        <div
-          className="avatar"
-          onClick={() => navigate("/profile")}
-          title="Go to profile"
-        >
-          {avatarInitial}
+        <div className="user-menu">
+          <button
+            className="avatar-btn"
+            type="button"
+            aria-label="Open user menu"
+            aria-expanded={showUserMenu}
+            onClick={() => setShowUserMenu(!showUserMenu)}
+          >
+            <span className="avatar">{avatarInitial}</span>
+            <ChevronDown size={14} aria-hidden="true" />
+          </button>
+
+          {showUserMenu && (
+            <div className="user-menu-popover">
+              <button
+                className="user-menu-item"
+                type="button"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  navigate("/student-dashboard/profile");
+                }}
+              >
+                <span className="user-menu-icon" aria-hidden="true"><UserCircle size={15} /></span>
+                Profile
+              </button>
+              <button className="user-menu-item danger" type="button" onClick={handleLogout}>
+                <span className="user-menu-icon" aria-hidden="true"><LogOut size={15} /></span>
+                Sign out
+              </button>
+            </div>
+          )}
         </div>
-        <button className="logout-btn" type="button" onClick={handleLogout}>
-          Logout
-        </button>
       </div>
     </nav>
   );

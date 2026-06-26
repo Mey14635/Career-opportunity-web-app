@@ -229,6 +229,24 @@
   padding: 18px 20px 20px;
 }
 
+.application-required-docs,
+.application-helper-text {
+  background: var(--su-field);
+  border: 1px solid var(--su-border);
+  border-radius: 8px;
+  color: var(--su-heading);
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.application-required-docs strong {
+  color: var(--su-text);
+}
+
 .job-apply-form label {
   color: var(--su-heading);
   display: grid;

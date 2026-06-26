@@ -7,8 +7,7 @@ import "./JobDetailsModal.css";
 function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSaveButton = false }) {
   const { user } = useAuth();
   const [showApplyForm, setShowApplyForm] = useState(false);
-  const [resumeFile, setResumeFile] = useState(null);
-  const [coverLetterFile, setCoverLetterFile] = useState(null);
+  const [documentFiles, setDocumentFiles] = useState({});
   const [applicationStatus, setApplicationStatus] = useState({ type: "", message: "" });
   const [submittingApplication, setSubmittingApplication] = useState(false);
 
@@ -17,12 +16,20 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
   }
 
   const isDeadlineUrgent = opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
+  const requiredDocuments = opportunity.documentsRequired || [];
+  const applicationDocuments = requiredDocuments.length > 0 ? requiredDocuments : ["CV / Resume"];
 
   function closeApplicationForm() {
     setShowApplyForm(false);
-    setResumeFile(null);
-    setCoverLetterFile(null);
+    setDocumentFiles({});
     setApplicationStatus({ type: "", message: "" });
+  }
+
+  function handleDocumentFileChange(label, file) {
+    setDocumentFiles((prev) => ({
+      ...prev,
+      [label]: file,
+    }));
   }
 
   function handleCloseJobDetails() {
@@ -51,8 +58,9 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
       return;
     }
 
-    if (!resumeFile) {
-      setApplicationStatus({ type: "error", message: "Please upload your resume." });
+    const missingDocument = applicationDocuments.find((label) => !documentFiles[label]);
+    if (missingDocument) {
+      setApplicationStatus({ type: "error", message: `Please upload ${missingDocument}.` });
       return;
     }
 
@@ -63,12 +71,11 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
       await submitApplication({
         studentId: user.uid,
         opportunityId: opportunity.id,
-        resumeFile,
-        coverLetterFile,
+        requiredDocuments: applicationDocuments,
+        documentFiles,
       });
       setApplicationStatus({ type: "success", message: "Application submitted successfully." });
-      setResumeFile(null);
-      setCoverLetterFile(null);
+      setDocumentFiles({});
     } catch (err) {
       console.error("Failed to submit application:", err);
       setApplicationStatus({
@@ -133,6 +140,19 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
             </section>
 
             <section>
+              <h3>Responsibilities</h3>
+              {opportunity.responsibilities?.length > 0 ? (
+                <ul>
+                  {opportunity.responsibilities.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No responsibilities listed yet.</p>
+              )}
+            </section>
+
+            <section>
               <h3>Requirements</h3>
               {opportunity.requirements.length > 0 ? (
                 <ul>
@@ -146,10 +166,19 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
             </section>
 
             <section>
+              <h3>Role Details</h3>
+              <ul>
+                <li>Start date: {opportunity.startDate}</li>
+                <li>Duration: {opportunity.duration}</li>
+                <li>Open positions: {opportunity.positions}</li>
+              </ul>
+            </section>
+
+            <section>
               <h3>Documents Required</h3>
-              {opportunity.documentsRequired.length > 0 ? (
+              {requiredDocuments.length > 0 ? (
                 <ul>
-                  {opportunity.documentsRequired.map((item) => (
+                  {requiredDocuments.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -190,23 +219,23 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
             </header>
 
             <form className="job-apply-form" onSubmit={handleSubmitApplication}>
-              <label>
-                Resume
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                />
-              </label>
+              {requiredDocuments.length > 0 && (
+                <div className="application-required-docs">
+                  <strong>Required by employer:</strong>
+                  <span>{requiredDocuments.join(", ")}</span>
+                </div>
+              )}
 
-              <label>
-                Cover Letter
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  onChange={(e) => setCoverLetterFile(e.target.files?.[0] || null)}
-                />
-              </label>
+              {applicationDocuments.map((label) => (
+                <label key={label}>
+                  {label} *
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    onChange={(e) => handleDocumentFileChange(label, e.target.files?.[0] || null)}
+                  />
+                </label>
+              ))}
 
               {applicationStatus.message && (
                 <p className={`application-feedback ${applicationStatus.type}`}>

@@ -7,7 +7,7 @@ import OpportunityCard from "../../../components/student/OpportunityCard/Opportu
 import JobDetailsModal from "../../../components/student/JobDetailsModal/JobDetailsModal";
 import { db } from "../../../config/firebase";
 import { useAuth } from "../../../contexts/AuthContext";
-import { mapOpportunityDoc } from "../../../utils/opportunityMapper";
+import { isStudentVisibleOpportunity, mapOpportunityDoc } from "../../../utils/opportunityMapper";
 import "./Dashboard.css";
 
 const defaultJobTypes = ["Internship", "Graduate Program", "Part-time", "Full-time"];
@@ -103,7 +103,12 @@ function Dashboard() {
 
       try {
         const opportunitiesSnap = await getDocs(query(collection(db, "opportunities")));
-        setOpportunities(opportunitiesSnap.docs.map(mapOpportunityDoc));
+        const visibleOpportunities = opportunitiesSnap.docs
+          // Keep admin approval as the student-side publish gate.
+          .filter((docSnap) => isStudentVisibleOpportunity(docSnap.data()))
+          .map(mapOpportunityDoc);
+
+        setOpportunities(visibleOpportunities);
       } catch (err) {
         console.error("Failed to load opportunities:", err);
         setOpportunitiesError("Could not load opportunities right now.");

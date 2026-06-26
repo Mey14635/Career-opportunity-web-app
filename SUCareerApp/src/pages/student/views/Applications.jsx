@@ -68,6 +68,29 @@ async function loadOpportunity(opportunityId) {
   return opportunityQuerySnap.docs[0] ? mapOpportunityDoc(opportunityQuerySnap.docs[0]) : null;
 }
 
+function getApplicationDocuments(applicationData) {
+  if (Array.isArray(applicationData.documents) && applicationData.documents.length > 0) {
+    return applicationData.documents
+      .filter((item) => item?.url)
+      .map((item) => ({
+        label: item.label || item.name || item.fileName || "Document",
+        url: item.url,
+      }));
+  }
+
+  const documents = [];
+
+  if (applicationData.resumeUrl) {
+    documents.push({ label: "CV / Resume", url: applicationData.resumeUrl });
+  }
+
+  if (applicationData.coverLetterUrl) {
+    documents.push({ label: "Cover Letter", url: applicationData.coverLetterUrl });
+  }
+
+  return documents;
+}
+
 function Applications() {
   const { user } = useAuth();
   const [applications, setApplications] = useState([]);
@@ -102,6 +125,7 @@ function Applications() {
               applicationId: applicationData.applicationId || applicationDoc.id,
               appliedDate: formatDate(applicationData.appliedAt),
               coverLetterUrl: applicationData.coverLetterUrl,
+              documents: getApplicationDocuments(applicationData),
               opportunityId,
               resumeUrl: applicationData.resumeUrl,
               status: normalizeStatus(applicationData.status),
@@ -189,16 +213,11 @@ function Applications() {
                   <span>{application.opportunity?.type || "Opportunity"}</span>
                   <span>Applied: {application.appliedDate}</span>
                   <span>Deadline: {application.opportunity?.deadline || "Not specified"}</span>
-                  {application.resumeUrl && (
-                    <a href={application.resumeUrl} target="_blank" rel="noreferrer">
-                      Resume
+                  {application.documents.map((document) => (
+                    <a href={document.url} target="_blank" rel="noreferrer" key={`${application.id}-${document.label}`}>
+                      {document.label}
                     </a>
-                  )}
-                  {application.coverLetterUrl && (
-                    <a href={application.coverLetterUrl} target="_blank" rel="noreferrer">
-                      Cover Letter
-                    </a>
-                  )}
+                  ))}
                 </div>
               </article>
             ))}
