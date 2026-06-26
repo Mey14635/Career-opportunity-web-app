@@ -4,7 +4,7 @@ import { collection, doc, getDoc, getDocs, query, where } from "firebase/firesto
 import JobDetailsModal from "../../../components/student/JobDetailsModal/JobDetailsModal";
 import { db } from "../../../config/firebase";
 import { useAuth } from "../../../contexts/AuthContext";
-import { mapOpportunityDoc } from "../../../utils/opportunityMapper";
+import { isStudentVisibleOpportunity, mapOpportunityDoc } from "../../../utils/opportunityMapper";
 import "./Favorites.css";
 
 function formatDaysLeft(daysLeft) {
@@ -57,6 +57,7 @@ function Favorites() {
         );
         const nextSavedOpportunities = opportunitySnaps
           .filter((opportunitySnap) => opportunitySnap.exists())
+          .filter((opportunitySnap) => isStudentVisibleOpportunity(opportunitySnap.data()))
           .map(mapOpportunityDoc)
           .filter(Boolean);
 

@@ -3,7 +3,7 @@ import { auth, db } from "../../../config/firebase";
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react"; // Imported the icon
+import { ArrowLeft } from "lucide-react";
 import AuthAlert from "../../../components/shared/Auth/AuthAlert";
 import AuthCard from "../../../components/shared/Auth/AuthCard";
 import AuthFooter from "../../../components/shared/Auth/AuthFooter";
@@ -36,6 +36,7 @@ const Login = () => {
     const trimmedEmail = email.trim().toLowerCase();
 
     try {
+      // 1. Authenticate user credentials with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       const user = userCredential.user;
 
@@ -46,6 +47,7 @@ const Login = () => {
         return;
       }
 
+      // 2. Fetch their authorization profile from the Firestore 'user' collection
       const userDocRef = doc(db, "user", user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
@@ -53,9 +55,12 @@ const Login = () => {
         const userData = userDocSnap.data();
         const userRole = userData.role;
         
+        // Aligned with the global AuthContext state property
         const hasProfile = userData.profileCompleted === true;
 
+        // 3. Role-based Redirection
         if (userRole === "student") {
+          // Send returning completed users to dashboard, send uncompleted users to profile setup
           navigate(hasProfile ? "/student-dashboard/dashboard" : "/student-dashboard/profile", { replace: true });
         } else {
           setError("Authorized role mismatch. Access denied.");
@@ -105,40 +110,42 @@ const Login = () => {
   };
 
   return (
-<<<<<<< HEAD
-    <AuthCard>
-      <AuthTabs activeTab="login" />
-      <AuthAlert message={error} type="danger" />
-      <AuthAlert message={success} type="success" />
-=======
     <>
-      {/* ADDED: Absolute positioned Back Button */}
-      <div style={{ position: 'absolute', top: '24px', left: '24px', zIndex: 50 }}>
-        <button 
-          onClick={() => navigate('/')}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: '#1B3A6B', fontWeight: 600, cursor: 'pointer', fontSize: '15px', fontFamily: 'Inter' }}
+      <div style={{ position: "absolute", top: "24px", left: "24px", zIndex: 50 }}>
+        <button
+          onClick={() => navigate("/")}
+          style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", color: "#1B3A6B", fontWeight: 600, cursor: "pointer", fontSize: "15px", fontFamily: "Inter" }}
         >
           <ArrowLeft size={18} /> Back to Home
         </button>
       </div>
->>>>>>> origin/feat/employer-admin-integration
 
-      <AuthCard>
-        <AuthTabs activeTab="login" />
-        <AuthAlert message={error} type="danger" />
+    <AuthCard>
+      <AuthTabs activeTab="login" />
+      <AuthAlert message={error} type="danger" />
+      <AuthAlert message={success} type="success" />
 
-        <form onSubmit={handleLogin} className="auth-form">
-          <AuthInput 
-            type="email" 
-            name="email" 
-            value={formData.email} 
-            required 
-            onChange={handleChange} 
-            label="Strathmore Email Address" 
-            placeholder="username@strathmore.edu" 
-          />
+      <form onSubmit={handleLogin} className="auth-form">
+        <AuthInput 
+          type="email" 
+          name="email" 
+          value={formData.email} 
+          required 
+          onChange={handleChange} 
+          label="Strathmore Email Address" 
+          placeholder="username@strathmore.edu" 
+        />
 
-<<<<<<< HEAD
+        <AuthInput 
+          type="password" 
+          name="password" 
+          value={formData.password} 
+          required 
+          onChange={handleChange} 
+          label="Password" 
+          placeholder="Enter your password" 
+        />
+
         <button
           type="button"
           className="auth-link-btn"
@@ -152,25 +159,9 @@ const Login = () => {
           {loginLoading ? "Signing In..." : "Log In"}
         </Button>
       </form>
-=======
-          <AuthInput 
-            type="password" 
-            name="password" 
-            value={formData.password} 
-            required 
-            onChange={handleChange} 
-            label="Password" 
-            placeholder="••••••••" 
-          />
->>>>>>> origin/feat/employer-admin-integration
 
-          <Button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? "Signing In..." : "Log In"}
-          </Button>
-        </form>
-
-        <AuthFooter text="Don't have an account yet?" linkText="Register Here" to="/student-dashboard/signup" />
-      </AuthCard>
+      <AuthFooter text="Don't have an account yet?" linkText="Register Here" to="/student-dashboard/signup" />
+    </AuthCard>
     </>
   );
 };

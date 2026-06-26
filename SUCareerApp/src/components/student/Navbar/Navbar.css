@@ -251,11 +251,13 @@
 .avatar-btn {
   display: flex;
   align-items: center;
+  gap: 5px;
   background: var(--su-blue-soft);
   border: 1px solid #c8d7fb;
-  border-radius: 50%;
+  border-radius: 999px;
   cursor: pointer;
   padding: 3px;
+  color: var(--su-blue);
   transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 

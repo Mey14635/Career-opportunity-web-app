@@ -40,10 +40,9 @@ export async function saveOpportunityForUser(userId, opportunityID) {
   const savedRef = doc(collection(db, "saved_opportunities"));
 
   await setDoc(savedRef, {
-    BookmarkID: savedRef.id,
+    bookmarkId: savedRef.id,
     studentId: userId,
-    userId,
-    opportunityID,
+    opportunityId: opportunityID,
     savedAt: serverTimestamp(),
   });
 }

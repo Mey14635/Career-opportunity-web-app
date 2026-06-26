@@ -20,7 +20,7 @@ export default function PostJobView({ employerId, companyName, onCancel, onSucce
 
     const formData = new FormData(e.target);
     
-    // Build docs array EXACTLY how the Admin panel expects it (as an array, not a string)
+    // Store the selected document labels as an array so admin and student views can render them directly.
     const docsList = [];
     if (requiredDocs.cv) docsList.push('CV / Resume');
     if (requiredDocs.coverLetter) docsList.push('Cover Letter');
@@ -38,17 +38,18 @@ export default function PostJobView({ employerId, companyName, onCancel, onSucce
         }
       }
 
-// 2. Map data EXACTLY to what the Admin dashboard is looking for
+      // Store canonical opportunity fields from the ERD; admin/student views keep fallback support for older records.
       const jobData = {
         title: formData.get('title'),
         companyName: finalCompanyName,
         employerId: employerId,
         description: formData.get('description'),
-        responsibilities: formData.get('responsibilities'), 
-        docs: docsList, // FIXED: Matches selectedJob.docs
+        responsibilities: formData.get('responsibilities'),
+        requirements: formData.get('requirements'),
+        documentsRequired: docsList,
         category: formData.get('category'),
         jobType: formData.get('jobType'),
-        workMode: formData.get('location'), // FIXED: Matches selectedJob.workMode
+        location: formData.get('location'),
         startDate: formData.get('startDate'),
         duration: formData.get('duration'),
         positions: formData.get('openPositions'), // FIXED: Matches selectedJob.positions
@@ -56,25 +57,6 @@ export default function PostJobView({ employerId, companyName, onCancel, onSucce
         deadline: new Date(formData.get('deadline')),
         metrics: { views: 0, applications: 0 },
       };
-
-    //   // 2. Map data EXACTLY to what the Admin dashboard is looking for
-    //   const jobData = {
-    //     title: formData.get('title'),
-    //     companyName: finalCompanyName,
-    //     employerId: employerId,
-    //     description: formData.get('description'),
-    //     responsibilities: formData.get('responsibilities'), // Changed from 'requirement'
-    //     requiredDocuments: docsList, // Passed as an array
-    //     category: formData.get('category'),
-    //     jobType: formData.get('jobType'),
-    //     location: formData.get('location'),
-    //     startDate: formData.get('startDate'), // Added
-    //     duration: formData.get('duration'), // Added
-    //     openPositions: Number(formData.get('openPositions')), // Added
-    //     status: 'pending',
-    //     deadline: new Date(formData.get('deadline')),
-    //     metrics: { views: 0, applications: 0 },
-    //   };
 
       await createJob(jobData);
       alert('✅ Job posted successfully! It will appear on your dashboard as pending.');
@@ -161,9 +143,14 @@ export default function PostJobView({ employerId, companyName, onCancel, onSucce
             <textarea name="description" rows="5" placeholder="Describe the role..." style={{...inputStyle, resize: 'vertical'}} required />
           </div>
 
+          <div style={{ marginBottom: '20px' }}>
+            <label style={labelStyle}>Key Responsibilities *</label>
+            <textarea name="responsibilities" rows="4" placeholder="What will they do day to day?" style={{...inputStyle, resize: 'vertical'}} required />
+          </div>
+
           <div>
-            <label style={labelStyle}>Key Responsibilities & Requirements *</label>
-            <textarea name="responsibilities" rows="4" placeholder="What will they do? What skills are needed?" style={{...inputStyle, resize: 'vertical'}} required />
+            <label style={labelStyle}>Requirements *</label>
+            <textarea name="requirements" rows="4" placeholder="What skills, experience, or qualifications are needed?" style={{...inputStyle, resize: 'vertical'}} required />
           </div>
         </div>
 
@@ -174,7 +161,7 @@ export default function PostJobView({ employerId, companyName, onCancel, onSucce
 
           <DocCheckbox 
             label="CV / Resume" 
-            sub="PDF format only" 
+            sub="PDF and Word format only" 
             checked={requiredDocs.cv} 
             onChange={() => setRequiredDocs(prev => ({...prev, cv: !prev.cv}))} 
           />

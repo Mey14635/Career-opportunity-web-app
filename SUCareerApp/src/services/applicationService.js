@@ -13,21 +13,54 @@ export async function hasStudentApplied(studentId, opportunityId) {
   return !applicationSnap.empty;
 }
 
-export async function submitApplication({ studentId, opportunityId, resumeFile, coverLetterFile }) {
+function getLegacyDocumentUrl(label, url) {
+  if (/cv|resume/i.test(label)) {
+    return { resumeUrl: url };
+  }
+
+  if (/cover/i.test(label)) {
+    return { coverLetterUrl: url };
+  }
+
+  return {};
+}
+
+export async function submitApplication({ studentId, opportunityId, requiredDocuments = [], documentFiles = {} }) {
   const alreadyApplied = await hasStudentApplied(studentId, opportunityId);
 
   if (alreadyApplied) {
     throw new Error("You have already applied for this opportunity.");
   }
 
-  const resumeUpload = await uploadApplicationDocument(resumeFile);
-  const coverLetterUpload = coverLetterFile ? await uploadApplicationDocument(coverLetterFile) : null;
+  const documents = [];
+  const legacyUrls = {};
+
+  for (const label of requiredDocuments) {
+    const file = documentFiles[label];
+
+    if (!file) {
+      throw new Error(`Please upload ${label}.`);
+    }
+
+    const upload = await uploadApplicationDocument(file);
+    documents.push({
+      label,
+      name: label,
+      fileName: file.name,
+      size: file.size,
+      url: upload.url,
+    });
+    Object.assign(legacyUrls, getLegacyDocumentUrl(label, upload.url));
+  }
+
   const applicationRef = await addDoc(collection(db, "applications"), {
     applicationId: "",
     appliedAt: serverTimestamp(),
-    coverLetterUrl: coverLetterUpload?.url || "",
+    coverLetterUrl: legacyUrls.coverLetterUrl || "",
+    documents,
+    requiredDocuments,
     opportunityId,
-    resumeUrl: resumeUpload.url,
+    resumeUrl: legacyUrls.resumeUrl || "",
     status: "submitted",
     studentId,
   });
@@ -38,7 +71,8 @@ export async function submitApplication({ studentId, opportunityId, resumeFile, 
 
   return {
     applicationId: applicationRef.id,
-    resumeUrl: resumeUpload.url,
-    coverLetterUrl: coverLetterUpload?.url || "",
+    documents,
+    resumeUrl: legacyUrls.resumeUrl || "",
+    coverLetterUrl: legacyUrls.coverLetterUrl || "",
   };
 }

@@ -5,6 +5,7 @@ import StatusDropdown from './StatusDropdown';
 
 export default function DocumentReviewModal({ applicant, onClose, onSave }) {
   const [tempStatus, setTempStatus] = useState(applicant.status);
+  const docs = Array.isArray(applicant.docs) ? applicant.docs : [];
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, backdropFilter: 'blur(2px)' }} onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -13,11 +14,11 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: NAVY, color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700 }}>
-                {applicant.initials}
+                {applicant.initials || 'NA'}
               </div>
               <div>
-                <h3 style={{ margin: '0 0 2px 0', fontSize: '18px', fontWeight: '800', color: NAVY }}>{applicant.name}</h3>
-                <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{applicant.course}</div>
+                <h3 style={{ margin: '0 0 2px 0', fontSize: '18px', fontWeight: '800', color: NAVY }}>{applicant.name || 'Unknown Applicant'}</h3>
+                <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{applicant.course || 'Course not specified'}</div>
               </div>
             </div>
             <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
@@ -38,7 +39,12 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
         <div style={{ padding: '20px 24px' }}>
           <h4 style={{ margin: '0 0 12px 0', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Submitted Documents</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {applicant.docs.map((doc, idx) => (
+            {docs.length === 0 && (
+              <div style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px', color: '#64748b', fontSize: 13 }}>
+                No documents were attached to this application.
+              </div>
+            )}
+            {docs.map((doc, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.borderColor = NAVY} onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ padding: '8px', backgroundColor: '#fee2e2', borderRadius: '6px' }}><FileJson size={16} color="#dc2626" /></div>
@@ -47,7 +53,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
                     <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{doc.size} • Uploaded {applicant.date}</div>
                   </div>
                 </div>
-                <button onClick={() => alert(`Downloading ${doc.name}`)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', cursor: 'pointer', color: NAVY, padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}><Download size={14} /></button>
+                <button onClick={() => doc.url ? window.open(doc.url, '_blank', 'noopener,noreferrer') : alert(`No download link available for ${doc.name}`)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', cursor: 'pointer', color: NAVY, padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}><Download size={14} /></button>
               </div>
             ))}
           </div>

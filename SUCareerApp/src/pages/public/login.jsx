@@ -1,14 +1,24 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { auth, db } from '../../config/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 
 const NAVY = "#1B3A6B";
 const GOLD = "#C9A230";
 const BG_GRAY = "#F5F6FA";
+const ADMIN_DEMO_EMAIL = "cds@strathmore.edu";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const { refreshAuthStatus } = useAuth();
+  const [email, setEmail] = useState(ADMIN_DEMO_EMAIL);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(location.state?.authError || '');
+  const [loading, setLoading] = useState(false);
 
   const inputStyle = {
     width: '100%', padding: '12px 16px', borderRadius: '8px', 
@@ -16,17 +26,56 @@ export default function LoginPage() {
     outline: 'none', fontFamily: 'inherit', background: '#F8FAFC'
   };
 
-  const handleLogin = (e) => {
+  const saveAdminRecord = async (user, trimmedEmail) => {
+    await setDoc(doc(db, 'user', user.uid), {
+      uid: user.uid,
+      email: trimmedEmail,
+      role: 'admin',
+      profileCompleted: true,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  };
+
+  const signInOrCreateDemoAdmin = async (trimmedEmail) => {
+    try {
+      return await signInWithEmailAndPassword(auth, trimmedEmail, password);
+    } catch (err) {
+      if (err.code !== 'auth/invalid-credential' && err.code !== 'auth/user-not-found') {
+        throw err;
+      }
+
+      return createUserWithEmailAndPassword(auth, trimmedEmail, password);
+    }
+  };
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const userEmail = email.toLowerCase();
-    
-    // Restored your previous logic exactly
-    if (userEmail.includes('admin') || userEmail === 'cds@strathmore.edu' || userEmail.includes('@strathmore.edu')) {
-      navigate('/admin-dashboard');
-    } else if (userEmail.includes('employer') || userEmail.includes('@company.com')) {
-      navigate('/employer-dashboard');
-    } else {
-      alert('Please use an authorized email (e.g., cds@strathmore.edu or hr@company.com)');
+    setError('');
+    setLoading(true);
+    const userEmail = email.trim().toLowerCase();
+
+    if (userEmail !== ADMIN_DEMO_EMAIL) {
+      setError(`Use ${ADMIN_DEMO_EMAIL} for demo admin access.`);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const credential = await signInOrCreateDemoAdmin(userEmail);
+      await saveAdminRecord(credential.user, userEmail);
+      await credential.user.reload();
+      await refreshAuthStatus();
+      navigate('/admin-dashboard', { replace: true });
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'auth/weak-password') {
+        setError('Use a stronger password with at least 6 characters.');
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -41,24 +90,26 @@ export default function LoginPage() {
             <span style={{ color: GOLD, fontWeight: 800, fontSize: 20 }}>SU</span>
           </div>
         </div>
-        <h2 style={{ textAlign: 'center', color: NAVY, margin: '0 0 8px 0', fontSize: '24px' }}>Portal Login</h2>
-        <p style={{ textAlign: 'center', color: '#64748b', margin: '0 0 24px 0', fontSize: '14px' }}>Sign in to access your dashboard</p>
-        
-        <div style={{ padding: '12px', background: '#f8fafc', borderRadius: 8, fontSize: '13px', color: '#64748b', marginBottom: 24 }}>
-          <strong>Demo:</strong> Use <strong>cds@strathmore.edu</strong> for Admin, or <strong>@company.com</strong> for Employer.
-        </div>
+        <h2 style={{ textAlign: 'center', color: NAVY, margin: '0 0 8px 0', fontSize: '24px' }}>Admin Registration</h2>
+        <p style={{ textAlign: 'center', color: '#64748b', margin: '0 0 24px 0', fontSize: '14px' }}>Use {ADMIN_DEMO_EMAIL} to access the admin dashboard.</p>
+
+        {error && (
+          <div style={{ padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: '13px', color: '#b91c1c', marginBottom: 24, lineHeight: 1.5 }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Email Address</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="cds@strathmore.edu" style={inputStyle} required />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={ADMIN_DEMO_EMAIL} style={inputStyle} required />
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Password</label>
-            <input type="password" placeholder="••••••••" style={inputStyle} required />
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} required />
           </div>
-          <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: NAVY, color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>
-            Sign In
+          <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', backgroundColor: NAVY, color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '15px', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '8px', opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'Please wait...' : 'Continue to Admin Dashboard'}
           </button>
         </form>
       </div>

@@ -31,11 +31,10 @@ export default function LandingPage() {
             Help Center
           </button>
           <button 
-            // FIXED: Point to the new student login
-            onClick={() => navigate('/student-dashboard/login')}
+            onClick={() => navigate('/login')}
             style={{ padding: '12px 28px', backgroundColor: GOLD, color: NAVY, borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', transition: 'transform 0.2s', boxShadow: '0 4px 12px rgba(201, 162, 48, 0.2)' }}
           >
-            Portal Login
+            Admin
           </button>
         </div>
       </header>
@@ -50,17 +49,16 @@ export default function LandingPage() {
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
             <button 
-              // FIXED: Added onClick to point to the new student signup
               onClick={() => navigate('/student-dashboard/signup')}
               style={{ padding: '16px 36px', backgroundColor: GOLD, color: NAVY, borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '16px', cursor: 'pointer' }}
             >
-              Get Started
+              Discover Opportunity
             </button>
             <button 
               onClick={() => navigate('/employer-access')}
               style={{ padding: '16px 36px', backgroundColor: 'rgba(255,255,255,0.1)', color: '#ffffff', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', fontWeight: 600, fontSize: '16px', cursor: 'pointer' }}
             >
-              Partner Registration
+              Partner With Us
             </button>
           </div>
         </div>
@@ -76,13 +74,6 @@ export default function LandingPage() {
             <p style={{ fontSize: '16px', color: '#64748b', marginBottom: '40px', lineHeight: 1.6 }}>
               Launch your career. Discover exclusive internships, build your profile, and connect with top recruiters.
             </p>
-            <button 
-              // FIXED: Point to the new student login
-              onClick={() => navigate('/student-dashboard/login')}
-              style={{ padding: '14px 32px', backgroundColor: '#f1f5f9', color: NAVY, borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', width: '100%', marginTop: 'auto' }}
-            >
-              Discover Opportunities
-            </button>
           </div>
 
           <div style={{ flex: '1 1 400px', padding: '56px 48px', backgroundColor: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0', boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -93,12 +84,6 @@ export default function LandingPage() {
             <p style={{ fontSize: '16px', color: '#64748b', marginBottom: '40px', lineHeight: 1.6 }}>
               Access Kenya's premier graduate talent. Post opportunities, vet candidates, and manage your pipeline.
             </p>
-            <button 
-              onClick={() => navigate('/employer-access')}
-              style={{ padding: '14px 32px', backgroundColor: '#f1f5f9', color: NAVY, borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer', width: '100%', marginTop: 'auto' }}
-            >
-              Partner With Us
-            </button>
           </div>
         </section>
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import { ChevronDown, LogOut, UserCircle } from "lucide-react";
 import { auth, db } from "../../../config/firebase";
 import { useAuth } from "../../../contexts/AuthContext";
 import { subscribeToUserNotifications } from "../../../services/notificationService";
@@ -73,7 +74,6 @@ function Navbar() {
   async function handleLogout() {
     try {
       await signOut(auth);
-      // FIXED: Route back to the student login
       navigate("/student-dashboard/login", { replace: true });
     } catch (err) {
       console.error("Logout failed:", err);
@@ -82,7 +82,6 @@ function Navbar() {
 
   return (
     <nav className="navbar">
-      {/* Left: Logo + brand name */}
       <div className="navbar-left">
         <div className="navbar-logo su-logo-mark" aria-hidden="true">
           <span />
@@ -90,7 +89,7 @@ function Navbar() {
         <span className="navbar-brand">SU Career Portal</span>
       </div>
 
-      {/* FIXED: Tab links updated with full paths */}
+      {/*  Tab links */}
       <div className="navbar-tabs">
         <NavLink
           to="/student-dashboard/dashboard"
@@ -127,10 +126,7 @@ function Navbar() {
             className="bell-btn"
             aria-label="Notifications"
             aria-expanded={showNotifications}
-            onClick={() => {
-              setShowNotifications(!showNotifications);
-              setShowUserMenu(false);
-            }}
+            onClick={() => setShowNotifications(!showNotifications)}
           >
             <span aria-hidden="true">🔔</span>
           </button>
@@ -150,7 +146,7 @@ function Navbar() {
                         !
                       </div>
                       <div>
-                        <h3>Deadline reminder</h3>
+                        <h3>{notification.title}</h3>
                         <p>{notification.message}</p>
                         {notification.date && <small>{notification.date}</small>}
                       </div>
@@ -174,7 +170,6 @@ function Navbar() {
                 type="button"
                 onClick={() => {
                   setShowNotifications(false);
-                  // FIXED: Added full path
                   navigate("/student-dashboard/notifications");
                 }}
               >
@@ -183,19 +178,16 @@ function Navbar() {
             </div>
           )}
         </div>
-<<<<<<< HEAD
         <div className="user-menu">
           <button
             className="avatar-btn"
             type="button"
-            aria-label="User menu"
+            aria-label="Open user menu"
             aria-expanded={showUserMenu}
-            onClick={() => {
-              setShowUserMenu(!showUserMenu);
-              setShowNotifications(false);
-            }}
+            onClick={() => setShowUserMenu(!showUserMenu)}
           >
             <span className="avatar">{avatarInitial}</span>
+            <ChevronDown size={14} aria-hidden="true" />
           </button>
 
           {showUserMenu && (
@@ -205,35 +197,18 @@ function Navbar() {
                 type="button"
                 onClick={() => {
                   setShowUserMenu(false);
-                  navigate("/profile");
+                  navigate("/student-dashboard/profile");
                 }}
               >
-                <span className="user-menu-icon" aria-hidden="true">◎</span>
-                <span>Profile</span>
+                <span className="user-menu-icon" aria-hidden="true"><UserCircle size={15} /></span>
+                Profile
               </button>
-
-              <button
-                className="user-menu-item danger"
-                type="button"
-                onClick={() => {
-                  setShowUserMenu(false);
-                  handleLogout();
-                }}
-              >
-                <span className="user-menu-icon" aria-hidden="true">↪</span>
-                <span>Sign out</span>
+              <button className="user-menu-item danger" type="button" onClick={handleLogout}>
+                <span className="user-menu-icon" aria-hidden="true"><LogOut size={15} /></span>
+                Sign out
               </button>
             </div>
           )}
-=======
-        <div
-          className="avatar"
-          // FIXED: Added full path
-          onClick={() => navigate("/student-dashboard/profile")}
-          title="Go to profile"
-        >
-          {avatarInitial}
->>>>>>> origin/feat/employer-admin-integration
         </div>
       </div>
     </nav>

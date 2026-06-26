@@ -6,10 +6,16 @@ import StatusDropdown from './StatusDropdown';
 export default function JobApplicantsWidget({ applicants, onStatusChange, onReview }) {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredApps = applicants.filter(app =>
-    app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    app.course.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredApps = applicants.filter(app => {
+    const name = String(app.name || '');
+    const course = String(app.course || '');
+    const normalizedSearch = searchTerm.toLowerCase();
+
+    return (
+      name.toLowerCase().includes(normalizedSearch) ||
+      course.toLowerCase().includes(normalizedSearch)
+    );
+  });
 
   return (
     <div>
@@ -40,12 +46,12 @@ export default function JobApplicantsWidget({ applicants, onStatusChange, onRevi
               <tr key={app.id} style={{ borderBottom: '1px solid #f1f5f9' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                 <td style={{ padding: '12px 20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: NAVY, color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{app.initials}</div>
-                    <span style={{ fontWeight: 600, color: '#1e293b', fontSize: 13 }}>{app.name}</span>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: NAVY, color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{app.initials || 'NA'}</div>
+                    <span style={{ fontWeight: 600, color: '#1e293b', fontSize: 13 }}>{app.name || 'Unknown Applicant'}</span>
                   </div>
                 </td>
-                <td style={{ padding: '12px 20px', color: '#64748b', fontSize: 12 }}>{app.course}</td>
-                <td style={{ padding: '12px 20px', color: '#64748b', fontSize: 12 }}>{app.date}</td>
+                <td style={{ padding: '12px 20px', color: '#64748b', fontSize: 12 }}>{app.course || 'Course not specified'}</td>
+                <td style={{ padding: '12px 20px', color: '#64748b', fontSize: 12 }}>{app.date || 'Not specified'}</td>
                 <td style={{ padding: '12px 20px' }}><StatusDropdown value={app.status} onChange={(e) => onStatusChange(app.id, e.target.value)} /></td>
                 <td style={{ padding: '12px 20px' }}>
                   <button onClick={() => onReview(app)} style={{ display: 'flex', alignItems: 'center', gap: 6, backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', color: NAVY, fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '6px 12px', borderRadius: '6px' }}>

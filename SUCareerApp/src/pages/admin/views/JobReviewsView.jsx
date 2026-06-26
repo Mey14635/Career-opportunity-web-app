@@ -2,10 +2,24 @@ import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { NAVY, GOLD, BG_GRAY } from '../constants';
 
+function getRequiredDocuments(job = {}) {
+  if (Array.isArray(job.documentsRequired) && job.documentsRequired.length > 0) {
+    return job.documentsRequired;
+  }
+
+  if (Array.isArray(job.docs) && job.docs.length > 0) {
+    return job.docs;
+  }
+
+  return [];
+}
+
 export default function JobReviewsView({ queueData, triggerModal }) {
   const [selectedJob, setSelectedJob] = useState(null);
 
   if (selectedJob) {
+    const selectedRequiredDocuments = getRequiredDocuments(selectedJob);
+
     return (
       <div style={{ maxWidth: '1000px' }}>
         <button onClick={() => setSelectedJob(null)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#64748b', fontSize: 14, cursor: 'pointer', marginBottom: 24 }}>
@@ -14,7 +28,7 @@ export default function JobReviewsView({ queueData, triggerModal }) {
         <div style={{ background: 'white', borderRadius: 16, padding: 32, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
           <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
             <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
-            <p style={{ margin: 0, color: '#64748b', fontSize: 16 }}>{selectedJob.companyName || selectedJob.employerId} &bull; {selectedJob.workMode || 'N/A'}</p>
+            <p style={{ margin: 0, color: '#64748b', fontSize: 16 }}>{selectedJob.companyName || selectedJob.employerId} &bull; {selectedJob.location || selectedJob.workMode || 'N/A'}</p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 40 }}>
             <div>
@@ -22,6 +36,8 @@ export default function JobReviewsView({ queueData, triggerModal }) {
               <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>{selectedJob.description}</p>
               <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Key Responsibilities</h3>
               <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>{selectedJob.responsibilities || 'N/A'}</p>
+              <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Requirements</h3>
+              <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>{selectedJob.requirements || 'N/A'}</p>
             </div>
             <div>
               <div style={{ background: BG_GRAY, borderRadius: 12, padding: 24, marginBottom: 24 }}>
@@ -42,8 +58,8 @@ export default function JobReviewsView({ queueData, triggerModal }) {
               <div>
                 <h3 style={{ color: NAVY, fontSize: 14, fontWeight: 700, margin: '0 0 12px 0', textTransform: 'uppercase' }}>Required Documents</h3>
                 <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
-                  {selectedJob.docs && selectedJob.docs.length > 0 ? (
-                    selectedJob.docs.map(doc => <li key={doc}>{doc}</li>)
+                  {selectedRequiredDocuments.length > 0 ? (
+                    selectedRequiredDocuments.map(doc => <li key={doc}>{doc}</li>)
                   ) : (
                     <li>No documents specified</li>
                   )}
@@ -84,36 +100,40 @@ export default function JobReviewsView({ queueData, triggerModal }) {
         <div style={{ textAlign: 'center', padding: '64px', background: 'white', borderRadius: 12, color: '#94a3b8' }}>All caught up! No pending jobs to review.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {queueData.map(job => (
-            <div
-              key={job.id}
-              onClick={() => setSelectedJob(job)}
-              style={{ background: 'white', borderRadius: 12, padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; }}
-            >
-              <div style={{ flex: 1, paddingRight: 24 }}>
-                <h3 style={{ margin: '0 0 6px 0', fontSize: 16, fontWeight: 700, color: NAVY }}>{job.title}</h3>
-                <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12 }}>{job.companyName || job.employerId}</div>
-                <div style={{ fontSize: 13, color: '#94a3b8' }}>
-                  Application Deadline: <span style={{ fontWeight: 700, color: '#334155' }}>{job.deadline?.toDate?.()?.toDateString() || 'N/A'}</span>
+          {queueData.map(job => {
+            const requiredDocuments = getRequiredDocuments(job);
+
+            return (
+              <div
+                key={job.id}
+                onClick={() => setSelectedJob(job)}
+                style={{ background: 'white', borderRadius: 12, padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; }}
+              >
+                <div style={{ flex: 1, paddingRight: 24 }}>
+                  <h3 style={{ margin: '0 0 6px 0', fontSize: 16, fontWeight: 700, color: NAVY }}>{job.title}</h3>
+                  <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12 }}>{job.companyName || job.employerId}</div>
+                  <div style={{ fontSize: 13, color: '#94a3b8' }}>
+                    Application Deadline: <span style={{ fontWeight: 700, color: '#334155' }}>{job.deadline?.toDate?.()?.toDateString() || 'N/A'}</span>
+                  </div>
+                </div>
+                <div style={{ flex: 1, padding: '0 24px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 8, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Required Documents</div>
+                  <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 8 }}>
+                    {requiredDocuments.length > 0 ? (
+                      requiredDocuments.map(doc => <div key={doc} style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>- {doc}</div>)
+                    ) : (
+                      <div style={{ fontSize: 13, color: '#94a3b8' }}>No documents specified</div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 24 }}>
+                  <span style={{ color: GOLD, fontSize: 14, fontWeight: 700 }}>Review Details &rarr;</span>
                 </div>
               </div>
-              <div style={{ flex: 1, padding: '0 24px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 8, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Required Documents</div>
-                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 8 }}>
-                  {job.docs && job.docs.length > 0 ? (
-                    job.docs.map(doc => <div key={doc} style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>- {doc}</div>)
-                  ) : (
-                    <div style={{ fontSize: 13, color: '#94a3b8' }}>No documents specified</div>
-                  )}
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 24 }}>
-                <span style={{ color: GOLD, fontSize: 14, fontWeight: 700 }}>Review Details &rarr;</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

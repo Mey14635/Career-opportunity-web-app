@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Check, FileText, Building2 } from 'lucide-react'; // ✅ only used icons
+import { signOut } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
 
 // ─── SHARED COMPONENTS ──────────────────────────────────────────────────
 import EmployerSidebar from '../../components/employer/EmployerSidebar';
@@ -8,6 +10,8 @@ import DocumentReviewModal from '../../components/employer/DocumentReviewModal';
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────
 import { BG_GRAY } from './constants';
+import { auth } from '../../config/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 
 // ─── FIRESTORE SERVICES ────────────────────────────────────────────────
 import {
@@ -28,8 +32,9 @@ import NotificationsView from './views/NotificationsView';
 import ActivityHistoryView from './views/ActivityHistoryView';
 
 export default function EmployerDashboard({ onLogout }) {
-  // ─── HARDCODED EMPLOYER ID (REPLACE WITH AUTH LATER) ────────────────
-  const employerId = "r8vBnMBEK6VVsnAHiztc"; // ✅ Change this to your actual employer ID
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const employerId = user?.uid;
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedJob, setSelectedJob] = useState(null);
@@ -57,6 +62,11 @@ export default function EmployerDashboard({ onLogout }) {
   // ─── FETCH DATA ──────────────────────────────────────────────────────
   useEffect(() => {
     const fetchData = async () => {
+      if (!employerId) {
+        setLoading(false);
+        return;
+      }
+
       try {
         // 1. Fetch jobs posted by this employer
         const jobs = await getEmployerJobs(employerId);
@@ -97,6 +107,16 @@ export default function EmployerDashboard({ onLogout }) {
   };
 
   const handleAction = (msg) => alert(`Action triggered: ${msg}`);
+
+  const handleLogout = async () => {
+    if (onLogout) {
+      onLogout();
+      return;
+    }
+
+    await signOut(auth);
+    navigate('/employer-access', { replace: true, state: { mode: 'login' } });
+  };
 
   const getBreadcrumb = () => {
     if (activeTab === 'post-role') return 'Dashboard > Post a Job';
@@ -206,7 +226,7 @@ export default function EmployerDashboard({ onLogout }) {
           notifications={notifications}
           setNotifications={setNotifications}
           onSettings={() => navigateTab('settings')}
-          onLogout={onLogout}
+          onLogout={handleLogout}
           onSeeAllNotifications={() => navigateTab('notifications')}
         />
         <main style={{ flex: 1, overflowY: 'auto', padding: '40px', backgroundColor: BG_GRAY }}>

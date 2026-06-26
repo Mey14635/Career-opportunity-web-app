@@ -71,6 +71,22 @@ function pickField(data, fieldNames) {
   return undefined;
 }
 
+function normalizeStatus(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+export function isStudentVisibleOpportunity(data = {}) {
+  const status = normalizeStatus(pickField(data, ["status", "approvalStatus", "approval status"]));
+  const isActive = pickField(data, ["isActive", "is active", "active"]);
+
+  // Students should only see jobs that admin has approved/published.
+  const approvedStatuses = ["approved", "open", "active", "published"];
+  const isApproved = approvedStatuses.includes(status);
+  const isExplicitlyActive = isActive === undefined || isActive === true;
+
+  return isApproved && isExplicitlyActive;
+}
+
 export function mapOpportunityDoc(docSnap) {
   return mapOpportunityData(docSnap.id, docSnap.data());
 }
@@ -101,13 +117,24 @@ export function mapOpportunityData(id, data = {}) {
     id,
     title,
     company,
-    location: pickField(data, ["location", "city", "workLocation", "work location"]) || "Location not specified",
+    location: pickField(data, ["location", "city", "workLocation", "work location", "workMode", "work mode"]) || "Location not specified",
     description,
     type: pickField(data, ["type", "jobType", "job type", "opportunityType", "opportunity type"]) || "Opportunity",
     industry: pickField(data, ["industry", "category"]) || "General",
     deadline: formatDate(deadlineValue),
     daysLeft: calculateDaysLeft(deadlineValue),
     about: pickField(data, ["about", "roleDescription", "role description"]) || description,
+    startDate: formatDate(pickField(data, ["startDate", "start date"])),
+    duration: pickField(data, ["duration"]) || "Duration not specified",
+    positions: pickField(data, ["positions", "openPositions", "open positions"]) || "Not specified",
+    responsibilities: normalizeList(
+      pickField(data, [
+        "responsibilities",
+        "responsibility",
+        "keyResponsibilities",
+        "key responsibilities",
+      ])
+    ),
     requirements: normalizeList(
       pickField(data, [
         "requirements",
@@ -134,6 +161,7 @@ export function mapOpportunityData(id, data = {}) {
         "requiredDocument",
         "required document",
         "documents",
+        "docs",
       ])
     ),
   };

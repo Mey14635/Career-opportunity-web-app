@@ -13,11 +13,11 @@ import VerifyEmail from "./views/VerifyEmail";
 export default function StudentDashboard() {
   return (
     <Routes>
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
-      <Route path="/login" element={<Login />} />
+      <Route path="signup" element={<SignUp />} />
+      <Route path="verify-email" element={<VerifyEmail />} />
+      <Route path="login" element={<Login />} />
       <Route
-        path="/profile"
+        path="profile"
         element={
           <ProtectedRoute>
             <Profile />
@@ -31,13 +31,13 @@ export default function StudentDashboard() {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/favorites" element={<Favorites />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/applications" element={<Applications />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="favorites" element={<Favorites />} />
+        <Route path="notifications" element={<Notifications />} />
+        <Route path="applications" element={<Applications />} />
       </Route>
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route index element={<Navigate to="login" replace />} />
+      <Route path="*" element={<Navigate to="login" replace />} />
     </Routes>
   );
 }

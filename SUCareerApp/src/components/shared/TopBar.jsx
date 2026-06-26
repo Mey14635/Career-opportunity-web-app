@@ -66,29 +66,36 @@ export default function TopBar({ onLogout, onSettings, notifications, setActiveT
         </div>
 
         <div ref={menuRef} style={{ position: 'relative' }}>
-          <div onClick={() => setMenuOpen(!menuOpen)} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '4px 8px', borderRadius: 8, transition: 'background 0.2s' }}>
-            <div style={{ width: 36, height: 36, background: NAVY, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>CA</span>
+          <div onClick={() => setMenuOpen(!menuOpen)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '4px 8px', borderRadius: 6, transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+            <div style={{ width: 32, height: 32, background: NAVY, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ color: 'white', fontSize: 12, fontWeight: 700, fontFamily: 'Inter' }}>CA</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>CDS Portal</span>
-              <ChevronDown size={16} color="#64748b" style={{ transform: menuOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
-            </div>
+            <ChevronDown size={14} color="#64748b" style={{ transform: menuOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
           </div>
           {menuOpen && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 200, background: 'white', borderRadius: 8, boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ position: 'absolute', top: 'calc(100% + 12px)', right: 0, width: 220, background: 'white', borderRadius: 10, boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', overflow: 'hidden', zIndex: 50 }}>
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#f8fafc' }}>
+                <div style={{ fontWeight: 700, color: NAVY, fontSize: 13, fontFamily: 'Inter' }}>CDS Portal</div>
+                <div style={{ color: '#64748b', fontSize: 11, marginTop: 4, fontFamily: 'Inter' }}>cds@strathmore.edu</div>
+              </div>
+              <div style={{ padding: 6 }}>
               <button 
                 onClick={() => { setMenuOpen(false); onSettings(); }}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, color: '#334155', borderBottom: '1px solid #f1f5f9', textAlign: 'left' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#475569', borderRadius: 6, textAlign: 'left', transition: 'background-color 0.2s', fontFamily: 'Inter' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
-                <Settings size={16} /> Account Settings
+                <Settings size={14} /> Account Settings
               </button>
               <button 
                 onClick={() => { setMenuOpen(false); onLogout(); }}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, color: '#ef4444', textAlign: 'left' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#ef4444', borderRadius: 6, textAlign: 'left', marginTop: 2, transition: 'background-color 0.2s', fontFamily: 'Inter' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
-                <LogOut size={16} /> Sign Out
+                <LogOut size={14} /> Sign Out
               </button>
+              </div>
             </div>
           )}
         </div>

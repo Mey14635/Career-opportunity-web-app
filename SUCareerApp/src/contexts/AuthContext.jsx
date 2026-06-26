@@ -9,6 +9,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [role, setRole] = useState(null);
     const [hasProfile, setHasProfile] = useState(false); // New flag
+    const [verificationStatus, setVerificationStatus] = useState(null);
     const [loading, setLoading] = useState(true);
 
     // Helper function to fetch the user metadata cleanly
@@ -19,17 +20,20 @@ export const AuthProvider = ({ children }) => {
             if (userDocSnap.exists()) {
                 const data = userDocSnap.data();
                 setRole(data.role ?? null);
+                setVerificationStatus(data.verificationStatus ?? null);
                 
                 // Check if they completed onboarding profile setup
                 setHasProfile(data.profileCompleted === true);
             } else {
                 setRole(null);
                 setHasProfile(false);
+                setVerificationStatus(null);
             }
         } catch (err) {
             console.error("Error fetching user role data:", err);
             setRole(null);
             setHasProfile(false);
+            setVerificationStatus(null);
         } finally {
             setLoading(false);
         }
@@ -43,6 +47,7 @@ export const AuthProvider = ({ children }) => {
             if (!nextUser) {
                 setRole(null);
                 setHasProfile(false);
+                setVerificationStatus(null);
                 setLoading(false);
                 return;
             }
@@ -67,11 +72,14 @@ export const AuthProvider = ({ children }) => {
             role,
             loading,
             hasProfile,
+            verificationStatus,
             isStudent: role === "student",
+            isEmployer: role === "employer",
+            isAdmin: role === "admin",
             isAuthenticated: Boolean(user),
             refreshAuthStatus, // Expose this to pages changing profile state
         }),
-        [loading, role, user, hasProfile, refreshAuthStatus],
+        [loading, role, user, hasProfile, verificationStatus, refreshAuthStatus],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

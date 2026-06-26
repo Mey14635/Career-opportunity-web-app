@@ -55,7 +55,7 @@ const VerifyEmail = () => {
       setStatus("Email confirmed! Redirecting you to complete your profile setup...");
 
       window.setTimeout(() => {
-        navigate("/profile", { replace: true });
+        navigate("/student-dashboard/profile", { replace: true });
       }, 1500);
 
       return true;
@@ -66,7 +66,7 @@ const VerifyEmail = () => {
     }
   }, [navigate]);
 
-  // Effect 1: Handles the tab that actually opened the email link (Browser B)
+  //  Handles the tab that actually opened the email link 
   useEffect(() => {
     const applyEmailCode = async () => {
       const params = new URLSearchParams(window.location.search);
@@ -88,7 +88,7 @@ const VerifyEmail = () => {
     applyEmailCode();
   }, []);
 
-  // Effect 2: The Cross-Browser Tracker Loop (Runs in Browser A)
+  //  The Cross-Browser Tracker Loop
   useEffect(() => {
     if (complete || savingVerifiedUser) return undefined;
 
@@ -96,12 +96,12 @@ const VerifyEmail = () => {
       let user = auth.currentUser;
       const pendingRegistration = getPendingRegistration();
 
-      // IF USER IS IN THE ORIGINAL REGISTRATION BROWSER (Browser A)
+     
       if (user) {
         try {
-          // CRITICAL: Force a network reload to catch verification updates from the other browser
+          // Force a network reload to catch verification updates from the other browser
           await user.reload(); 
-          user = auth.currentUser; // Get the freshly updated user instance
+          user = auth.currentUser; 
 
           if (user && user.emailVerified) {
             setSavingVerifiedUser(true);

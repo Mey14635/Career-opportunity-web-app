@@ -1,6 +1,7 @@
 import { db } from '../config/firebase';
 import {
   collection,
+  getDoc,
   getDocs,
   doc,
   updateDoc,
@@ -18,8 +19,12 @@ export const getEmployers = async () => {
 };
 
 export const updateEmployerStatus = async (employerId, status) => {
-  const ref = doc(db, 'employer_profiles', employerId);
-  await updateDoc(ref, { verificationStatus: status });
+  const employerRef = doc(db, 'employer_profiles', employerId);
+  const userRef = doc(db, 'user', employerId);
+  await Promise.all([
+    updateDoc(employerRef, { verificationStatus: status, updatedAt: Timestamp.now() }),
+    setDoc(userRef, { role: 'employer', verificationStatus: status, updatedAt: Timestamp.now() }, { merge: true }),
+  ]);
 };
 
 // ─── STUDENTS ─────────────────────────────────────────────────────────────
@@ -40,14 +45,32 @@ export const getOpportunities = async (statusFilter) => {
 
 export const updateOpportunityStatus = async (opportunityId, status) => {
   const ref = doc(db, 'opportunities', opportunityId);
-  await updateDoc(ref, { status });
+  // Keep the existing admin status field and the ERD approval/isActive fields in sync.
+  await updateDoc(ref, {
+    status,
+    approvalStatus: status,
+    isActive: status === 'open',
+    updatedAt: Timestamp.now(),
+  });
 };
 
 // ─── EMPLOYER JOBS (for Employer Dashboard) ──────────────────────────────
 export const getEmployerJobs = async (employerId) => {
-  const q = query(collection(db, 'opportunities'), where('employerId', '==', employerId));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const employerFields = ['employerId', 'employerID'];
+  const snapshots = await Promise.all(
+    employerFields.map((fieldName) =>
+      getDocs(query(collection(db, 'opportunities'), where(fieldName, '==', employerId)))
+    )
+  );
+  const jobsById = new Map();
+
+  snapshots.forEach((snap) => {
+    snap.docs.forEach((d) => {
+      jobsById.set(d.id, { id: d.id, ...d.data() });
+    });
+  });
+
+  return [...jobsById.values()];
 };
 
 // ─── CREATE JOB ────────────────────────────────────────────────────────
@@ -56,6 +79,8 @@ export const createJob = async (jobData) => {
     const ref = doc(collection(db, 'opportunities'));
     await setDoc(ref, {
       ...jobData,
+      approvalStatus: jobData.approvalStatus || jobData.status || 'pending',
+      isActive: jobData.isActive === true,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
@@ -72,10 +97,115 @@ export const updateJob = async (jobId, jobData) => {
 };
 
 // ─── APPLICATIONS ─────────────────────────────────────────────────────────
+const formatApplicationDate = (value) => {
+  if (!value) return 'Not specified';
+
+  const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const getInitials = (name) => {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+
+  if (words.length === 0) return 'NA';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+};
+
+const formatApplicantStatus = (status) => {
+  const normalizedStatus = String(status || 'Pending').trim().toLowerCase();
+
+  if (normalizedStatus === 'shortlisted') return 'Shortlisted';
+  if (normalizedStatus === 'rejected' || normalizedStatus === 'declined') return 'Rejected';
+
+  return 'Pending';
+};
+
+const buildApplicationDocs = (applicationData) => {
+  if (Array.isArray(applicationData.documents) && applicationData.documents.length > 0) {
+    return applicationData.documents
+      .filter((item) => item?.url)
+      .map((item) => ({
+        name: item.label || item.name || item.fileName || 'Document',
+        size: item.fileName || 'Uploaded file',
+        url: item.url,
+      }));
+  }
+
+  const docs = [];
+
+  if (applicationData.resumeUrl) {
+    docs.push({
+      name: 'Resume',
+      size: 'Uploaded file',
+      url: applicationData.resumeUrl,
+    });
+  }
+
+  if (applicationData.coverLetterUrl) {
+    docs.push({
+      name: 'Cover Letter',
+      size: 'Uploaded file',
+      url: applicationData.coverLetterUrl,
+    });
+  }
+
+  return docs;
+};
+
+const mapApplicantDoc = async (applicationDoc) => {
+  const applicationData = applicationDoc.data();
+  let studentData = {};
+
+  if (applicationData.studentId) {
+    const studentSnap = await getDoc(doc(db, 'student_profiles', applicationData.studentId));
+    studentData = studentSnap.exists() ? studentSnap.data() : {};
+  }
+
+  const fallbackName = applicationData.studentName || applicationData.name || applicationData.email || applicationData.studentId || 'Unknown Applicant';
+  const name = [studentData.firstName, studentData.lastName].filter(Boolean).join(' ') || fallbackName;
+
+  return {
+    id: applicationDoc.id,
+    ...applicationData,
+    applicationId: applicationData.applicationId || applicationDoc.id,
+    course: studentData.course || applicationData.course || 'Course not specified',
+    date: formatApplicationDate(applicationData.appliedAt || applicationData.createdAt),
+    docs: buildApplicationDocs(applicationData),
+    email: studentData.personalEmail || applicationData.email || '',
+    initials: getInitials(name),
+    jobId: applicationData.opportunityId || applicationData.opportunityID,
+    name,
+    status: formatApplicantStatus(applicationData.status),
+  };
+};
+
 export const getJobApplicants = async (jobId) => {
-  const q = query(collection(db, 'applications'), where('opportunityId', '==', jobId));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const opportunityFields = ['opportunityId', 'opportunityID'];
+  const snapshots = await Promise.all(
+    opportunityFields.map((fieldName) =>
+      getDocs(query(collection(db, 'applications'), where(fieldName, '==', jobId)))
+    )
+  );
+  const applicantsById = new Map();
+
+  snapshots.forEach((snap) => {
+    snap.docs.forEach((d) => {
+      applicantsById.set(d.id, d);
+    });
+  });
+
+  return Promise.all([...applicantsById.values()].map(mapApplicantDoc));
 };
 
 export const updateApplicationStatus = async (applicationId, status) => {
@@ -84,10 +214,10 @@ export const updateApplicationStatus = async (applicationId, status) => {
 };
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────
-export const getNotificationsForUser = async (userId) => {
+export const getNotificationsForUser = async (uid) => {
   const q = query(
     collection(db, 'notifications'),
-    where('userId', '==', userId),
+    where('uid', '==', uid),
     orderBy('sentAt', 'desc')
   );
   const snap = await getDocs(q);

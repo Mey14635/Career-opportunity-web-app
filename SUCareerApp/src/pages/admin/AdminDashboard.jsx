@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
 import Modal from '../../components/shared/Modal';
 import TopBar from '../../components/shared/TopBar';
 import Sidebar from '../../components/admin/AdminSidebar';
 import { BG_GRAY } from './constants';
+import { auth } from '../../config/firebase';
 
 import DashboardView from './views/DashboardView';
 import StudentsView from './views/StudentsView';
@@ -105,9 +107,12 @@ export default function AdminDashboard({ onLogout }) {
     await fetchAllData();
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     if (onLogout) onLogout();
-    else navigate('/');
+    else {
+      await signOut(auth);
+      navigate('/', { replace: true });
+    }
   };
 
   if (loading) {
