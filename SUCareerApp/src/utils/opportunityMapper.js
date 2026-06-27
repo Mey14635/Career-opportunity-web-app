@@ -79,7 +79,6 @@ export function isStudentVisibleOpportunity(data = {}) {
   const status = normalizeStatus(pickField(data, ["status", "approvalStatus", "approval status"]));
   const isActive = pickField(data, ["isActive", "is active", "active"]);
 
-  // Students should only see jobs that admin has approved/published.
   const approvedStatuses = ["approved", "open", "active", "published"];
   const isApproved = approvedStatuses.includes(status);
   const isExplicitlyActive = isActive === undefined || isActive === true;
@@ -117,6 +116,7 @@ export function mapOpportunityData(id, data = {}) {
     id,
     title,
     company,
+    employerId: pickField(data, ["employerId", "employerID", "employerId", "employer", "uid"]), // ✅ Added this line
     location: pickField(data, ["location", "city", "workLocation", "work location", "workMode", "work mode"]) || "Location not specified",
     description,
     type: pickField(data, ["type", "jobType", "job type", "opportunityType", "opportunity type"]) || "Opportunity",

@@ -1,6 +1,6 @@
 import NavButton from '../../components/shared/NavButton';
 import { NAVY, GOLD } from '../../pages/employer/constants';
-import { LayoutDashboard, FileText, PlusCircle, Building2, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, Building2, BarChart2, Briefcase } from 'lucide-react';
 
 export default function EmployerSidebar({ active, onNavigate }) {
   const isDashboardActive = active === 'dashboard' || active === 'history' || active === 'job-detail';
@@ -25,6 +25,12 @@ export default function EmployerSidebar({ active, onNavigate }) {
           onClick={() => onNavigate('dashboard')} 
           icon={LayoutDashboard} 
           label="Dashboard" 
+        />
+        <NavButton 
+          active={active === 'my-jobs'} 
+          onClick={() => onNavigate('my-jobs')} 
+          icon={Briefcase} 
+          label="My Jobs" 
         />
         <NavButton 
           active={active === 'ats'} 

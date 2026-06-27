@@ -1,5 +1,3 @@
-// ─── src/pages/public/EmployerAccess.jsx ──────────────────────────────────────
-
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -13,6 +11,21 @@ import AuthInput from '../../components/shared/Auth/AuthInput';
 import Button from '../../components/shared/Button/Button';
 
 const NAVY = "#1B3A6B";
+
+// ─── INDUSTRY OPTIONS ──────────────────────────────────────────────────────
+const INDUSTRY_OPTIONS = [
+  'Technology',
+  'Finance',
+  'Healthcare',
+  'Education',
+  'Consulting',
+  'Manufacturing',
+  'Retail',
+  'Hospitality',
+  'Logistics',
+  'Other',
+];
+
 export default function EmployerAccess() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,6 +42,9 @@ export default function EmployerAccess() {
     contactPerson: '',
     email: '',
     website: '',
+    phone: '',
+    industry: 'Technology',           // ← dropdown default
+    companySize: '1-50',              // ← dropdown default
     password: '',
     confirmPassword: '',
   });
@@ -105,7 +121,6 @@ export default function EmployerAccess() {
         return;
       }
 
-      // If admin approves while an employer is still on this page, move them straight into the dashboard.
       unsubscribeUserDoc = onSnapshot(doc(db, 'user', currentUser.uid), async (userSnap) => {
         latestUserData = userSnap.exists() ? userSnap.data() : null;
         await goToDashboardWhenReady(currentUser, latestUserData);
@@ -140,6 +155,9 @@ export default function EmployerAccess() {
     const contactPerson = formData.contactPerson.trim();
     const email = formData.email.trim().toLowerCase();
     const website = formData.website.trim();
+    const phone = formData.phone.trim();
+    const industry = formData.industry;
+    const companySize = formData.companySize;
 
     if (isStrathmoreEmail(email)) {
       setError('Employer accounts must use an official company email. Strathmore email addresses are reserved for student and admin access.');
@@ -158,7 +176,6 @@ export default function EmployerAccess() {
       const user = credential.user;
 
       await updateProfile(user, { displayName: companyName });
-      // Firebase's hosted email page returns here after Continue; the page then shows a wait-for-approval message.
       await sendEmailVerification(user, {
         url: `${window.location.origin}/employer-access?verified=employer`,
         handleCodeInApp: false,
@@ -170,6 +187,9 @@ export default function EmployerAccess() {
         contactPerson,
         email,
         website,
+        phone,
+        industry,
+        size: companySize,
         role: 'employer',
         verificationStatus: 'pending',
         createdAt: serverTimestamp(),
@@ -190,7 +210,7 @@ export default function EmployerAccess() {
         setDoc(doc(db, 'employer_profiles', user.uid), employerData, { merge: true }),
       ]);
 
-      setFormData({ companyName: '', contactPerson: '', email: '', website: '', password: '', confirmPassword: '' });
+      setFormData({ companyName: '', contactPerson: '', email: '', website: '', phone: '', industry: 'Technology', companySize: '1-50', password: '', confirmPassword: '' });
       setIsSubmitted(true);
       setWaitingForApproval(true);
     } catch (err) {
@@ -253,6 +273,8 @@ export default function EmployerAccess() {
     }
   };
 
+  // ─── RENDER ──────────────────────────────────────────────────────────
+
   if (employerEmailVerified) {
     return (
       <>
@@ -266,7 +288,6 @@ export default function EmployerAccess() {
             type="success"
             message="Your email has been verified. Keep this page open. Once the administrator approves your employer account, you will be taken to the dashboard automatically."
           />
-          
         </AuthCard>
       </>
     );
@@ -325,6 +346,42 @@ export default function EmployerAccess() {
             <AuthInput type="text" name="contactPerson" value={formData.contactPerson} required onChange={handleChange} label="Contact Person" placeholder="Jane Mwangi" />
             <AuthInput type="email" name="email" value={formData.email} required onChange={handleChange} label="Official Email" placeholder="hr@company.com" />
             <AuthInput type="url" name="website" value={formData.website} onChange={handleChange} label="Website URL" placeholder="https://company.com" />
+
+            {/** INDUSTRY DROPDOWN **/}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Industry *</label>
+              <select
+                name="industry"
+                value={formData.industry}
+                onChange={handleChange}
+                required
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13, fontFamily: 'Inter', background: '#ffffff' }}
+              >
+                {INDUSTRY_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+
+            <AuthInput type="tel" name="phone" value={formData.phone} onChange={handleChange} label="Contact Phone" placeholder="+254 722 000 000" />
+
+            {/** COMPANY SIZE DROPDOWN **/}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Company Size *</label>
+              <select
+                name="companySize"
+                value={formData.companySize}
+                onChange={handleChange}
+                required
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13, fontFamily: 'Inter', background: '#ffffff' }}
+              >
+                <option value="1-50">1-50 Employees</option>
+                <option value="51-200">51-200 Employees</option>
+                <option value="201-500">201-500 Employees</option>
+                <option value="500+">500+ Employees</option>
+              </select>
+            </div>
+
             <AuthInput type="password" name="password" value={formData.password} required onChange={handleChange} label="Password" placeholder="Enter your password" />
             <AuthInput type="password" name="confirmPassword" value={formData.confirmPassword} required onChange={handleChange} label="Confirm Password" placeholder="Confirm your password" />
 

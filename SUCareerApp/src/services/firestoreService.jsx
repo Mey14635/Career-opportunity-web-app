@@ -8,6 +8,7 @@ import {
   query,
   where,
   orderBy,
+  limit,          // ✅ Uncommented – now used in getRecentOpportunities
   Timestamp,
   setDoc,
 } from 'firebase/firestore';
@@ -45,13 +46,23 @@ export const getOpportunities = async (statusFilter) => {
 
 export const updateOpportunityStatus = async (opportunityId, status) => {
   const ref = doc(db, 'opportunities', opportunityId);
-  // Keep the existing admin status field and the ERD approval/isActive fields in sync.
   await updateDoc(ref, {
     status,
     approvalStatus: status,
     isActive: status === 'open',
     updatedAt: Timestamp.now(),
   });
+};
+
+// ─── RECENT OPPORTUNITIES (for Analytics) ──────────────────────────────
+export const getRecentOpportunities = async (limitCount = 5) => {
+  const q = query(
+    collection(db, 'opportunities'),
+    orderBy('createdAt', 'desc'),
+    limit(limitCount)   // ✅ uses the imported 'limit'
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 };
 
 // ─── EMPLOYER JOBS (for Employer Dashboard) ──────────────────────────────
