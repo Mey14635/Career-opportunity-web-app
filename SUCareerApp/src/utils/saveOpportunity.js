@@ -5,7 +5,7 @@ import {
   checkSavedOpportunityDeadlines,
 } from "../services/notificationService";
 
-async function findSavedOpportunityDocs(userId, opportunityID) {
+async function findSavedOpportunityDocs(userId, opportunityId) {
   const savedCollection = collection(db, "saved_opportunities");
   const userFields = ["userId", "studentId"];
   const opportunityFields = ["opportunityID", "opportunityId"];
@@ -14,7 +14,7 @@ async function findSavedOpportunityDocs(userId, opportunityID) {
       query(
         savedCollection,
         where(userField, "==", userId),
-        where(opportunityField, "==", opportunityID)
+        where(opportunityField, "==", opportunityId)
       )
     )
   );
@@ -30,8 +30,8 @@ async function findSavedOpportunityDocs(userId, opportunityID) {
   return [...savedDocsById.values()];
 }
 
-export async function saveOpportunityForUser(userId, opportunityID) {
-  const savedDocs = await findSavedOpportunityDocs(userId, opportunityID);
+export async function saveOpportunityForUser(userId, opportunityId) {
+  const savedDocs = await findSavedOpportunityDocs(userId, opportunityId);
 
   if (savedDocs.length > 0) {
     return;
@@ -42,25 +42,25 @@ export async function saveOpportunityForUser(userId, opportunityID) {
   await setDoc(savedRef, {
     bookmarkId: savedRef.id,
     studentId: userId,
-    opportunityId: opportunityID,
+    opportunityId,
     savedAt: serverTimestamp(),
   });
 }
 
-export async function unsaveOpportunityForUser(userId, opportunityID) {
-  const savedDocs = await findSavedOpportunityDocs(userId, opportunityID);
+export async function unsaveOpportunityForUser(userId, opportunityId) {
+  const savedDocs = await findSavedOpportunityDocs(userId, opportunityId);
 
   await Promise.all(savedDocs.map((savedDoc) => deleteDoc(savedDoc.ref)));
 }
 
-export async function toggleSavedOpportunityForUser(userId, opportunityID, currentlySaved) {
+export async function toggleSavedOpportunityForUser(userId, opportunityId, currentlySaved) {
   if (currentlySaved) {
-    await unsaveOpportunityForUser(userId, opportunityID);
+    await unsaveOpportunityForUser(userId, opportunityId);
     return false;
   }
 
-  await saveOpportunityForUser(userId, opportunityID);
-  await checkOpportunityDeadlineForUser(userId, opportunityID);
+  await saveOpportunityForUser(userId, opportunityId);
+  await checkOpportunityDeadlineForUser(userId, opportunityId);
   await checkSavedOpportunityDeadlines(userId);
   return true;
 }

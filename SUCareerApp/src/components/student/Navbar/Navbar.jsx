@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { ChevronDown, LogOut, UserCircle } from "lucide-react";
+import { Bell, ChevronDown, LogOut, UserCircle } from "lucide-react";
 import { auth, db } from "../../../config/firebase";
 import { useAuth } from "../../../contexts/AuthContext";
 import { subscribeToUserNotifications } from "../../../services/notificationService";
@@ -17,8 +17,8 @@ function Navbar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const searchText = searchParams.get("search") || "";
-  const newNotificationsCount = notifications.filter((item) => !item.isRead).length;
-  const previewNotifications = notifications.slice(0, 2);
+  const newNotificationsCount = notifications.filter((item) => !item.isRead && !item.read).length;
+  const previewNotifications = notifications.slice(0, 3);
 
   useEffect(() => {
     async function loadAvatarInitial() {
@@ -128,7 +128,12 @@ function Navbar() {
             aria-expanded={showNotifications}
             onClick={() => setShowNotifications(!showNotifications)}
           >
-            <span aria-hidden="true">🔔</span>
+            <Bell size={18} aria-hidden="true" />
+            {newNotificationsCount > 0 && (
+              <span className="notification-count-badge">
+                {newNotificationsCount > 99 ? "99+" : newNotificationsCount}
+              </span>
+            )}
           </button>
 
           {showNotifications && (

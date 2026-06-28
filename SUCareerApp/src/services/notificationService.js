@@ -13,6 +13,45 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 
+const NOTIFICATION_CONFIG = {
+  employer_access_request: {
+    title: "Employer access approval",
+    iconKey: "userPlus",
+    actionLabel: "Review",
+    targetTab: "employer-approvals",
+  },
+  job_review_request: {
+    title: "Job posting review",
+    iconKey: "briefcase",
+    actionLabel: "Review",
+    targetTab: "job-reviews",
+  },
+  student_application: {
+    title: "New student application",
+    iconKey: "fileCheck",
+    actionLabel: "Review",
+    targetTab: "ats",
+  },
+  application_status_update: {
+    title: "Application update",
+    iconKey: "fileCheck",
+    actionLabel: "",
+    targetTab: "notifications",
+  },
+  job_approved: {
+    title: "Job posting approved",
+    iconKey: "check",
+    actionLabel: "",
+    targetTab: "notifications",
+  },
+  deadline_48h: {
+    title: "Application deadline approaching",
+    iconKey: "clock",
+    actionLabel: "",
+    targetTab: "notifications",
+  },
+};
+
 function toDate(value) {
   if (!value) {
     return null;
@@ -34,6 +73,27 @@ function formatNotificationDate(value) {
     month: "short",
     year: "numeric",
   });
+}
+
+function formatRelativeTime(value) {
+  const date = toDate(value);
+
+  if (!date) {
+    return "";
+  }
+
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes} ${diffMinutes === 1 ? "minute" : "minutes"} ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
+
+  return formatNotificationDate(value);
 }
 
 function getDaysLeftLabel(value) {
@@ -96,8 +156,8 @@ function getOpportunityIdFromNotificationId(notificationId, uid) {
   return notificationId.slice(prefix.length, -suffix.length);
 }
 
-export async function getOpportunitySnapByReference(opportunityID) {
-  const opportunitySnap = await getDoc(doc(db, "opportunities", opportunityID));
+export async function getOpportunitySnapByReference(opportunityId) {
+  const opportunitySnap = await getDoc(doc(db, "opportunities", opportunityId));
 
   if (opportunitySnap.exists()) {
     return opportunitySnap;
@@ -105,7 +165,7 @@ export async function getOpportunitySnapByReference(opportunityID) {
 
   const opportunityIdQuery = query(
     collection(db, "opportunities"),
-    where("opportunityID", "==", opportunityID)
+    where("opportunityID", "==", opportunityId)
   );
   const opportunityIdSnap = await getDocs(opportunityIdQuery);
 
@@ -115,21 +175,32 @@ export async function getOpportunitySnapByReference(opportunityID) {
 function mapNotificationDoc(docSnap) {
   const data = docSnap.data();
   const notificationId = data.notificationId || docSnap.id;
+  const config = NOTIFICATION_CONFIG[data.type] || {};
 
   return {
     id: docSnap.id,
     notificationId,
-    title: data.title || "Deadline reminder",
+    title: data.title || config.title || "Notification",
     message: data.message || "You have a new notification.",
+    desc: data.message || "You have a new notification.",
     isRead: data.isRead === true,
+    read: data.isRead === true,
     sentAt: data.sentAt,
     date: formatNotificationDate(data.sentAt),
+    time: formatRelativeTime(data.sentAt),
     readAt: data.readAt,
-    opportunityID: getOpportunityIdFromNotificationId(notificationId, data.uid),
+    opportunityId: data.opportunityId || data.targetId || getOpportunityIdFromNotificationId(notificationId, data.uid),
+    opportunityID: data.opportunityId || data.targetId || getOpportunityIdFromNotificationId(notificationId, data.uid),
     deadlineAt: data.deadlineAt,
     deadlineDate: formatNotificationDate(data.deadlineAt),
     deadlineLabel: getDaysLeftLabel(data.deadlineAt),
     type: data.type,
+    targetId: data.targetId || data.action?.entityId || data.metadata?.jobId || data.metadata?.employerId || data.metadata?.applicationId || "",
+    targetType: data.targetType || data.action?.entityType || "",
+    iconKey: config.iconKey || "bell",
+    actionLabel: config.actionLabel || "",
+    action: data.action || null,
+    metadata: data.metadata || {},
   };
 }
 
@@ -138,12 +209,12 @@ function getNotificationDedupeKey(notification) {
     return notification.notificationId;
   }
 
-  if (notification.opportunityID && notification.type) {
-    return `${notification.opportunityID}_${notification.type}`;
+  if (notification.opportunityId && notification.type) {
+    return `${notification.opportunityId}_${notification.type}`;
   }
 
-  if (notification.opportunityID && notification.title === "Application deadline approaching") {
-    return `${notification.opportunityID}_deadline_48h`;
+  if (notification.opportunityId && notification.title === "Application deadline approaching") {
+    return `${notification.opportunityId}_deadline_48h`;
   }
 
   return notification.id;
@@ -205,17 +276,212 @@ export async function markNotificationAsRead(notificationId) {
   });
 }
 
+export async function markAllNotificationsAsRead(notifications = []) {
+  await Promise.all(
+    notifications
+      .filter((notification) => !notification.isRead && !notification.read)
+      .map((notification) => markNotificationAsRead(notification.id))
+  );
+}
+
 export async function deleteNotification(notificationId) {
   await deleteDoc(doc(db, "notifications", notificationId));
 }
 
-function buildDeadlineNotificationId(uid, opportunityID) {
-  return `${uid}_${opportunityID}_deadline_48h`;
+async function getAdminUserIds() {
+  const adminQuery = query(collection(db, "user"), where("role", "==", "admin"));
+  const adminSnap = await getDocs(adminQuery);
+
+  return adminSnap.docs.map((adminDoc) => adminDoc.id);
 }
 
-async function createDeadlineNotification(uid, opportunityID, opportunityData) {
+function buildNotificationDoc({ uid, notificationId, type, message, targetId = "", targetType = "", opportunityId = "", deadlineAt = null }) {
+  const config = NOTIFICATION_CONFIG[type] || {};
+
+  const notificationDoc = {
+    uid,
+    notificationId,
+    type,
+    title: config.title || "Notification",
+    message,
+    targetId,
+    targetType,
+    isRead: false,
+    sentAt: serverTimestamp(),
+    readAt: null,
+  };
+
+  if (opportunityId) {
+    notificationDoc.opportunityId = opportunityId;
+  }
+
+  if (deadlineAt) {
+    notificationDoc.deadlineAt = deadlineAt;
+  }
+
+  return notificationDoc;
+}
+
+async function createNotificationIfMissing(payload) {
+  const notificationRef = doc(db, "notifications", payload.notificationId);
+  const notificationSnap = await getDoc(notificationRef);
+
+  if (notificationSnap.exists()) {
+    return;
+  }
+
+  await setDoc(notificationRef, buildNotificationDoc(payload));
+}
+
+async function createAdminNotifications(type, buildPayload) {
+  const adminIds = await getAdminUserIds();
+
+  await Promise.all(
+    adminIds.map((uid) => createNotificationIfMissing(buildPayload(uid, type)))
+  );
+}
+
+export async function createAdminEmployerVerificationNotification(employerData = {}) {
+  const employerId = employerData.uid || employerData.id;
+  const companyName = employerData.companyName || "An employer";
+  const contactPerson = employerData.contactPerson || "A company representative";
+
+  if (!employerId) {
+    return;
+  }
+
+  await createAdminNotifications("employer_access_request", (uid, type) => ({
+    uid,
+    type,
+    notificationId: `${uid}_employer_verified_${employerId}`,
+    message: `${companyName} completed email verification. ${contactPerson} requested employer access approval.`,
+    targetId: employerId,
+    targetType: "employer",
+  }));
+}
+
+export async function createAdminJobReviewNotification(jobId, jobData = {}) {
+  const companyName = jobData.companyName || "An employer";
+  const jobTitle = getOpportunityTitle(jobData);
+
+  if (!jobId) {
+    return;
+  }
+
+  await createAdminNotifications("job_review_request", (uid, type) => ({
+    uid,
+    type,
+    notificationId: `${uid}_job_review_${jobId}`,
+    message: `${companyName} submitted "${jobTitle}" for review.`,
+    targetId: jobId,
+    targetType: "job",
+  }));
+}
+
+export async function createEmployerApplicationNotification(applicationId, applicationData = {}) {
+  const opportunityId = applicationData.opportunityId || applicationData.opportunityID;
+
+  if (!applicationId || !opportunityId) {
+    return;
+  }
+
+  const opportunitySnap = await getOpportunitySnapByReference(opportunityId);
+
+  if (!opportunitySnap) {
+    return;
+  }
+
+  const opportunityData = opportunitySnap.data();
+  const employerId = opportunityData.employerID || opportunityData.employerId;
+
+  if (!employerId) {
+    return;
+  }
+
+  let studentData = {};
+
+  if (applicationData.studentId) {
+    const studentSnap = await getDoc(doc(db, "student_profiles", applicationData.studentId));
+    studentData = studentSnap.exists() ? studentSnap.data() : {};
+  }
+
+  const studentName =
+    [studentData.firstName, studentData.lastName].filter(Boolean).join(" ") ||
+    applicationData.studentName ||
+    applicationData.email ||
+    "A student";
+  const jobTitle = getOpportunityTitle(opportunityData);
+
+  await createNotificationIfMissing({
+    uid: employerId,
+    type: "student_application",
+    notificationId: `${employerId}_application_${applicationId}`,
+    message: `${studentName} applied for "${jobTitle}".`,
+    targetId: applicationId,
+    targetType: "application",
+    opportunityId: opportunitySnap.id,
+  });
+}
+
+export async function createStudentApplicationStatusNotification(applicationId, applicationData = {}, status = "") {
+  const studentId = applicationData.studentId || applicationData.uid || applicationData.userId;
+  const opportunityId = applicationData.opportunityId || applicationData.opportunityID;
+  const readableStatus = String(status || applicationData.status || "updated").trim();
+  const statusKey = readableStatus.toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
+
+  if (!applicationId || !studentId) {
+    return;
+  }
+
+  let jobTitle = applicationData.jobTitle || applicationData.title || "your application";
+  let companyName = applicationData.companyName || "";
+
+  if (opportunityId) {
+    const opportunitySnap = await getOpportunitySnapByReference(opportunityId);
+
+    if (opportunitySnap) {
+      const opportunityData = opportunitySnap.data();
+      jobTitle = getOpportunityTitle(opportunityData);
+      companyName = opportunityData.companyName || companyName;
+    }
+  }
+
+  await createNotificationIfMissing({
+    uid: studentId,
+    type: "application_status_update",
+    notificationId: `${studentId}_application_status_${applicationId}_${statusKey}`,
+    message: `${companyName ? `${companyName} updated` : "An employer updated"} your application for "${jobTitle}" to ${readableStatus}.`,
+    targetId: applicationId,
+    targetType: "application",
+    opportunityId: opportunityId || "",
+  });
+}
+
+export async function createEmployerJobApprovedNotification(jobId, jobData = {}) {
+  const employerId = jobData.employerID || jobData.employerId;
+  const jobTitle = getOpportunityTitle(jobData);
+
+  if (!jobId || !employerId) {
+    return;
+  }
+
+  await createNotificationIfMissing({
+    uid: employerId,
+    type: "job_approved",
+    notificationId: `${employerId}_job_approved_${jobId}`,
+    message: `"${jobTitle}" has been approved and is now visible to students.`,
+    targetId: jobId,
+    targetType: "job",
+  });
+}
+
+function buildDeadlineNotificationId(uid, opportunityId) {
+  return `${uid}_${opportunityId}_deadline_48h`;
+}
+
+async function createDeadlineNotification(uid, opportunityId, opportunityData) {
   const type = "deadline_48h";
-  const notificationId = buildDeadlineNotificationId(uid, opportunityID);
+  const notificationId = buildDeadlineNotificationId(uid, opportunityId);
   const title = getOpportunityTitle(opportunityData);
   const baseNotificationData = {
     uid,
@@ -223,6 +489,9 @@ async function createDeadlineNotification(uid, opportunityID, opportunityData) {
     type,
     title: "Application deadline approaching",
     message: `Your deadline for ${title} is approaching.`,
+    targetId: opportunityId,
+    targetType: "opportunity",
+    opportunityId,
     deadlineAt: getDeadlineValue(opportunityData),
   };
   const newNotificationData = {
@@ -251,13 +520,13 @@ export async function checkSavedOpportunityDeadlines(uid) {
   await Promise.all(
     savedSnap.docs.map(async (savedDoc) => {
       const savedData = savedDoc.data();
-      const opportunityID = savedData.opportunityID || savedData.opportunityId;
+      const opportunityId = savedData.opportunityId || savedData.opportunityID;
 
-      if (!opportunityID) {
+      if (!opportunityId) {
         return;
       }
 
-      const opportunitySnap = await getOpportunitySnapByReference(opportunityID);
+      const opportunitySnap = await getOpportunitySnapByReference(opportunityId);
 
       if (!opportunitySnap) {
         return;
@@ -270,13 +539,13 @@ export async function checkSavedOpportunityDeadlines(uid) {
         return;
       }
 
-      await createDeadlineNotification(uid, opportunityID, opportunityData);
+      await createDeadlineNotification(uid, opportunityId, opportunityData);
     })
   );
 }
 
-export async function checkOpportunityDeadlineForUser(uid, opportunityID) {
-  const opportunitySnap = await getOpportunitySnapByReference(opportunityID);
+export async function checkOpportunityDeadlineForUser(uid, opportunityId) {
+  const opportunitySnap = await getOpportunitySnapByReference(opportunityId);
 
   if (!opportunitySnap) {
     return;
@@ -289,5 +558,5 @@ export async function checkOpportunityDeadlineForUser(uid, opportunityID) {
     return;
   }
 
-  await createDeadlineNotification(uid, opportunityID, opportunityData);
+  await createDeadlineNotification(uid, opportunityId, opportunityData);
 }

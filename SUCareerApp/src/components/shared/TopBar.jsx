@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Bell, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Search, Bell, Settings, LogOut, ChevronDown, Briefcase, CheckCircle2, FileCheck2, Trash2, UserPlus } from 'lucide-react';
+import { deleteNotification } from '../../services/notificationService';
 
 const NAVY = "#1B3A6B";
 const GOLD = "#C9A230";
@@ -11,6 +12,7 @@ export default function TopBar({
   onSettings,
   notifications,
   setActiveTab,
+  onNotificationAction,
 
   // ─── BREADCRUMB (optional) ──────────────────────────────────────────
   breadcrumb,
@@ -38,8 +40,34 @@ export default function TopBar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-  const topNotifs = notifications.slice(0, 3);
+  const iconMap = {
+    briefcase: Briefcase,
+    check: CheckCircle2,
+    fileCheck: FileCheck2,
+    userPlus: UserPlus,
+  };
+  const safeNotifications = Array.isArray(notifications) ? notifications : [];
+  const unreadCount = safeNotifications.filter(n => !n.read && !n.isRead).length;
+  const topNotifs = safeNotifications.slice(0, 3);
+
+  const handleActionClick = (notification) => {
+    setBellOpen(false);
+    if (onNotificationAction) {
+      onNotificationAction(notification);
+      return;
+    }
+    setActiveTab('notifications');
+  };
+
+  const handleDelete = async (event, notificationId) => {
+    event.stopPropagation();
+
+    try {
+      await deleteNotification(notificationId);
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+    }
+  };
 
   return (
     <header style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '12px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 5 }}>
@@ -70,9 +98,9 @@ export default function TopBar({
       <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
         {/* ─── NOTIFICATION BELL ────────────────────────────────────── */}
         <div ref={bellRef} style={{ position: 'relative' }}>
-          <button onClick={() => setBellOpen(!bellOpen)} style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}>
-            <Bell size={20} color={NAVY} />
-            {unreadCount > 0 && <span style={{ position: 'absolute', top: 0, right: 0, width: 10, height: 10, background: '#ef4444', border: '2px solid white', borderRadius: '50%' }} />}
+          <button onClick={() => setBellOpen(!bellOpen)} style={{ position: 'relative', width: 38, height: 38, background: '#fff9ea', border: '1px solid #f3d78d', borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, color: GOLD }}>
+            <Bell size={20} color={GOLD} />
+            {unreadCount > 0 && <span style={{ position: 'absolute', top: -6, right: -8, minWidth: 18, height: 18, padding: '0 5px', background: '#ef4444', border: '2px solid white', borderRadius: 999, color: 'white', fontSize: 10, fontWeight: 800, lineHeight: '14px', textAlign: 'center' }}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
           </button>
           {bellOpen && (
             <div style={{ position: 'absolute', top: 'calc(100% + 12px)', right: -10, width: 360, maxHeight: 'calc(100vh - 100px)', background: 'white', borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', zIndex: 50 }}>
@@ -81,16 +109,38 @@ export default function TopBar({
                 {unreadCount > 0 && <span style={{ fontSize: 11, color: '#ef4444', background: '#fee2e2', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>{unreadCount} New</span>}
               </div>
               <div style={{ overflowY: 'auto', flex: 1 }}>
-                {topNotifs.map(n => (
-                  <div key={n.id} style={{ padding: '16px', borderBottom: '1px solid #f1f5f9', background: n.read ? 'white' : '#f8fafc' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>{n.title}</span>
-                      {!n.read && <div style={{ width: 6, height: 6, background: GOLD, borderRadius: '50%', marginTop: 4, flexShrink: 0 }} />}
+                {topNotifs.length === 0 && (
+                  <div style={{ padding: '24px 16px', color: '#94a3b8', fontSize: 13, textAlign: 'center' }}>No notifications yet.</div>
+                )}
+                {topNotifs.map(n => {
+                  const NotificationIcon = iconMap[n.iconKey] || Bell;
+                  return (
+                  <div key={n.id} style={{ padding: '16px', borderBottom: '1px solid #f1f5f9', background: n.read ? 'white' : '#f8fafc', display: 'flex', gap: 12 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#eef2ff', color: NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <NotificationIcon size={16} />
                     </div>
-                    <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 6px 0', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{n.desc}</p>
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{n.time}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>{n.title}</span>
+                        {!n.read && <div style={{ width: 7, height: 7, background: GOLD, borderRadius: '50%', marginTop: 5, flexShrink: 0 }} />}
+                      </div>
+                      <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 8px 0', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{n.desc || n.message}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <span style={{ fontSize: 11, color: '#94a3b8' }}>{n.time || n.date}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {n.actionLabel && (
+                            <button type="button" onClick={() => handleActionClick(n)} style={{ border: 'none', background: NAVY, color: 'white', borderRadius: 6, padding: '5px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                              {n.actionLabel}
+                            </button>
+                          )}
+                          <button type="button" aria-label="Delete notification" onClick={(event) => handleDelete(event, n.id)} style={{ border: 'none', background: '#f1f5f9', color: '#64748b', borderRadius: 6, padding: 5, cursor: 'pointer', display: 'flex' }}>
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                ))}
+                )})}
               </div>
               <button
                 onClick={() => { setBellOpen(false); setActiveTab('notifications'); }}
@@ -98,7 +148,7 @@ export default function TopBar({
                 onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
               >
-                See all Notifications
+                View All
               </button>
             </div>
           )}

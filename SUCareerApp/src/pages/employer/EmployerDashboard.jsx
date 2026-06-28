@@ -21,6 +21,10 @@ import {
   getJobApplicants,
   updateApplicationStatus,
 } from '../../services/firestoreService';
+import {
+  markNotificationAsRead,
+  subscribeToUserNotifications,
+} from '../../services/notificationService';
 
 // ─── VIEWS ──────────────────────────────────────────────────────────────
 import DashboardView from './views/DashboardView';
@@ -134,6 +138,18 @@ export default function EmployerDashboard({ onLogout }) {
     fetchAllData();
   }, [employerId, refreshKey]);
 
+  useEffect(() => {
+    if (!employerId) {
+      return undefined;
+    }
+
+    return subscribeToUserNotifications(
+      employerId,
+      setNotifications,
+      (err) => console.error('Failed to load employer notifications:', err)
+    );
+  }, [employerId]);
+
   const getInitials = () => {
     if (!companyName) return 'EM';
     const words = companyName.split(' ');
@@ -158,6 +174,32 @@ export default function EmployerDashboard({ onLogout }) {
   };
 
   const handleAction = (msg) => alert(`Action triggered: ${msg}`);
+
+  const handleNotificationAction = async (notification) => {
+    try {
+      if (!notification.read && !notification.isRead) {
+        await markNotificationAsRead(notification.id);
+      }
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+
+    if (notification.type === 'student_application' || notification.action?.targetTab === 'ats') {
+      const applicationId = notification.targetId || notification.action?.entityId || notification.metadata?.applicationId;
+      const applicant = applicants.find((item) => item.id === applicationId || item.applicationId === applicationId);
+
+      setActiveTab('ats');
+      setSelectedJob(null);
+      setEditingJob(null);
+
+      if (applicant) {
+        setReviewApplicant(applicant);
+      }
+      return;
+    }
+
+    setActiveTab(notification.action?.targetTab || 'notifications');
+  };
 
   const handleLogout = async () => {
     if (onLogout) {
@@ -241,7 +283,7 @@ export default function EmployerDashboard({ onLogout }) {
       case 'history':
         return <ActivityHistoryView activities={realActivities} onBack={() => navigateTab('dashboard')} />;
       case 'notifications':
-        return <NotificationsView notifications={notifications} setNotifications={setNotifications} />;
+        return <NotificationsView notifications={notifications} onNotificationAction={handleNotificationAction} />;
       case 'profile':
         return (
           <CompanyProfileView
@@ -352,6 +394,7 @@ export default function EmployerDashboard({ onLogout }) {
           onSettings={() => navigateTab('settings')}
           onLogout={handleLogout}
           setActiveTab={setActiveTab}
+          onNotificationAction={handleNotificationAction}
           breadcrumb={getBreadcrumb()}
           showSearch={false}
           searchPlaceholder="Search your jobs..."

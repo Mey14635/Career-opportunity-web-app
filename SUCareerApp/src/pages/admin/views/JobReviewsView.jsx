@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { NAVY, GOLD, BG_GRAY } from '../constants';
 
@@ -7,7 +7,9 @@ function getRequiredDocuments(job = {}) {
   let docs = [];
 
   // If it's already an array
-  if (Array.isArray(job.documentsRequired) && job.documentsRequired.length > 0) {
+  if (Array.isArray(job.requiredDocuments) && job.requiredDocuments.length > 0) {
+    docs = job.requiredDocuments;
+  } else if (Array.isArray(job.documentsRequired) && job.documentsRequired.length > 0) {
     docs = job.documentsRequired;
   } else if (Array.isArray(job.docs) && job.docs.length > 0) {
     docs = job.docs;
@@ -17,6 +19,21 @@ function getRequiredDocuments(job = {}) {
   }
 
   return docs;
+}
+
+function formatDocumentLabel(document) {
+  if (typeof document === 'string') {
+    return document;
+  }
+
+  if (!document) {
+    return 'Document';
+  }
+
+  const label = document.label || document.name || 'Document';
+  return document.format && document.format !== 'any'
+    ? `${label} (${document.formatLabel || document.format})`
+    : label;
 }
 
 // ─── Helper: Parse requirements (comma‑separated string → array) ──
@@ -30,111 +47,133 @@ function getRequirements(job = {}) {
   return [];
 }
 
-export default function JobReviewsView({ queueData, triggerModal }) {
-  const [selectedJob, setSelectedJob] = useState(null);
+export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelection }) {
+  const docs = getRequiredDocuments(selectedJob);
+  const reqs = getRequirements(selectedJob);
 
-  if (selectedJob) {
-    const docs = getRequiredDocuments(selectedJob);
-    const reqs = getRequirements(selectedJob);
-
-    return (
-      <div style={{ maxWidth: '1000px' }}>
-        <button onClick={() => setSelectedJob(null)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#64748b', fontSize: 14, cursor: 'pointer', marginBottom: 24 }}>
+  return (
+    <div style={{ maxWidth: '1000px' }}>
+      {onBack && (
+        <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#64748b', fontSize: 14, cursor: 'pointer', marginBottom: 24 }}>
           <ArrowLeft size={16} /> Back to Job Reviews
         </button>
-        <div style={{ background: 'white', borderRadius: 16, padding: 32, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-          <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
-            <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
-            <p style={{ margin: 0, color: '#64748b', fontSize: 16 }}>
-              {selectedJob.companyName || selectedJob.employerId || selectedJob.employerID || 'Company'} &bull; 
-              {selectedJob.location || selectedJob.workMode || 'Location not specified'}
+      )}
+      <div style={{ background: 'white', borderRadius: 16, padding: 32, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+        <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
+          <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
+          <p style={{ margin: 0, color: '#64748b', fontSize: 16 }}>
+            {selectedJob.companyName || selectedJob.employerId || selectedJob.employerID || 'Company'} &bull; 
+            {selectedJob.location || selectedJob.workMode || 'Location not specified'}
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 40 }}>
+          <div>
+            <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Job Description</h3>
+            <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>
+              {selectedJob.description || 'No description provided.'}
             </p>
+
+            <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Requirements</h3>
+            {reqs.length > 0 ? (
+              <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 15, lineHeight: 1.8 }}>
+                {reqs.map((req, idx) => <li key={idx}>{req}</li>)}
+              </ul>
+            ) : (
+              <p style={{ color: '#94a3b8', fontSize: 15 }}>No specific requirements listed.</p>
+            )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 40 }}>
-            <div>
-              <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Job Description</h3>
-              <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>
-                {selectedJob.description || 'No description provided.'}
-              </p>
+          <div>
+            <div style={{ background: BG_GRAY, borderRadius: 12, padding: 24, marginBottom: 24 }}>
+              <h3 style={{ color: NAVY, fontSize: 14, fontWeight: 700, margin: '0 0 16px 0', textTransform: 'uppercase' }}>Role Details</h3>
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>APPLICATION DEADLINE</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
+                  {selectedJob.deadline?.toDate?.()?.toDateString() || 'Not specified'}
+                </p>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>DURATION</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
+                  {selectedJob.duration || 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>OPEN POSITIONS</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
+                  {selectedJob.positions || 'Not specified'}
+                </p>
+              </div>
+            </div>
 
-              <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Requirements</h3>
-              {reqs.length > 0 ? (
-                <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 15, lineHeight: 1.8 }}>
-                  {reqs.map((req, idx) => <li key={idx}>{req}</li>)}
+            <div>
+              <h3 style={{ color: NAVY, fontSize: 14, fontWeight: 700, margin: '0 0 12px 0', textTransform: 'uppercase' }}>Documents Required</h3>
+              {docs.length > 0 ? (
+                <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
+                  {docs.map((doc, idx) => <li key={idx}>{formatDocumentLabel(doc)}</li>)}
                 </ul>
               ) : (
-                <p style={{ color: '#94a3b8', fontSize: 15 }}>No specific requirements listed.</p>
+                <p style={{ color: '#94a3b8', fontSize: 14 }}>No documents specified.</p>
               )}
             </div>
-
-            <div>
-              <div style={{ background: BG_GRAY, borderRadius: 12, padding: 24, marginBottom: 24 }}>
-                <h3 style={{ color: NAVY, fontSize: 14, fontWeight: 700, margin: '0 0 16px 0', textTransform: 'uppercase' }}>Role Details</h3>
-                <div style={{ marginBottom: 12 }}>
-                  <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>START DATE</p>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
-                    {selectedJob.startDate || selectedJob.deadline?.toDate?.()?.toDateString() || 'Not specified'}
-                  </p>
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>DURATION</p>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
-                    {selectedJob.duration || 'Not specified'}
-                  </p>
-                </div>
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>OPEN POSITIONS</p>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
-                    {selectedJob.positions || 'Not specified'}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <h3 style={{ color: NAVY, fontSize: 14, fontWeight: 700, margin: '0 0 12px 0', textTransform: 'uppercase' }}>Documents Required</h3>
-                {docs.length > 0 ? (
-                  <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
-                    {docs.map((doc, idx) => <li key={idx}>{doc}</li>)}
-                  </ul>
-                ) : (
-                  <p style={{ color: '#94a3b8', fontSize: 14 }}>No documents specified.</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, borderTop: '1px solid #e2e8f0', paddingTop: 24, marginTop: 32 }}>
-            <button
-              onClick={() => {
-                triggerModal('Reject Listing', `Reject "${selectedJob.title}"?`, 'danger', {
-                  view: 'job',
-                  id: selectedJob.id,
-                  type: 'reject',
-                  clearSelection: () => setSelectedJob(null),
-                });
-              }}
-              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Reject / Request Edits
-            </button>
-            <button
-              onClick={() => {
-                triggerModal('Approve & Publish', `Publish "${selectedJob.title}"?`, 'primary', {
-                  view: 'job',
-                  id: selectedJob.id,
-                  type: 'approve',
-                  job: selectedJob,
-                  clearSelection: () => setSelectedJob(null),
-                });
-              }}
-              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: GOLD, color: NAVY, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Approve & Publish
-            </button>
           </div>
         </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, borderTop: '1px solid #e2e8f0', paddingTop: 24, marginTop: 32 }}>
+          <button
+            onClick={() => {
+              triggerModal('Reject Listing', `Reject "${selectedJob.title}"?`, 'danger', {
+                view: 'job',
+                id: selectedJob.id,
+                type: 'reject',
+                clearSelection,
+              });
+            }}
+            style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Reject / Request Edits
+          </button>
+          <button
+            onClick={() => {
+              triggerModal('Approve & Publish', `Publish "${selectedJob.title}"?`, 'primary', {
+                view: 'job',
+                id: selectedJob.id,
+                type: 'approve',
+                job: selectedJob,
+                clearSelection,
+              });
+            }}
+            style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: GOLD, color: NAVY, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Approve & Publish
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+export default function JobReviewsView({ queueData, triggerModal, focusedJobId }) {
+  const [selectedJobOverride, setSelectedJobOverride] = useState(null);
+  const [dismissedFocusedJobId, setDismissedFocusedJobId] = useState('');
+  const focusedJob = useMemo(
+    () => queueData.find((job) => job.id === focusedJobId) || null,
+    [focusedJobId, queueData]
+  );
+  const selectedJob = selectedJobOverride || (focusedJobId !== dismissedFocusedJobId ? focusedJob : null);
+
+  if (selectedJob) {
+    return (
+      <JobReviewDetails
+        selectedJob={selectedJob}
+        triggerModal={triggerModal}
+        onBack={() => {
+          setSelectedJobOverride(null);
+          setDismissedFocusedJobId(focusedJobId || '');
+        }}
+        clearSelection={() => setSelectedJobOverride(null)}
+      />
     );
   }
 
@@ -155,7 +194,10 @@ export default function JobReviewsView({ queueData, triggerModal }) {
             return (
               <div
                 key={job.id}
-                onClick={() => setSelectedJob(job)}
+                onClick={() => {
+                  setSelectedJobOverride(job);
+                  setDismissedFocusedJobId('');
+                }}
                 style={{ background: 'white', borderRadius: 12, padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
                 onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; }}
@@ -172,7 +214,7 @@ export default function JobReviewsView({ queueData, triggerModal }) {
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 8, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Required Documents</div>
                   <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 8 }}>
                     {docs.length > 0 ? (
-                      docs.map(doc => <div key={doc} style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>- {doc}</div>)
+                      docs.map((doc, idx) => <div key={idx} style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>- {formatDocumentLabel(doc)}</div>)
                     ) : (
                       <div style={{ fontSize: 13, color: '#94a3b8' }}>No documents specified</div>
                     )}

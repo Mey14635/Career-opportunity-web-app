@@ -4,6 +4,12 @@ import { createJob, updateJob } from '../../../services/firestoreService';
 import { NAVY, GOLD, inputStyle, labelStyle } from '../constants';
 import DocCheckbox from '../../../components/employer/DocCheckbox';
 
+const standardDocumentOptions = [
+  { key: 'cv', label: 'CV / Resume' },
+  { key: 'coverLetter', label: 'Cover Letter' },
+  { key: 'transcripts', label: 'Academic Transcripts' },
+];
+
 export default function PostJobView({ employerId, companyName, editingJob = null, onCancel, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,6 +48,8 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     { value: 'link', label: 'Link (URL)' },
   ];
 
+  const getFormatLabel = (format) => formatOptions.find(f => f.value === format)?.label || 'Any Format';
+
   // ─── POPULATE FORM WHEN EDITING ────────────────────────────────────────
   useEffect(() => {
     if (editingJob) {
@@ -62,18 +70,33 @@ export default function PostJobView({ employerId, companyName, editingJob = null
         requirement: editingJob.requirement || '',
       });
 
+      const structuredDocs = Array.isArray(editingJob.requiredDocuments) ? editingJob.requiredDocuments : [];
       const docString = editingJob.requiredDocument || '';
+      const findStructuredDoc = (label) => structuredDocs.find((doc) => doc?.label === label || doc?.name === label);
       
       // Parse standard docs
       setDocuments({
-        cv: { required: docString.toLowerCase().includes('cv') || docString.toLowerCase().includes('resume'), format: 'any' },
-        coverLetter: { required: docString.toLowerCase().includes('cover letter'), format: 'any' },
-        transcripts: { required: docString.toLowerCase().includes('transcript'), format: 'any' },
+        cv: {
+          required: Boolean(findStructuredDoc('CV / Resume')) || docString.toLowerCase().includes('cv') || docString.toLowerCase().includes('resume'),
+          format: findStructuredDoc('CV / Resume')?.format || 'any',
+        },
+        coverLetter: {
+          required: Boolean(findStructuredDoc('Cover Letter')) || docString.toLowerCase().includes('cover letter'),
+          format: findStructuredDoc('Cover Letter')?.format || 'any',
+        },
+        transcripts: {
+          required: Boolean(findStructuredDoc('Academic Transcripts')) || docString.toLowerCase().includes('transcript'),
+          format: findStructuredDoc('Academic Transcripts')?.format || 'any',
+        },
       });
 
       // Parse custom docs from the additionalDocs field (if it exists)
+      const standardLabels = standardDocumentOptions.map((item) => item.label);
+      const structuredCustomDocs = structuredDocs
+        .filter((doc) => !standardLabels.includes(doc?.label || doc?.name))
+        .map((doc) => ({ name: doc.label || doc.name, format: doc.format || 'any' }));
       const customDocs = editingJob.additionalDocs ? editingJob.additionalDocs.split(',').map(d => d.trim()).filter(Boolean) : [];
-      setCustomDocuments(customDocs.map(name => ({ name, format: 'any' })));
+      setCustomDocuments(structuredCustomDocs.length > 0 ? structuredCustomDocs : customDocs.map(name => ({ name, format: 'any' })));
     }
   }, [editingJob]);
 
@@ -113,23 +136,44 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     ));
   };
 
-  // ─── BUILD REQUIRED DOCUMENTS STRING ──────────────────────────────────
-  const buildRequiredDocs = () => {
+  // ─── BUILD REQUIRED DOCUMENTS ─────────────────────────────────────────
+  const buildRequiredDocItems = () => {
     const docs = [];
-    if (documents.cv.required) docs.push('CV / Resume');
-    if (documents.coverLetter.required) docs.push('Cover Letter');
-    if (documents.transcripts.required) docs.push('Academic Transcripts');
-    
-    customDocuments.forEach(doc => {
-      docs.push(`${doc.name}${doc.format !== 'any' ? ` (${formatOptions.find(f => f.value === doc.format)?.label})` : ''}`);
+
+    standardDocumentOptions.forEach((item) => {
+      const documentConfig = documents[item.key];
+
+      if (documentConfig.required) {
+        docs.push({
+          key: item.key,
+          label: item.label,
+          format: documentConfig.format,
+          formatLabel: getFormatLabel(documentConfig.format),
+          inputType: documentConfig.format === 'link' ? 'url' : 'file',
+        });
+      }
     });
-    
-    return docs.join(', ') || 'None specified';
+
+    customDocuments.forEach(doc => {
+      docs.push({
+        key: doc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        label: doc.name,
+        format: doc.format,
+        formatLabel: getFormatLabel(doc.format),
+        inputType: doc.format === 'link' ? 'url' : 'file',
+        custom: true,
+      });
+    });
+
+    return docs;
   };
 
-  // ─── BUILD ADDITIONAL DOCS STRING ──────────────────────────────────────
-  const buildAdditionalDocs = () => {
-    return customDocuments.map(d => d.name).join(', ');
+  const buildRequiredDocsLabel = () => {
+    const docs = buildRequiredDocItems().map((doc) => (
+      doc.format !== 'any' ? `${doc.label} (${doc.formatLabel})` : doc.label
+    ));
+
+    return docs.join(', ') || 'None specified';
   };
 
   // ─── SUBMIT ──────────────────────────────────────────────────────────────
@@ -140,7 +184,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     const jobData = {
       title: formData.title,
       companyName: companyName,
-      employerID: employerId,
+      employerId,
       department: formData.department,
       category: formData.category,
       jobType: formData.jobType,
@@ -153,8 +197,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       applicationSubject: formData.applicationSubject,
       description: formData.description,
       requirement: formData.requirement,
-      requiredDocument: buildRequiredDocs(),
-      additionalDocs: buildAdditionalDocs(),
+      requiredDocuments: buildRequiredDocItems(),
       status: editingJob ? editingJob.status : 'pending',
       metrics: editingJob?.metrics || { views: 0, applications: 0 },
     };
@@ -417,7 +460,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           <div style={{ marginTop: '20px', padding: '12px 16px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
             <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>📄 Documents Required:</p>
             <p style={{ fontSize: '13px', color: NAVY, fontWeight: 500 }}>
-              {buildRequiredDocs()}
+              {buildRequiredDocsLabel()}
             </p>
           </div>
         </div>
