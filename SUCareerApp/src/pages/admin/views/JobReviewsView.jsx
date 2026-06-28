@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { NAVY, GOLD, BG_GRAY } from '../constants';
 
-// ─── Helper: Extract documents from job (handles both array and comma‑separated string) ──
+// Helper: Extract documents from job (handles both array and comma‑separated string)
 function getRequiredDocuments(job = {}) {
   let docs = [];
 
+  if (Array.isArray(job.documentsRequired) && job.documentsRequired.length > 0) {
   // If it's already an array
   if (Array.isArray(job.requiredDocuments) && job.requiredDocuments.length > 0) {
     docs = job.requiredDocuments;
@@ -14,7 +15,6 @@ function getRequiredDocuments(job = {}) {
   } else if (Array.isArray(job.docs) && job.docs.length > 0) {
     docs = job.docs;
   } else if (typeof job.requiredDocument === 'string' && job.requiredDocument.trim()) {
-    // Split by commas
     docs = job.requiredDocument.split(',').map(d => d.trim()).filter(Boolean);
   }
 
@@ -36,7 +36,7 @@ function formatDocumentLabel(document) {
     : label;
 }
 
-// ─── Helper: Parse requirements (comma‑separated string → array) ──
+// Helper: Parse requirements (comma‑separated string → array)
 function getRequirements(job = {}) {
   if (Array.isArray(job.requirements) && job.requirements.length > 0) {
     return job.requirements;
@@ -45,6 +45,15 @@ function getRequirements(job = {}) {
     return job.requirement.split(',').map(r => r.trim()).filter(Boolean);
   }
   return [];
+}
+
+// Helper: Sort queue data by createdAt descending (newest first)
+function sortByCreatedDescending(data) {
+  return [...data].sort((a, b) => {
+    const aTime = a.createdAt?.toDate?.()?.getTime() || new Date(a.createdAt).getTime() || 0;
+    const bTime = b.createdAt?.toDate?.()?.getTime() || new Date(b.createdAt).getTime() || 0;
+    return bTime - aTime;
+  });
 }
 
 export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelection }) {
@@ -57,6 +66,29 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
         <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#64748b', fontSize: 14, cursor: 'pointer', marginBottom: 24 }}>
           <ArrowLeft size={16} /> Back to Job Reviews
         </button>
+        <div style={{ background: 'white', borderRadius: 16, padding: 32, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+          <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
+              {selectedJob.pendingReason === 'unpublished' && (
+                <span style={{
+                  background: '#fef3c7',
+                  color: '#d97706',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                }}>
+                  Returned for edits
+                </span>
+              )}
+            </div>
+            <p style={{ margin: 0, color: '#64748b', fontSize: 16 }}>
+              {selectedJob.companyName || selectedJob.employerId || selectedJob.employerID || 'Company'} &bull; 
+              {selectedJob.location || selectedJob.workMode || 'Location not specified'}
+            </p>
+          </div>
       )}
       <div style={{ background: 'white', borderRadius: 16, padding: 32, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
         <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
@@ -120,6 +152,53 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
           </div>
         </div>
 
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, borderTop: '1px solid #e2e8f0', paddingTop: 24, marginTop: 32 }}>
+            {/* Request Edits button */}
+            <button
+              onClick={() => {
+                triggerModal('Request Edits', `Request changes for "${selectedJob.title}"? The employer will be notified to update the listing.`, 'warning', {
+                  view: 'job',
+                  id: selectedJob.id,
+                  type: 'request_edits',
+                  clearSelection: () => setSelectedJob(null),
+                });
+              }}
+              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fef3c7', color: '#d97706', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Request Edits
+            </button>
+            {/* Reject button */}
+            <button
+              onClick={() => {
+                triggerModal('Reject Listing', `Reject "${selectedJob.title}"? The job will be permanently moved to rejected.`, 'danger', {
+                  view: 'job',
+                  id: selectedJob.id,
+                  type: 'reject',
+                  clearSelection: () => setSelectedJob(null),
+                });
+              }}
+              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Reject
+            </button>
+            {/* Approve button */}
+            <button
+              onClick={() => {
+                triggerModal('Approve & Publish', `Publish "${selectedJob.title}"? It will become active immediately.`, 'primary', {
+                  view: 'job',
+                  id: selectedJob.id,
+                  type: 'approve',
+                  job: selectedJob,
+                  clearSelection: () => setSelectedJob(null),
+                });
+              }}
+              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: GOLD, color: NAVY, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Approve & Publish
+            </button>
+          </div>
+        </div>
+      </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, borderTop: '1px solid #e2e8f0', paddingTop: 24, marginTop: 32 }}>
           <button
             onClick={() => {
@@ -178,6 +257,9 @@ export default function JobReviewsView({ queueData, triggerModal, focusedJobId }
   }
 
   // ─── LIST VIEW ──────────────────────────────────────────────────────
+  // Sort queueData by createdAt descending (newest first)
+  const sortedQueue = sortByCreatedDescending(queueData);
+
   return (
     <div style={{ maxWidth: '1200px' }}>
       <div style={{ marginBottom: 32 }}>
@@ -185,11 +267,11 @@ export default function JobReviewsView({ queueData, triggerModal, focusedJobId }
         <p style={{ margin: 0, fontSize: 14, color: '#64748b' }}>Review employer listings before publishing to the active opportunities feed.</p>
       </div>
 
-      {queueData.length === 0 ? (
+      {sortedQueue.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px', background: 'white', borderRadius: 12, color: '#94a3b8' }}>All caught up! No pending jobs to review.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {queueData.map(job => {
+          {sortedQueue.map(job => {
             const docs = getRequiredDocuments(job);
             return (
               <div
@@ -203,7 +285,22 @@ export default function JobReviewsView({ queueData, triggerModal, focusedJobId }
                 onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; }}
               >
                 <div style={{ flex: 1, paddingRight: 24 }}>
-                  <h3 style={{ margin: '0 0 6px 0', fontSize: 16, fontWeight: 700, color: NAVY }}>{job.title}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: '0 0 6px 0', fontSize: 16, fontWeight: 700, color: NAVY }}>{job.title}</h3>
+                    {job.pendingReason === 'unpublished' && (
+                      <span style={{
+                        background: '#fef3c7',
+                        color: '#d97706',
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        marginBottom: 4,
+                      }}>
+                        Returned for edits
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12 }}>{job.companyName || job.employerId || job.employerID}</div>
                   <div style={{ fontSize: 13, color: '#94a3b8' }}>
                     Application Deadline: <span style={{ fontWeight: 700, color: '#334155' }}>{job.deadline?.toDate?.()?.toDateString() || 'N/A'}</span>

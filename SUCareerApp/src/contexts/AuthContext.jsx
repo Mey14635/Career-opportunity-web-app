@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
 
@@ -8,11 +8,11 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [role, setRole] = useState(null);
-    const [hasProfile, setHasProfile] = useState(false); // New flag
+    const [hasProfile, setHasProfile] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Helper function to fetch the user metadata cleanly
+    // Helper function to fetch the user metadata
     const fetchUserRoleAndProfile = useCallback(async (currentUser) => {
         try {
             const userDocSnap = await getDoc(doc(db, "user", currentUser.uid));
@@ -21,8 +21,6 @@ export const AuthProvider = ({ children }) => {
                 const data = userDocSnap.data();
                 setRole(data.role ?? null);
                 setVerificationStatus(data.verificationStatus ?? null);
-                
-                // Check if they completed onboarding profile setup
                 setHasProfile(data.profileCompleted === true);
             } else {
                 setRole(null);
@@ -36,6 +34,32 @@ export const AuthProvider = ({ children }) => {
             setVerificationStatus(null);
         } finally {
             setLoading(false);
+        }
+    }, []);
+
+    // ─── CENTRALISED LOGOUT ──────────────────────────────────────────────
+    const logout = useCallback(async () => {
+        try {
+            // 1. Sign out from Firebase
+            await signOut(auth);
+            
+            // 2. Clear all browser storage
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // 3. Clear cookies (if any)
+            document.cookie.split(";").forEach((c) => {
+                document.cookie = c
+                    .replace(/^ +/, "")
+                    .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            });
+            
+            // 4. Force a full page reload to reset app state
+            window.location.replace('/');
+        } catch (err) {
+            console.error("Logout error:", err);
+            // Fallback: force reload anyway
+            window.location.replace('/');
         }
     }, []);
 
@@ -58,7 +82,7 @@ export const AuthProvider = ({ children }) => {
         return unsubscribe;
     }, [fetchUserRoleAndProfile]);
 
-    // Provide a function to manually trigger a refresh after profile completion
+    // Refresh auth status (after profile update, etc.)
     const refreshAuthStatus = useCallback(async () => {
         if (auth.currentUser) {
             setLoading(true);
@@ -77,9 +101,10 @@ export const AuthProvider = ({ children }) => {
             isEmployer: role === "employer",
             isAdmin: role === "admin",
             isAuthenticated: Boolean(user),
-            refreshAuthStatus, // Expose this to pages changing profile state
+            refreshAuthStatus,
+            logout, // <-- exposed to all components
         }),
-        [loading, role, user, hasProfile, verificationStatus, refreshAuthStatus],
+        [loading, role, user, hasProfile, verificationStatus, refreshAuthStatus, logout],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

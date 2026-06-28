@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, X } from 'lucide-react';
+import { ArrowLeft, Plus, X, Upload, File, Download } from 'lucide-react';
 import { createJob, updateJob } from '../../../services/firestoreService';
 import { NAVY, GOLD, inputStyle, labelStyle } from '../constants';
 import DocCheckbox from '../../../components/employer/DocCheckbox';
+import { uploadApplicationDocument } from '../../../services/cloudinaryUpload.js';
+import Modal from '../../../components/shared/Modal'; // ✅ Import Modal
 
 const standardDocumentOptions = [
   { key: 'cv', label: 'CV / Resume' },
@@ -12,6 +14,7 @@ const standardDocumentOptions = [
 
 export default function PostJobView({ employerId, companyName, editingJob = null, onCancel, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
 
   // ─── FORM STATE ─────────────────────────────────────────────────────────
   const [formData, setFormData] = useState({
@@ -24,11 +27,18 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     positions: editingJob?.positions || 1,
     deadline: editingJob?.deadline?.toDate?.()?.toISOString().split('T')[0] || '',
     stipend: editingJob?.stipend || '',
-    applicationEmail: editingJob?.applicationEmail || '',
-    applicationSubject: editingJob?.applicationSubject || '',
     description: editingJob?.description || '',
     requirement: editingJob?.requirement || '',
+    jobDescriptionPdfUrl: editingJob?.jobDescriptionPdfUrl || '',
+    pdfFileName: editingJob?.pdfFileName || '',
   });
+
+  // ─── PDF FILE STATE ───────────────────────────────────────────────────
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfFileError, setPdfFileError] = useState('');
+
+  // ─── PDF REMOVAL MODAL STATE ─────────────────────────────────────────
+  const [pdfRemoveModalOpen, setPdfRemoveModalOpen] = useState(false);
 
   // ─── DOCUMENTS STATE ──────────────────────────────────────────────────
   const [documents, setDocuments] = useState({
@@ -64,17 +74,16 @@ export default function PostJobView({ employerId, companyName, editingJob = null
         positions: editingJob.positions || 1,
         deadline: editingJob.deadline?.toDate?.()?.toISOString().split('T')[0] || '',
         stipend: editingJob.stipend || '',
-        applicationEmail: editingJob.applicationEmail || '',
-        applicationSubject: editingJob.applicationSubject || '',
         description: editingJob.description || '',
         requirement: editingJob.requirement || '',
+        jobDescriptionPdfUrl: editingJob.jobDescriptionPdfUrl || '',
+        pdfFileName: editingJob.pdfFileName || '',
       });
 
       const structuredDocs = Array.isArray(editingJob.requiredDocuments) ? editingJob.requiredDocuments : [];
       const docString = editingJob.requiredDocument || '';
       const findStructuredDoc = (label) => structuredDocs.find((doc) => doc?.label === label || doc?.name === label);
       
-      // Parse standard docs
       setDocuments({
         cv: {
           required: Boolean(findStructuredDoc('CV / Resume')) || docString.toLowerCase().includes('cv') || docString.toLowerCase().includes('resume'),
@@ -91,10 +100,6 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       });
 
       // Parse custom docs from the additionalDocs field (if it exists)
-      const standardLabels = standardDocumentOptions.map((item) => item.label);
-      const structuredCustomDocs = structuredDocs
-        .filter((doc) => !standardLabels.includes(doc?.label || doc?.name))
-        .map((doc) => ({ name: doc.label || doc.name, format: doc.format || 'any' }));
       const customDocs = editingJob.additionalDocs ? editingJob.additionalDocs.split(',').map(d => d.trim()).filter(Boolean) : [];
       setCustomDocuments(structuredCustomDocs.length > 0 ? structuredCustomDocs : customDocs.map(name => ({ name, format: 'any' })));
     }
@@ -102,6 +107,44 @@ export default function PostJobView({ employerId, companyName, editingJob = null
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // ─── PDF FILE HANDLER ────────────────────────────────────────────────
+  const handlePdfChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      setPdfFile(null);
+      setPdfFileError('');
+      return;
+    }
+
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const maxSize = 10 * 1024 * 1024;
+    if (!allowedTypes.includes(file.type)) {
+      setPdfFileError('Only PDF, DOC, and DOCX files are allowed.');
+      setPdfFile(null);
+      return;
+    }
+    if (file.size > maxSize) {
+      setPdfFileError('File must be 10MB or smaller.');
+      setPdfFile(null);
+      return;
+    }
+
+    setPdfFile(file);
+    setPdfFileError('');
+  };
+
+  // ─── PDF REMOVAL WITH CONFIRMATION ───────────────────────────────────
+  const confirmRemovePdf = () => {
+    setPdfRemoveModalOpen(true);
+  };
+
+  const handleRemovePdf = () => {
+    setPdfFile(null);
+    setPdfFileError('');
+    setFormData(prev => ({ ...prev, jobDescriptionPdfUrl: '', pdfFileName: '' }));
+    setPdfRemoveModalOpen(false);
   };
 
   // ─── DOCUMENT HANDLERS ────────────────────────────────────────────────
@@ -181,6 +224,24 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     e.preventDefault();
     setSubmitting(true);
 
+    let pdfUrl = formData.jobDescriptionPdfUrl;
+    let pdfFileName = formData.pdfFileName;
+
+    if (pdfFile) {
+      setUploadingPdf(true);
+      try {
+        const result = await uploadApplicationDocument(pdfFile);
+        pdfUrl = result.url;
+        pdfFileName = result.originalFileName;
+        setUploadingPdf(false);
+      } catch (err) {
+        alert('❌ Error uploading PDF: ' + err.message);
+        setSubmitting(false);
+        setUploadingPdf(false);
+        return;
+      }
+    }
+
     const jobData = {
       title: formData.title,
       companyName: companyName,
@@ -193,11 +254,10 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       positions: parseInt(formData.positions) || 1,
       deadline: new Date(formData.deadline),
       stipend: formData.stipend,
-      applicationEmail: formData.applicationEmail,
-      applicationSubject: formData.applicationSubject,
       description: formData.description,
       requirement: formData.requirement,
-      requiredDocuments: buildRequiredDocItems(),
+      requiredDocument: buildRequiredDocs(),
+      additionalDocs: buildAdditionalDocs(),
       status: editingJob ? editingJob.status : 'pending',
       metrics: editingJob?.metrics || { views: 0, applications: 0 },
     };
@@ -216,6 +276,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       console.error(err);
     } finally {
       setSubmitting(false);
+      setUploadingPdf(false);
     }
   };
 
@@ -305,17 +366,6 @@ export default function PostJobView({ employerId, companyName, editingJob = null
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-            <div>
-              <label style={labelStyle}>Application Email *</label>
-              <input type="email" name="applicationEmail" value={formData.applicationEmail} onChange={handleChange} placeholder="e.g. careers@company.com" style={inputStyle} required />
-            </div>
-            <div>
-              <label style={labelStyle}>Application Subject (Optional)</label>
-              <input type="text" name="applicationSubject" value={formData.applicationSubject} onChange={handleChange} placeholder="e.g. 'SU-ISERC Intern'" style={inputStyle} />
-            </div>
-          </div>
-
           <div style={{ marginBottom: '20px' }}>
             <label style={labelStyle}>Job Description *</label>
             <textarea name="description" value={formData.description} onChange={handleChange} rows="5" placeholder="Describe the role, responsibilities, and any additional details..." style={{...inputStyle, resize: 'vertical'}} required />
@@ -327,7 +377,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           </div>
         </div>
 
-        {/* ─── REVAMPED REQUIRED DOCUMENTS SECTION ────────────────────── */}
+        {/* ─── REQUIRED DOCUMENTS ──────────────────────────────────────── */}
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
           <h3 style={labelStyle}>Required Documents</h3>
           <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '16px' }}>
@@ -456,7 +506,6 @@ export default function PostJobView({ employerId, companyName, editingJob = null
             </p>
           </div>
 
-          {/* ─── Summary Preview ──────────────────────────────────────────── */}
           <div style={{ marginTop: '20px', padding: '12px 16px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
             <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>📄 Documents Required:</p>
             <p style={{ fontSize: '13px', color: NAVY, fontWeight: 500 }}>
@@ -465,12 +514,79 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           </div>
         </div>
 
+        {/* ─── JOB DESCRIPTION PDF ──────────────────────────────────────── */}
+        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+          <h3 style={labelStyle}>Job Description PDF (Optional)</h3>
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '16px' }}>
+            Upload a detailed job description PDF. Students will be able to download it.
+          </p>
+
+          {formData.jobDescriptionPdfUrl && !pdfFile && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', marginBottom: '12px' }}>
+              <File size={18} color="#16a34a" />
+              <a 
+                href={formData.jobDescriptionPdfUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ 
+                  color: NAVY, 
+                  fontWeight: 600, 
+                  textDecoration: 'none', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px' 
+                }}
+              >
+                {formData.pdfFileName || 'Download PDF'}
+                <Download size={14} />
+              </a>
+              {/* Remove button now opens a confirmation modal */}
+              <button
+                type="button"
+                onClick={confirmRemovePdf}
+                style={{ marginLeft: 'auto', background: '#fee2e2', border: 'none', borderRadius: '4px', padding: '4px 10px', color: '#dc2626', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+              >
+                Remove
+              </button>
+            </div>
+          )}
+
+          <div>
+            <label style={labelStyle}>Upload New PDF</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={handlePdfChange}
+                style={{ flex: 1, ...inputStyle, padding: '6px' }}
+              />
+            </div>
+            {pdfFile && (
+              <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Upload size={14} color="#16a34a" />
+                <span style={{ fontSize: '12px', color: '#1e293b' }}>{pdfFile.name}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPdfFile(null);
+                    setPdfFileError('');
+                  }}
+                  style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            {pdfFileError && <p style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>{pdfFileError}</p>}
+          </div>
+        </div>
+
         {/* ─── ACTIONS ────────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button type="button" onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#64748b', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter' }}>
             <ArrowLeft size={14} /> Cancel
           </button>
-          <button type="submit" disabled={submitting} style={{
+          <button type="submit" disabled={submitting || uploadingPdf} style={{
             backgroundColor: GOLD,
             color: NAVY,
             border: 'none',
@@ -481,12 +597,24 @@ export default function PostJobView({ employerId, companyName, editingJob = null
             cursor: 'pointer',
             fontFamily: 'Inter',
             transition: 'opacity 0.2s',
-            opacity: submitting ? 0.6 : 1
+            opacity: (submitting || uploadingPdf) ? 0.6 : 1
           }}>
-            {submitting ? (editingJob ? 'Updating...' : 'Posting...') : (editingJob ? 'Update Job' : 'Publish Job')}
+            {uploadingPdf ? 'Uploading PDF...' : (submitting ? (editingJob ? 'Updating...' : 'Posting...') : (editingJob ? 'Update Job' : 'Publish Job'))}
           </button>
         </div>
       </form>
+
+      {/* ─── PDF REMOVAL CONFIRMATION MODAL ────────────────────────────── */}
+      <Modal
+        isOpen={pdfRemoveModalOpen}
+        config={{
+          title: 'Remove PDF',
+          message: 'Are you sure you want to remove this PDF from the job listing?',
+          type: 'danger',
+        }}
+        onClose={() => setPdfRemoveModalOpen(false)}
+        onConfirm={handleRemovePdf}
+      />
     </div>
   );
 }

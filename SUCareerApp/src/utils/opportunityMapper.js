@@ -185,6 +185,7 @@ export function mapOpportunityData(id, data = {}) {
     id,
     title,
     company,
+    employerId: pickField(data, ["employerId", "employerID", "employerId", "employer", "uid"]),
     employerId: pickField(data, ["employerId", "employerID", "employer", "uid"]),
     department: pickField(data, ["department"]) || "",
     location: pickField(data, ["location", "city", "workLocation", "work location", "workMode", "work mode"]) || "Location not specified",
@@ -199,6 +200,8 @@ export function mapOpportunityData(id, data = {}) {
     about: pickField(data, ["about", "roleDescription", "role description"]) || description,
     duration: pickField(data, ["duration"]) || "Duration not specified",
     positions: pickField(data, ["positions", "openPositions", "open positions"]) || "Not specified",
+    jobDescriptionPdfUrl: pickField(data, ["jobDescriptionPdfUrl", "jobDescriptionPdf", "pdfUrl"]),
+    pdfFileName: pickField(data, ["pdfFileName", "pdfName", "fileName"]), // ✅ Added: stores original file name
     responsibilities: normalizeList(
       pickField(data, [
         "responsibilities",

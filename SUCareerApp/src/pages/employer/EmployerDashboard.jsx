@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FileText, Users } from 'lucide-react';
 import { signOut } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, deleteDoc } from 'firebase/firestore';
 
 // ─── SHARED COMPONENTS ──────────────────────────────────────────────────
@@ -39,7 +38,6 @@ import ActivityHistoryView from './views/ActivityHistoryView';
 import MyJobsView from './views/MyJobsView';
 
 export default function EmployerDashboard({ onLogout }) {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const employerId = user?.uid;
 
@@ -201,18 +199,49 @@ export default function EmployerDashboard({ onLogout }) {
     setActiveTab(notification.action?.targetTab || 'notifications');
   };
 
+  // ─── IMPROVED LOGOUT ──────────────────────────────────────────────────
   const handleLogout = async () => {
-    if (onLogout) {
-      onLogout();
-      return;
+    try {
+      if (onLogout) {
+        onLogout();
+        return;
+      }
+      
+      // 1. Sign out from Firebase
+      await signOut(auth);
+      
+      // 2. Clear all browser storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 3. Clear cookies (if any)
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      
+      // 4. Force a full page reload to reset everything
+      window.location.replace('/employer-access?mode=login');
+    } catch (err) {
+      console.error('Logout error:', err);
+      // Fallback: force reload anyway
+      window.location.replace('/employer-access?mode=login');
     }
-    await signOut(auth);
-    navigate('/employer-access', { replace: true, state: { mode: 'login' } });
   };
 
   const handleEditJob = (job) => {
     setEditingJob(job);
     setActiveTab('edit-job');
+  };
+
+  // ─── VIEW PUBLIC PROFILE ──────────────────────────────────────────────
+  const handleViewPublicProfile = () => {
+    if (employerId) {
+      window.open(`/company/${employerId}`, '_blank');
+    } else {
+      alert('Employer ID not available.');
+    }
   };
 
   // ─── DELETE JOB ──────────────────────────────────────────────────────
@@ -244,11 +273,6 @@ export default function EmployerDashboard({ onLogout }) {
     setEditingJob(null);
     setRefreshKey(prev => prev + 1);
     setActiveTab('my-jobs');
-  };
-
-  // ─── VIEW PUBLIC PROFILE ─────────────────────────────────────────────
-  const handleViewPublicProfile = () => {
-    window.open(`/company/${employerId}`, '_blank');
   };
 
   const getBreadcrumb = () => {
@@ -295,7 +319,8 @@ export default function EmployerDashboard({ onLogout }) {
       case 'settings':
         return <SettingsView onUpdatePassword={() => handleAction('Updating Security Token via Authentication Service')} />;
       case 'analytics':
-        return <ReportsAnalyticsView onExport={() => handleAction('Generating and downloading CSV Export')} />;
+        // ✅ FIXED: Pass employerId to ReportsAnalyticsView
+        return <ReportsAnalyticsView employerId={employerId} />;
       case 'post-role':
         return (
           <PostJobView
@@ -351,7 +376,10 @@ export default function EmployerDashboard({ onLogout }) {
               onBack={() => setSelectedJob(null)}
               onStatusChange={handleStatusChange}
               onReview={setReviewApplicant}
-              onEdit={() => handleAction('Opening Edit Listing Module')}
+              onEdit={() => {
+                setEditingJob(selectedJob);
+                setActiveTab('edit-job');
+              }}
             />
           );
         } else {

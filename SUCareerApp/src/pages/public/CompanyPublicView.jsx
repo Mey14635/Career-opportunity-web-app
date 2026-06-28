@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { Building2, Globe, Mail, Phone, Users, ArrowLeft } from 'lucide-react';
+import { Building2, Globe, Mail, Phone, Users, ArrowLeft, Search } from 'lucide-react';
 
 const NAVY = "#1B3A6B";
 const GOLD = "#C9A230";
@@ -11,17 +11,18 @@ const BG_GRAY = "#F5F6FA";
 
 export default function CompanyPublicView() {
   const { employerId } = useParams();
-  const { role } = useAuth();  // ✅ only destructure what we need
+  const { role } = useAuth();
   const navigate = useNavigate();
   const [company, setCompany] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [jobTypeFilter, setJobTypeFilter] = useState('All');
 
   useEffect(() => {
     const fetchCompanyData = async () => {
       try {
-        // 1. Fetch company profile
         const docRef = doc(db, 'employer_profiles', employerId);
         const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) {
@@ -32,7 +33,6 @@ export default function CompanyPublicView() {
         const data = docSnap.data();
         setCompany(data);
 
-        // 2. Fetch active jobs for this company
         const jobsRef = collection(db, 'opportunities');
         const jobSnaps = await Promise.all([
           getDocs(query(jobsRef, where('employerId', '==', employerId), where('status', '==', 'open'))),
@@ -54,7 +54,6 @@ export default function CompanyPublicView() {
     fetchCompanyData();
   }, [employerId]);
 
-  // ─── Determine where to go back ──────────────────────────────────────
   const getBackPath = () => {
     if (role === 'student') return '/student-dashboard/dashboard';
     if (role === 'employer') return '/employer-dashboard';
@@ -65,6 +64,14 @@ export default function CompanyPublicView() {
   const handleGoBack = () => {
     navigate(getBackPath());
   };
+
+  const filteredJobs = jobs.filter(job => {
+    const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = jobTypeFilter === 'All' || job.jobType === jobTypeFilter;
+    return matchesSearch && matchesType;
+  });
+
+  const jobTypes = ['All', ...new Set(jobs.map(job => job.jobType).filter(Boolean))];
 
   if (loading) {
     return (
@@ -78,16 +85,18 @@ export default function CompanyPublicView() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <div style={{ fontSize: 24, fontWeight: 700, color: '#dc2626', marginBottom: 16 }}>Company not found</div>
-        <button onClick={handleGoBack} style={{ color: NAVY, fontWeight: 600, textDecoration: 'none', cursor: 'pointer', background: 'none', border: 'none', fontSize: 14 }}>
+        <button onClick={handleGoBack} style={{ color: NAVY, fontWeight: 600, cursor: 'pointer', background: 'none', border: 'none', fontSize: 14 }}>
           Return to dashboard
         </button>
       </div>
     );
   }
 
+  // ─── Only students can apply; others just view ──────────────────────
+  const isStudent = role === 'student';
+
   return (
     <div style={{ fontFamily: 'Inter, system-ui, sans-serif', backgroundColor: BG_GRAY, minHeight: '100vh' }}>
-      {/* ─── HEADER ────────────────────────────────────────────────────── */}
       <header style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 36, height: 36, background: GOLD, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -100,9 +109,7 @@ export default function CompanyPublicView() {
         </button>
       </header>
 
-      {/* ─── MAIN CONTENT ────────────────────────────────────────────── */}
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '40px 20px' }}>
-        {/* Company Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 32, background: '#ffffff', padding: '32px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
           <div style={{ width: 80, height: 80, borderRadius: '50%', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #bfdbfe' }}>
             <Building2 size={32} color="#3b82f6" />
@@ -113,7 +120,6 @@ export default function CompanyPublicView() {
           </div>
         </div>
 
-        {/* Company Details */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, marginBottom: 32 }}>
           <div style={{ background: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 12 }}>About the Company</h2>
@@ -148,28 +154,79 @@ export default function CompanyPublicView() {
           </div>
         </div>
 
-        {/* Active Jobs */}
         <div style={{ background: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 16 }}>Active Opportunities</h2>
-          {jobs.length === 0 ? (
-            <p style={{ color: '#94a3b8', fontSize: 14 }}>No active job opportunities at the moment.</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: NAVY, margin: 0 }}>Active Opportunities</h2>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: BG_GRAY, padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                <Search size={14} color="#94a3b8" />
+                <input
+                  type="text"
+                  placeholder="Search jobs..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, width: '140px', color: '#1e293b' }}
+                />
+              </div>
+              <select
+                value={jobTypeFilter}
+                onChange={(e) => setJobTypeFilter(e.target.value)}
+                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: 13, background: '#ffffff', outline: 'none' }}
+              >
+                {jobTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {filteredJobs.length === 0 ? (
+            <p style={{ color: '#94a3b8', fontSize: 14 }}>No active job opportunities match your criteria.</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              {jobs.map(job => (
-                <div key={job.id} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: 15, fontWeight: 700, color: NAVY }}>{job.title}</h3>
-                  <p style={{ margin: '0 0 6px 0', fontSize: 13, color: '#64748b' }}>{job.jobType || 'Internship'}</p>
-                  <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                    Deadline: {job.deadline?.toDate?.()?.toDateString() || 'N/A'}
-                  </div>
-                </div>
-              ))}
+              {filteredJobs.map(job => {
+                // Link to student dashboard with opportunity query param
+                const jobLink = `/student-dashboard/dashboard?opportunity=${job.id}`;
+                return (
+                  <Link
+                    key={job.id}
+                    to={jobLink}
+                    style={{
+                      display: 'block',
+                      padding: '16px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      cursor: isStudent ? 'pointer' : 'default',
+                      transition: 'box-shadow 0.2s',
+                      pointerEvents: isStudent ? 'auto' : 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (isStudent) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <h3 style={{ margin: '0 0 4px 0', fontSize: 15, fontWeight: 700, color: NAVY }}>{job.title}</h3>
+                    <p style={{ margin: '0 0 6px 0', fontSize: 13, color: '#64748b' }}>{job.jobType || 'Internship'}</p>
+                    <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                      Deadline: {job.deadline?.toDate?.()?.toDateString() || 'N/A'}
+                    </div>
+                    {isStudent && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: GOLD, fontWeight: 600 }}>
+                        Click to apply →
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
-      {/* ─── FOOTER ────────────────────────────────────────────────────── */}
       <footer style={{ backgroundColor: '#0f172a', color: '#94a3b8', padding: '32px 40px', textAlign: 'center', fontSize: 13, marginTop: 32 }}>
         &copy; {new Date().getFullYear()} Strathmore University Career Development Services
       </footer>

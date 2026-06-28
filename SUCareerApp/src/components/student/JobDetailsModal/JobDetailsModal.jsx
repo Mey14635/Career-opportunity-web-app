@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { File, Download } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { submitApplication } from "../../../services/applicationService";
 import { toggleSavedOpportunityForUser } from "../../../utils/saveOpportunity";
@@ -60,6 +61,19 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
 
   const isDeadlineUrgent = opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
   const requiredDocuments = opportunity.documentsRequired || [];
+  const applicationDocuments = requiredDocuments.length > 0 ? requiredDocuments : ["CV / Resume"];
+  const hasPdf = opportunity.jobDescriptionPdfUrl && opportunity.jobDescriptionPdfUrl.trim() !== "";
+
+  // ─── DEADLINE DISPLAY LOGIC ──────────────────────────────────────────────
+  const getDeadlineDisplay = () => {
+    if (!opportunity.deadline || opportunity.daysLeft === null || opportunity.daysLeft === undefined) {
+      return "No deadline specified";
+    }
+    if (opportunity.daysLeft === 0 || opportunity.daysLeft < 0) {
+      return "Deadline has passed";
+    }
+    return `Closes in ${opportunity.daysLeft} day${opportunity.daysLeft > 1 ? 's' : ''}`;
+  };
   const applicationDocuments = (requiredDocuments.length > 0 ? requiredDocuments : [defaultDocument])
     .map(normalizeApplicationDocument);
 
@@ -212,12 +226,46 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
             <section>
               <h3>Role Details</h3>
               <ul>
+                {/* Start Date – only shown if present and not 'Not specified' */}
+                {opportunity.startDate && opportunity.startDate !== 'Not specified' && (
+                  <li>Start date: {opportunity.startDate}</li>
+                )}
                 {opportunity.department && <li>Department: {opportunity.department}</li>}
                 <li>Duration: {opportunity.duration}</li>
                 <li>Open positions: {opportunity.positions}</li>
                 {opportunity.stipend && <li>Stipend / Salary: {opportunity.stipend}</li>}
               </ul>
             </section>
+
+            {/* ─── PDF DOWNLOAD LINK (with file name) ──────────────────── */}
+            {hasPdf && (
+              <section>
+                <h3>Job Description PDF</h3>
+                <p style={{ marginTop: '6px' }}>
+                  <a
+                    href={opportunity.jobDescriptionPdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 16px',
+                      background: '#1B3A6B',
+                      color: '#ffffff',
+                      borderRadius: '6px',
+                      textDecoration: 'none',
+                      fontWeight: 600,
+                      fontSize: '14px',
+                    }}
+                  >
+                    <File size={16} />
+                    {opportunity.pdfFileName || 'Download Job Description'}
+                    <Download size={14} />
+                  </a>
+                </p>
+              </section>
+            )}
 
             <section>
               <h3>Documents Required</h3>
@@ -234,8 +282,9 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
               )}
             </section>
 
+            {/* ─── FIXED DEADLINE MESSAGE ──────────────────────────────────── */}
             <p className="job-modal-closes">
-              {opportunity.daysLeft === null ? "Deadline not set" : `Closes in ${opportunity.daysLeft} days`}
+              {getDeadlineDisplay()}
             </p>
           </div>
         </section>
