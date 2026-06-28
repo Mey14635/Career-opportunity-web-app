@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, X, Upload, File } from 'lucide-react'; // ✅ Removed Link2
+import { ArrowLeft, Plus, X, Upload, File, Download } from 'lucide-react';
 import { createJob, updateJob } from '../../../services/firestoreService';
 import { NAVY, GOLD, inputStyle, labelStyle } from '../constants';
 import DocCheckbox from '../../../components/employer/DocCheckbox';
 import { uploadApplicationDocument } from '../../../services/cloudinaryUpload.js';
+import Modal from '../../../components/shared/Modal'; // ✅ Import Modal
 
 export default function PostJobView({ employerId, companyName, editingJob = null, onCancel, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
@@ -23,11 +24,15 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     description: editingJob?.description || '',
     requirement: editingJob?.requirement || '',
     jobDescriptionPdfUrl: editingJob?.jobDescriptionPdfUrl || '',
+    pdfFileName: editingJob?.pdfFileName || '',
   });
 
   // ─── PDF FILE STATE ───────────────────────────────────────────────────
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfFileError, setPdfFileError] = useState('');
+
+  // ─── PDF REMOVAL MODAL STATE ─────────────────────────────────────────
+  const [pdfRemoveModalOpen, setPdfRemoveModalOpen] = useState(false);
 
   // ─── DOCUMENTS STATE ──────────────────────────────────────────────────
   const [documents, setDocuments] = useState({
@@ -64,6 +69,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
         description: editingJob.description || '',
         requirement: editingJob.requirement || '',
         jobDescriptionPdfUrl: editingJob.jobDescriptionPdfUrl || '',
+        pdfFileName: editingJob.pdfFileName || '',
       });
 
       const docString = editingJob.requiredDocument || '';
@@ -92,7 +98,6 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       return;
     }
 
-    // Validate file type and size
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     const maxSize = 10 * 1024 * 1024;
     if (!allowedTypes.includes(file.type)) {
@@ -110,10 +115,16 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     setPdfFileError('');
   };
 
-  const removePdf = () => {
+  // ─── PDF REMOVAL WITH CONFIRMATION ───────────────────────────────────
+  const confirmRemovePdf = () => {
+    setPdfRemoveModalOpen(true);
+  };
+
+  const handleRemovePdf = () => {
     setPdfFile(null);
     setPdfFileError('');
-    setFormData(prev => ({ ...prev, jobDescriptionPdfUrl: '' }));
+    setFormData(prev => ({ ...prev, jobDescriptionPdfUrl: '', pdfFileName: '' }));
+    setPdfRemoveModalOpen(false);
   };
 
   // ─── DOCUMENT HANDLERS ────────────────────────────────────────────────
@@ -172,14 +183,15 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     e.preventDefault();
     setSubmitting(true);
 
-    let pdfUrl = formData.jobDescriptionPdfUrl; // keep existing if any
+    let pdfUrl = formData.jobDescriptionPdfUrl;
+    let pdfFileName = formData.pdfFileName;
 
-    // If a new PDF file is selected, upload it first
     if (pdfFile) {
       setUploadingPdf(true);
       try {
         const result = await uploadApplicationDocument(pdfFile);
-        pdfUrl = result.url; // cloudinary secure_url
+        pdfUrl = result.url;
+        pdfFileName = result.originalFileName;
         setUploadingPdf(false);
       } catch (err) {
         alert('❌ Error uploading PDF: ' + err.message);
@@ -205,7 +217,8 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       requirement: formData.requirement,
       requiredDocument: buildRequiredDocs(),
       additionalDocs: buildAdditionalDocs(),
-      jobDescriptionPdfUrl: pdfUrl, // store the URL
+      jobDescriptionPdfUrl: pdfUrl,
+      pdfFileName: pdfFileName,
       status: editingJob ? editingJob.status : 'pending',
       metrics: editingJob?.metrics || { views: 0, applications: 0 },
     };
@@ -462,7 +475,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           </div>
         </div>
 
-        {/* ─── JOB DESCRIPTION PDF (Optional) ──────────────────────────── */}
+        {/* ─── JOB DESCRIPTION PDF ──────────────────────────────────────── */}
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
           <h3 style={labelStyle}>Job Description PDF (Optional)</h3>
           <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '16px' }}>
@@ -472,12 +485,26 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           {formData.jobDescriptionPdfUrl && !pdfFile && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', marginBottom: '12px' }}>
               <File size={18} color="#16a34a" />
-              <a href={formData.jobDescriptionPdfUrl} target="_blank" rel="noopener noreferrer" style={{ color: NAVY, fontWeight: 600, textDecoration: 'none' }}>
-                View current PDF
+              <a 
+                href={formData.jobDescriptionPdfUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ 
+                  color: NAVY, 
+                  fontWeight: 600, 
+                  textDecoration: 'none', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px' 
+                }}
+              >
+                {formData.pdfFileName || 'Download PDF'}
+                <Download size={14} />
               </a>
+              {/* Remove button now opens a confirmation modal */}
               <button
                 type="button"
-                onClick={removePdf}
+                onClick={confirmRemovePdf}
                 style={{ marginLeft: 'auto', background: '#fee2e2', border: 'none', borderRadius: '4px', padding: '4px 10px', color: '#dc2626', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
               >
                 Remove
@@ -501,7 +528,10 @@ export default function PostJobView({ employerId, companyName, editingJob = null
                 <span style={{ fontSize: '12px', color: '#1e293b' }}>{pdfFile.name}</span>
                 <button
                   type="button"
-                  onClick={removePdf}
+                  onClick={() => {
+                    setPdfFile(null);
+                    setPdfFileError('');
+                  }}
                   style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                 >
                   Remove
@@ -534,6 +564,18 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           </button>
         </div>
       </form>
+
+      {/* ─── PDF REMOVAL CONFIRMATION MODAL ────────────────────────────── */}
+      <Modal
+        isOpen={pdfRemoveModalOpen}
+        config={{
+          title: 'Remove PDF',
+          message: 'Are you sure you want to remove this PDF from the job listing?',
+          type: 'danger',
+        }}
+        onClose={() => setPdfRemoveModalOpen(false)}
+        onConfirm={handleRemovePdf}
+      />
     </div>
   );
 }

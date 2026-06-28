@@ -334,7 +334,10 @@ const handleLogout = async () => {
               onBack={() => setSelectedJob(null)}
               onStatusChange={handleStatusChange}
               onReview={setReviewApplicant}
-              onEdit={() => handleAction('Opening Edit Listing Module')}
+              onEdit={() => {
+                setEditingJob(selectedJob);
+                setActiveTab('edit-job');
+              }}
             />
           );
         } else {

@@ -127,7 +127,8 @@ export function mapOpportunityData(id, data = {}) {
     startDate: formatDate(pickField(data, ["startDate", "start date"])),
     duration: pickField(data, ["duration"]) || "Duration not specified",
     positions: pickField(data, ["positions", "openPositions", "open positions"]) || "Not specified",
-    jobDescriptionPdfUrl: pickField(data, ["jobDescriptionPdfUrl", "jobDescriptionPdf", "pdfUrl"]), 
+    jobDescriptionPdfUrl: pickField(data, ["jobDescriptionPdfUrl", "jobDescriptionPdf", "pdfUrl"]),
+    pdfFileName: pickField(data, ["pdfFileName", "pdfName", "fileName"]), // ✅ Added: stores original file name
     responsibilities: normalizeList(
       pickField(data, [
         "responsibilities",

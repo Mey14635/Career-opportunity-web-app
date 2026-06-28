@@ -34,7 +34,7 @@ export default function StudentsView({ studentsData }) {
           <Search size={16} color="#9CA3AF" />
           <input
             type="text"
-            placeholder="Search by name or student ID"
+            placeholder="Search by name of student"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 13, width: '100%', color: '#1e293b' }}
