@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, Users } from 'lucide-react';
 import { signOut } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+// useNavigate removed – no longer needed
 import { doc, getDoc, deleteDoc } from 'firebase/firestore';
 
 // ─── SHARED COMPONENTS ──────────────────────────────────────────────────
@@ -35,7 +35,6 @@ import ActivityHistoryView from './views/ActivityHistoryView';
 import MyJobsView from './views/MyJobsView';
 
 export default function EmployerDashboard({ onLogout }) {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const employerId = user?.uid;
 
@@ -159,18 +158,49 @@ export default function EmployerDashboard({ onLogout }) {
 
   const handleAction = (msg) => alert(`Action triggered: ${msg}`);
 
-  const handleLogout = async () => {
+// ─── IMPROVED LOGOUT ──────────────────────────────────────────────────
+const handleLogout = async () => {
+  try {
     if (onLogout) {
       onLogout();
       return;
     }
+    
+    // 1. Sign out from Firebase
     await signOut(auth);
-    navigate('/employer-access', { replace: true, state: { mode: 'login' } });
-  };
+    
+    // 2. Clear all browser storage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // 3. Clear cookies (if any)
+    document.cookie.split(";").forEach((c) => {
+      document.cookie = c
+        .replace(/^ +/, "")
+        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+    
+    // 4. Force a full page reload to reset everything
+    window.location.replace('/employer-access?mode=login');
+  } catch (err) {
+    console.error('Logout error:', err);
+    // Fallback: force reload anyway
+    window.location.replace('/employer-access?mode=login');
+  }
+};
 
   const handleEditJob = (job) => {
     setEditingJob(job);
     setActiveTab('edit-job');
+  };
+
+  // ─── VIEW PUBLIC PROFILE ──────────────────────────────────────────────
+  const handleViewPublicProfile = () => {
+    if (employerId) {
+      window.open(`/company/${employerId}`, '_blank');
+    } else {
+      alert('Employer ID not available.');
+    }
   };
 
   // ─── DELETE JOB ──────────────────────────────────────────────────────
@@ -202,11 +232,6 @@ export default function EmployerDashboard({ onLogout }) {
     setEditingJob(null);
     setRefreshKey(prev => prev + 1);
     setActiveTab('my-jobs');
-  };
-
-  // ─── VIEW PUBLIC PROFILE ─────────────────────────────────────────────
-  const handleViewPublicProfile = () => {
-    window.open(`/company/${employerId}`, '_blank');
   };
 
   const getBreadcrumb = () => {

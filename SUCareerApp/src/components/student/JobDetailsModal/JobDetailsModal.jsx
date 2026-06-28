@@ -18,6 +18,7 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
   const isDeadlineUrgent = opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
   const requiredDocuments = opportunity.documentsRequired || [];
   const applicationDocuments = requiredDocuments.length > 0 ? requiredDocuments : ["CV / Resume"];
+  const hasPdf = opportunity.jobDescriptionPdfUrl && opportunity.jobDescriptionPdfUrl.trim() !== "";
 
   function closeApplicationForm() {
     setShowApplyForm(false);
@@ -173,6 +174,32 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
                 <li>Open positions: {opportunity.positions}</li>
               </ul>
             </section>
+
+            {/* ─── PDF DOWNLOAD LINK ──────────────────────────────────── */}
+            {hasPdf && (
+              <section>
+                <h3>Job Description PDF</h3>
+                <p style={{ marginTop: '6px' }}>
+                  <a
+                    href={opportunity.jobDescriptionPdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-block',
+                      padding: '8px 16px',
+                      background: '#1B3A6B',
+                      color: '#ffffff',
+                      borderRadius: '6px',
+                      textDecoration: 'none',
+                      fontWeight: 600,
+                      fontSize: '14px',
+                    }}
+                  >
+                    📄 Download Full Job Description
+                  </a>
+                </p>
+              </section>
+            )}
 
             <section>
               <h3>Documents Required</h3>

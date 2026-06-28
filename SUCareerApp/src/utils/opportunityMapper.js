@@ -116,7 +116,7 @@ export function mapOpportunityData(id, data = {}) {
     id,
     title,
     company,
-    employerId: pickField(data, ["employerId", "employerID", "employerId", "employer", "uid"]), // ✅ Added this line
+    employerId: pickField(data, ["employerId", "employerID", "employerId", "employer", "uid"]),
     location: pickField(data, ["location", "city", "workLocation", "work location", "workMode", "work mode"]) || "Location not specified",
     description,
     type: pickField(data, ["type", "jobType", "job type", "opportunityType", "opportunity type"]) || "Opportunity",
@@ -127,6 +127,7 @@ export function mapOpportunityData(id, data = {}) {
     startDate: formatDate(pickField(data, ["startDate", "start date"])),
     duration: pickField(data, ["duration"]) || "Duration not specified",
     positions: pickField(data, ["positions", "openPositions", "open positions"]) || "Not specified",
+    jobDescriptionPdfUrl: pickField(data, ["jobDescriptionPdfUrl", "jobDescriptionPdf", "pdfUrl"]), 
     responsibilities: normalizeList(
       pickField(data, [
         "responsibilities",
