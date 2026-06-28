@@ -1,64 +1,257 @@
+// src/pages/admin/views/AnalyticsView.jsx
+import { useState, useEffect } from 'react';
 import { Download } from 'lucide-react';
-import { NAVY, GOLD, mockBarData, mockCourseData } from '../constants';
+import { db } from '../../../config/firebase';
+import { collection, getDocs, getDoc, doc, query, where } from 'firebase/firestore';
+import { NAVY, GOLD } from '../constants';
+import styles from './AnalyticsView.styles';
 
 export default function AnalyticsView() {
+  const [loading, setLoading] = useState(true);
+  const [funnelData, setFunnelData] = useState({ views: 0, applications: 0, submissions: 0 });
+  const [jobTypeData, setJobTypeData] = useState([]);
+  const [courseData, setCourseData] = useState([]);
+  const [totalJobs, setTotalJobs] = useState(0);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Only fetch jobs with status 'open' or 'approved' (active jobs)
+        const oppsQuery = query(
+          collection(db, 'opportunities'),
+          where('status', 'in', ['open', 'approved'])
+        );
+        const oppsSnapshot = await getDocs(oppsQuery);
+        const opps = oppsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setTotalJobs(opps.length);
+
+        let totalViews = 0;
+        let totalApplications = 0;
+        opps.forEach((opp) => {
+          totalViews += opp.metrics?.views || 0;
+          totalApplications += opp.metrics?.applications || 0;
+        });
+        setFunnelData({
+          views: totalViews,
+          applications: totalApplications,
+          submissions: totalApplications,
+        });
+
+        const jobTypeCounts = {};
+        opps.forEach((opp) => {
+          const type = opp.jobType || 'Other';
+          jobTypeCounts[type] = (jobTypeCounts[type] || 0) + 1;
+        });
+        const jobTypes = Object.entries(jobTypeCounts).map(([label, count]) => ({
+          label,
+          count,
+          percentage: opps.length > 0 ? (count / opps.length) * 100 : 0,
+        }));
+        setJobTypeData(jobTypes);
+
+        // Only get applications for active jobs
+        const oppIds = opps.map((o) => o.id);
+        let allApps = [];
+        if (oppIds.length > 0) {
+          const appsQuery = query(
+            collection(db, 'applications'),
+            where('opportunityId', 'in', oppIds)
+          );
+          const appsSnapshot = await getDocs(appsQuery);
+          allApps = appsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        }
+
+        const studentIds = [...new Set(allApps.map((a) => a.studentId))];
+        const courseCounts = {};
+        for (const studentId of studentIds) {
+          const studentRef = doc(db, 'student_profiles', studentId);
+          const studentSnap = await getDoc(studentRef);
+          if (studentSnap.exists()) {
+            const course = studentSnap.data().course || 'Unknown';
+            courseCounts[course] = (courseCounts[course] || 0) + 1;
+          }
+        }
+        const sortedCourses = Object.entries(courseCounts)
+          .map(([course, count]) => ({ course, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6);
+
+        const maxCount = sortedCourses.length > 0 ? Math.max(...sortedCourses.map((c) => c.count)) : 1;
+        const courseDataWithHeight = sortedCourses.map((c) => ({
+          ...c,
+          height: Math.round((c.count / maxCount) * 100),
+        }));
+        setCourseData(courseDataWithHeight);
+
+      } catch (err) {
+        console.error('Error fetching analytics data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  const handleExport = () => {
+    const headers = ['Metric', 'Value'];
+    const rows = [
+      ['Total Active Job Listings', totalJobs],
+      ['Total Views', funnelData.views],
+      ['Total Applications', funnelData.applications],
+      ['Total Submissions', funnelData.submissions],
+      ['Conversion Rate', funnelData.views > 0 ? `${((funnelData.submissions / funnelData.views) * 100).toFixed(1)}%` : '0%'],
+    ];
+    jobTypeData.forEach((item) => {
+      rows.push([`${item.label} (Count)`, item.count]);
+      rows.push([`${item.label} (%)`, `${item.percentage.toFixed(1)}%`]);
+    });
+    courseData.forEach((item) => {
+      rows.push([`${item.course} Applicants`, item.count]);
+    });
+
+    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `platform_analytics_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const pieColors = [NAVY, GOLD, '#06b6d4', '#10b981', '#8b5cf6', '#ec4899'];
+
+  if (loading) {
+    return <div style={styles.loading}>Loading analytics data...</div>;
+  }
+
   return (
-    <div style={{ maxWidth: '1200px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
+    <div style={styles.container}>
+      <div style={styles.header}>
         <div>
-          <h1 style={{ margin: '0 0 8px 0', fontSize: 24, fontWeight: 800, color: NAVY }}>Platform Analytics & Reporting</h1>
-          <p style={{ margin: 0, fontSize: 14, color: '#64748b' }}>Data insights — January to June 2026 academic cycle.</p>
+          <h1 style={styles.title}>Platform Analytics & Reporting</h1>
+          <p style={styles.subtitle}>Data insights — {new Date().getFullYear()} academic cycle.</p>
         </div>
-        <button style={{ display: 'flex', alignItems: 'center', gap: 8, background: GOLD, color: NAVY, border: 'none', padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+        <button
+          onClick={handleExport}
+          disabled={totalJobs === 0}
+          style={{ ...styles.exportBtn, opacity: totalJobs === 0 ? 0.6 : 1, cursor: totalJobs === 0 ? 'not-allowed' : 'pointer' }}
+        >
           <Download size={16} /> Export to CSV
         </button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, marginBottom: 24 }}>
-        {/* Same as original – copy from previous */}
-        <div style={{ background: 'white', padding: 32, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 24px 0', fontSize: 16, fontWeight: 700, color: NAVY }}>Application Funnel</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {mockBarData.map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ width: 140, fontSize: 13, color: '#475569', textAlign: 'right', paddingRight: 16 }}>{item.label}</div>
-                <div style={{ flex: 1, background: '#f1f5f9', height: 24, borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-                  <div style={{ width: `${(item.val / 1000) * 100}%`, background: NAVY, height: '100%', borderRadius: 4 }} />
+
+      <div style={styles.twoCol}>
+
+        {/* Application Funnel */}
+        <div style={styles.card}>
+          <h3 style={styles.cardTitle}>Application Funnel</h3>
+          {funnelData.views === 0 ? (
+            <div style={styles.emptyState}>No data available yet.</div>
+          ) : (
+            <>
+              <div style={styles.funnelContainer}>
+                <div style={styles.funnelRow}>
+                  <div style={styles.funnelLabel}>Listing Views</div>
+                  <div style={styles.funnelBarTrack}>
+                    <div style={{ ...styles.funnelBarFill, width: '100%', background: NAVY }} />
+                  </div>
+                  <div style={styles.funnelValue}>{funnelData.views}</div>
+                </div>
+                <div style={styles.funnelRow}>
+                  <div style={styles.funnelLabel}>Applications</div>
+                  <div style={styles.funnelBarTrack}>
+                    <div style={{ ...styles.funnelBarFill, width: `${funnelData.views > 0 ? (funnelData.applications / funnelData.views) * 100 : 0}%`, background: GOLD }} />
+                  </div>
+                  <div style={styles.funnelValue}>{funnelData.applications}</div>
+                </div>
+                <div style={styles.funnelRow}>
+                  <div style={styles.funnelLabel}>Submissions</div>
+                  <div style={styles.funnelBarTrack}>
+                    <div style={{ ...styles.funnelBarFill, width: `${funnelData.views > 0 ? (funnelData.submissions / funnelData.views) * 100 : 0}%`, background: '#16a34a' }} />
+                  </div>
+                  <div style={styles.funnelValue}>{funnelData.submissions}</div>
                 </div>
               </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginLeft: 140, marginTop: 12, color: '#94a3b8', fontSize: 12, padding: '0 16px' }}>
-            <span>0</span><span>250</span><span>500</span><span>750</span><span>1000</span>
-          </div>
+              <div style={styles.funnelFooter}>
+                <span style={styles.funnelFooterLabel}>Overall Conversion Rate</span>
+                <span style={styles.funnelFooterValue}>
+                  {funnelData.views > 0 ? ((funnelData.submissions / funnelData.views) * 100).toFixed(1) : 0}%
+                </span>
+              </div>
+            </>
+          )}
         </div>
-        <div style={{ background: 'white', padding: 32, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <h3 style={{ margin: '0 0 24px 0', fontSize: 16, fontWeight: 700, color: NAVY, alignSelf: 'flex-start' }}>Opportunity Market Trends</h3>
-          <div style={{ position: 'relative', width: 200, height: 200, borderRadius: '50%', background: `conic-gradient(${NAVY} 0% 60%, ${GOLD} 60% 85%, #94a3b8 85% 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 130, height: 130, background: 'white', borderRadius: '50%' }} />
-          </div>
-          <div style={{ display: 'flex', gap: 16, marginTop: 32, fontSize: 12, color: '#64748b' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: NAVY }}/> Internship</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: GOLD }}/> Graduate Programme</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#94a3b8' }}/> Part-time</div>
-          </div>
+
+        {/* Opportunity Market Trends */}
+        <div style={{ ...styles.card, alignItems: 'center' }}>
+          <h3 style={{ ...styles.cardTitle, alignSelf: 'flex-start' }}>Opportunity Market Trends</h3>
+          {jobTypeData.length === 0 ? (
+            <div style={styles.emptyState}>No active job types data.</div>
+          ) : (
+            <>
+              <div style={styles.pieContainer}>
+                {(() => {
+                  let cumulative = 0;
+                  const gradient = jobTypeData.map((item, idx) => {
+                    const start = cumulative;
+                    cumulative += item.percentage;
+                    const color = pieColors[idx % pieColors.length];
+                    return `${color} ${start}% ${cumulative}%`;
+                  }).join(', ');
+                  return (
+                    <div style={{ ...styles.pieChart, background: `conic-gradient(${gradient || '#e2e8f0'})` }}>
+                      <div style={styles.pieCenter} />
+                    </div>
+                  );
+                })()}
+              </div>
+              <div style={styles.pieLegend}>
+                {jobTypeData.map((item, idx) => (
+                  <div key={item.label} style={styles.legendItem}>
+                    <div style={{ ...styles.legendDot, background: pieColors[idx % pieColors.length] }} />
+                    {item.label} ({item.count})
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
-      <div style={{ background: 'white', padding: 32, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <h3 style={{ margin: '0 0 24px 0', fontSize: 16, fontWeight: 700, color: NAVY }}>Course-to-Opportunity Success Metric</h3>
-        <div style={{ display: 'flex', height: 200, alignItems: 'flex-end', gap: 24, paddingLeft: 40, position: 'relative' }}>
-          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: '#94a3b8', fontSize: 12 }}>
-            <span>60</span><span>45</span><span>30</span><span>15</span><span>0</span>
-          </div>
-          <div style={{ position: 'absolute', left: 40, right: 0, top: 0, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pointerEvents: 'none' }}>
-            {[...Array(5)].map((_, i) => <div key={i} style={{ borderTop: '1px dashed #e2e8f0', width: '100%' }} />)}
-          </div>
-          {mockCourseData.map((item, i) => (
-            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, zIndex: 1 }}>
-              <div style={{ width: '100%', height: `${(item.val / 60) * 100}%`, background: GOLD, borderRadius: '4px 4px 0 0' }} />
-              <div style={{ fontSize: 13, color: '#475569' }}>{item.course}</div>
+
+      {/* Course-to-Opportunity Success Metric */}
+      <div style={styles.card}>
+        <h3 style={styles.cardTitle}>Course-to-Opportunity Success Metric</h3>
+        {courseData.length === 0 ? (
+          <div style={styles.emptyState}>No course data available yet.</div>
+        ) : (
+          <div style={styles.barChartContainer}>
+            <div style={styles.barChartYAxis}>
+              <span>{Math.max(...courseData.map(c => c.count))}</span>
+              <span>{Math.round(Math.max(...courseData.map(c => c.count)) * 0.75)}</span>
+              <span>{Math.round(Math.max(...courseData.map(c => c.count)) * 0.5)}</span>
+              <span>{Math.round(Math.max(...courseData.map(c => c.count)) * 0.25)}</span>
+              <span>0</span>
             </div>
-          ))}
-        </div>
+            <div style={styles.barChartGrid} />
+            <div style={styles.barChartBars}>
+              {courseData.map((item) => {
+                const max = Math.max(...courseData.map(c => c.count));
+                const heightPercent = max > 0 ? (item.count / max) * 100 : 0;
+                return (
+                  <div key={item.course} style={styles.barColumn}>
+                    <div style={{ ...styles.bar, height: `${Math.max(heightPercent, 2)}%`, minHeight: heightPercent > 0 ? '4px' : '0' }} />
+                    <div style={styles.barLabel}>
+                      {item.course.length > 12 ? `${item.course.slice(0, 10)}...` : item.course}
+                      <br />
+                      <span style={styles.barCount}>{item.count}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
