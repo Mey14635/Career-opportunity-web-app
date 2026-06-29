@@ -2,9 +2,9 @@
 
 .card {
   background: var(--su-panel);
-  border: 1px solid #d5e0f7;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 20px;
+  padding: 20px 20px 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -19,17 +19,17 @@
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
-  width: 4px;
-  background: linear-gradient(180deg, var(--su-blue), var(--su-gold));
-  opacity: 0.85;
+  width: 3px;
+  background: var(--su-gold);
+  opacity: 1;
 }
 
 .card:hover,
 .card:focus-visible {
   border-color: var(--su-blue);
-  box-shadow: 0 18px 36px rgba(36, 70, 157, 0.14);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
   outline: none;
-  transform: translateY(-4px);
+  transform: translateY(-2px);
 }
 
 .card-top {
@@ -49,7 +49,7 @@
 .heart-btn {
   background: #ffffff;
   border: 1px solid var(--su-border);
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 18px;
   color: #d1d5db;
   cursor: pointer;
@@ -62,7 +62,7 @@
 .heart-btn:hover {
   background: #fff7e3;
   color: var(--su-gold);
-  transform: scale(1.05);
+  transform: none;
 }
 
 /* When saved is true, the heart turns gold */
@@ -95,11 +95,11 @@
 
 .badge {
   background: var(--su-blue-soft);
-  border: 1px solid #c8d7fb;
+  border: 1px solid #e2e8f0;
   color: var(--su-blue);
   font-size: 12px;
   padding: 5px 12px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-weight: 800;
 }
 

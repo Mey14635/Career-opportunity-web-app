@@ -93,6 +93,7 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
     };
     triggerModal(title, message, type, wrappedActionData);
   };
+  const closeDetails = clearSelection || (() => {});
 
   return (
     <div style={{ maxWidth: '1000px' }}>
@@ -105,22 +106,14 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
         <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
-            {returnedForEdits && (
-              <span style={{
-                background: '#fef3c7',
-                color: '#d97706',
-                padding: '4px 12px',
-                borderRadius: '20px',
-                fontSize: 13,
-                fontWeight: 700,
-                marginBottom: 8,
-              }}>
+            {selectedJob.pendingReason === 'unpublished' && (
+              <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 12px', borderRadius: '20px', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
                 Returned for edits
               </span>
             )}
           </div>
           <p style={{ margin: 0, color: '#64748b', fontSize: 16 }}>
-            {selectedJob.companyName || selectedJob.employerId || selectedJob.employerID || 'Company'} &bull; 
+            {selectedJob.companyName || selectedJob.employerId || selectedJob.employerID || 'Company'} &bull;{' '}
             {selectedJob.location || selectedJob.workMode || 'Location not specified'}
           </p>
         </div>
@@ -153,15 +146,11 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
               </div>
               <div style={{ marginBottom: 12 }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>DURATION</p>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
-                  {selectedJob.duration || 'Not specified'}
-                </p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>{selectedJob.duration || 'Not specified'}</p>
               </div>
               <div>
                 <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>OPEN POSITIONS</p>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
-                  {selectedJob.positions || 'Not specified'}
-                </p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>{selectedJob.positions || 'Not specified'}</p>
               </div>
             </div>
 
@@ -179,52 +168,33 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, borderTop: '1px solid #e2e8f0', paddingTop: 24, marginTop: 32 }}>
-          {returnedForEdits ? (
-            <button
-              onClick={() => {
-                handleModalAction(
-                  'Unrequest Edits',
-                  `Remove the "Returned for edits" status for "${selectedJob.title}"? The job will become a normal pending review.`,
-                  'warning',
-                  {
-                    view: 'job',
-                    id: selectedJob.id,
-                    type: 'unrequest_edits',
-                    clearSelection,
-                  }
-                );
-              }}
-              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#e2e8f0', color: '#475569', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Unrequest Edits
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                handleModalAction(
-                  'Request Edits',
-                  `Request changes for "${selectedJob.title}"? The employer will be notified to update the listing.`,
-                  'warning',
-                  {
-                    view: 'job',
-                    id: selectedJob.id,
-                    type: 'request_edits',
-                    clearSelection,
-                  }
-                );
-              }}
-              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fef3c7', color: '#d97706', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Request Edits
-            </button>
-          )}
+          <button
+            onClick={() => {
+              handleModalAction(
+                returnedForEdits ? 'Unrequest Edits' : 'Request Edits',
+                returnedForEdits
+                  ? `Remove the "Returned for edits" status for "${selectedJob.title}"? The job will become a normal pending review.`
+                  : `Request changes for "${selectedJob.title}"? The employer will be notified to update the listing.`,
+                'warning',
+                {
+                  view: 'job',
+                  id: selectedJob.id,
+                  type: returnedForEdits ? 'unrequest_edits' : 'request_edits',
+                  clearSelection: closeDetails,
+                }
+              );
+            }}
+            style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: returnedForEdits ? '#e2e8f0' : '#fef3c7', color: returnedForEdits ? '#475569' : '#d97706', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+          >
+            {returnedForEdits ? 'Unrequest Edits' : 'Request Edits'}
+          </button>
           <button
             onClick={() => {
               handleModalAction('Reject Listing', `Reject "${selectedJob.title}"? The job will be permanently moved to rejected.`, 'danger', {
                 view: 'job',
                 id: selectedJob.id,
                 type: 'reject',
-                clearSelection,
+                clearSelection: closeDetails,
               });
             }}
             style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
@@ -238,7 +208,7 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
                 id: selectedJob.id,
                 type: 'approve',
                 job: selectedJob,
-                clearSelection,
+                clearSelection: closeDetails,
               });
             }}
             style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: GOLD, color: NAVY, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}

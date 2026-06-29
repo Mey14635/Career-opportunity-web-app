@@ -52,6 +52,7 @@ export default function AdminDashboard({ onLogout }) {
   const [focusedJobId, setFocusedJobId] = useState('');
   const [notificationFocusKey, setNotificationFocusKey] = useState(0);
   const [notificationJobReview, setNotificationJobReview] = useState(null);
+  const [notificationEmployerReview, setNotificationEmployerReview] = useState(null);
 
   // Confirmation modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -131,9 +132,17 @@ export default function AdminDashboard({ onLogout }) {
       '';
 
     if (targetTab === 'employer-approvals') {
+      const selectedEmployer = employers.find((employer) => employer.id === entityId || employer.uid === entityId);
+
+      if (selectedEmployer) {
+        setNotificationEmployerReview(selectedEmployer);
+        return;
+      }
+
       setFocusedEmployerId(entityId);
       setFocusedJobId('');
       setNotificationFocusKey((key) => key + 1);
+      setActiveTab('employer-approvals');
     } else if (targetTab === 'job-reviews') {
       let selectedJob = jobQueue.find((job) => job.id === entityId);
 
@@ -170,6 +179,8 @@ export default function AdminDashboard({ onLogout }) {
       } else if (modalConfig.type === 'revoke') {
         await updateEmployerStatus(modalConfig.id, 'rejected');
       }
+      setFocusedEmployerId('');
+      if (modalConfig.clearSelection) modalConfig.clearSelection();
     } else if (modalConfig.view === 'job') {
       const jobRef = doc(db, 'opportunities', modalConfig.id);
       if (modalConfig.type === 'approve') {
@@ -294,12 +305,17 @@ export default function AdminDashboard({ onLogout }) {
             recentPendingJobs={jobQueue} 
             pendingEmployers={employers.filter(emp => emp.verificationStatus === 'pending')}/>}
           {activeTab === 'students' && <StudentsView studentsData={students} />}
+          {activeTab === 'rejected-jobs' && (
+            <RejectedJobsView
+              rejectedJobsData={rejectedJobs}
+              triggerModal={triggerModal}
+            />
+          )}
           {activeTab === 'employer-approvals' && <EmployersView key={`employers-${notificationFocusKey}`} employersData={employers} triggerModal={triggerModal} focusedEmployerId={focusedEmployerId} />}
           {activeTab === 'job-reviews' && <JobReviewsView key={`jobs-${notificationFocusKey}`} queueData={jobQueue} triggerModal={triggerModal} focusedJobId={focusedJobId} onRefresh={fetchAllData} />}
           {activeTab === 'active-opportunities' && <ActiveOpportunitiesView activeJobsData={activeJobs} triggerModal={triggerModal} />}
-          {activeTab === 'rejected-jobs' && <RejectedJobsView rejectedJobsData={rejectedJobs} triggerModal={triggerModal} />}
           {activeTab === 'analytics' && <AnalyticsView />}
-          {activeTab === 'notifications' && <NotificationsView notificationsData={notifications} onNotificationAction={handleNotificationAction} />}
+          {activeTab === 'notifications' && <NotificationsView notificationsData={notifications} employersData={employers} onNotificationAction={handleNotificationAction} />}
           {activeTab === 'settings' && <SettingsView />}
         </main>
       </div>
@@ -341,6 +357,82 @@ export default function AdminDashboard({ onLogout }) {
               }}
               focusedJobId={notificationJobReview.id}
             />
+          </div>
+        </div>
+      )}
+      {notificationEmployerReview && (
+        <div
+          role="presentation"
+          onClick={() => setNotificationEmployerReview(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(15, 23, 42, 0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Employer approval details"
+            onClick={(event) => event.stopPropagation()}
+            style={{ width: 'min(680px, 100%)', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto', background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 24px 60px rgba(15, 23, 42, 0.22)' }}
+          >
+            <div style={{ padding: '22px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+              <div>
+                <h2 style={{ margin: 0, color: '#1B3A6B', fontSize: 20, fontWeight: 800 }}>Employer Access Request</h2>
+                <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: 13 }}>Review submitted company information before activating access.</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close employer review"
+                onClick={() => setNotificationEmployerReview(null)}
+                style={{ width: 32, height: 32, border: 'none', borderRadius: 8, background: '#f1f5f9', color: '#64748b', fontSize: 20, lineHeight: 1, cursor: 'pointer' }}
+              >
+                x
+              </button>
+            </div>
+            <div style={{ padding: 24, display: 'grid', gap: 14 }}>
+              {[
+                ['Company Name', notificationEmployerReview.companyName || 'Not specified'],
+                ['Contact Person', notificationEmployerReview.contactPerson || 'Not specified'],
+                ['Email', notificationEmployerReview.email || 'Not specified'],
+                ['Phone', notificationEmployerReview.phone || 'Not specified'],
+                ['Website', notificationEmployerReview.website || 'Not specified'],
+                ['Industry', notificationEmployerReview.industry || 'Not specified'],
+                ['Company Size', notificationEmployerReview.size || notificationEmployerReview.companySize || 'Not specified'],
+                ['Status', notificationEmployerReview.verificationStatus || 'pending'],
+              ].map(([label, value]) => (
+                <div key={label} style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 12, padding: '12px 14px', background: '#f8fafc', borderRadius: 8 }}>
+                  <span style={{ color: '#64748b', fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>{label}</span>
+                  <span style={{ color: '#1e293b', fontSize: 14, fontWeight: 600 }}>{value}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '18px 24px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => setNotificationEmployerReview(null)}
+                style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Close
+              </button>
+              {notificationEmployerReview.verificationStatus === 'pending' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerModal('Activate Partner', `Approve ${notificationEmployerReview.companyName || notificationEmployerReview.email || 'this employer'}?`, 'primary', {
+                      view: 'employer',
+                      id: notificationEmployerReview.id || notificationEmployerReview.uid,
+                      type: 'approve',
+                      clearSelection: () => setNotificationEmployerReview(null),
+                    });
+                  }}
+                  style={{ padding: '10px 18px', borderRadius: 8, border: 'none', background: '#1B3A6B', color: '#ffffff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Activate Partner
+                </button>
+              ) : (
+                <button type="button" disabled style={{ padding: '10px 18px', borderRadius: 8, border: 'none', background: '#dcfce7', color: '#166534', fontSize: 13, fontWeight: 700 }}>
+                  Approved
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -115,6 +115,14 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       } else {
         setCustomDocuments(customNames.map(name => ({ name, format: 'any' })));
       }
+      // Parse custom docs from the additionalDocs field (if it exists)
+      const standardLabels = standardDocumentOptions.map((option) => option.label);
+      const structuredCustomDocs = structuredDocs.filter((doc) => {
+        const label = doc?.label || doc?.name || '';
+        return label && !standardLabels.includes(label);
+      });
+      const customDocs = editingJob.additionalDocs ? editingJob.additionalDocs.split(',').map(d => d.trim()).filter(Boolean) : [];
+      setCustomDocuments(structuredCustomDocs.length > 0 ? structuredCustomDocs : customDocs.map(name => ({ name, format: 'any' })));
     }
   }, [editingJob]);
 
@@ -225,7 +233,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
   };
 
   // ─── BUILD REQUIRED DOCUMENTS STRING ──────────────────────────────────
-  const buildRequiredDocs = () => {
+  const buildRequiredDocsLabel = () => {
     const items = buildRequiredDocItems();
     return items.map(doc => 
       doc.format !== 'any' ? `${doc.label} (${doc.formatLabel})` : doc.label
@@ -274,7 +282,9 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       stipend: formData.stipend,
       description: formData.description,
       requirement: formData.requirement,
-      requiredDocument: buildRequiredDocs(),
+      requiredDocument: buildRequiredDocsLabel(),
+      requiredDocuments: buildRequiredDocItems(),
+      documentsRequired: buildRequiredDocItems(),
       additionalDocs: buildAdditionalDocs(),
       jobDescriptionPdfUrl: pdfUrl,
       pdfFileName: pdfFileName,
@@ -531,7 +541,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           <div style={{ marginTop: '20px', padding: '12px 16px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
             <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>📄 Documents Required:</p>
             <p style={{ fontSize: '13px', color: NAVY, fontWeight: 500 }}>
-              {buildRequiredDocs()}
+              {buildRequiredDocsLabel()}
             </p>
           </div>
         </div>

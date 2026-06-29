@@ -296,8 +296,8 @@ const Profile = () => {
     <div className="onboard-container">
       <div className="onboard-card">
         <div className="onboard-brand">
-          <div className="brand-logo su-logo-mark" aria-hidden="true">
-            <span />
+          <div className="brand-logo" aria-hidden="true">
+            SU
           </div>
           <p>SU Career Portal</p>
         </div>

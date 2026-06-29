@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/public/LandingPage';
 import LoginPage from './pages/public/Login';
 import EmployerAccess from './pages/public/EmployerAccess';
+import HelpCenter from './pages/public/HelpCenter';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import EmployerDashboard from './pages/employer/EmployerDashboard';
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -37,6 +38,8 @@ function App() {
           }}
           onLogin={handleEmployerLogin}
         />} />
+
+        <Route path="/help-center" element={<HelpCenter />} />
 
         {/* ─── PROTECTED ROUTES ────────────────────────────────────────────── */}
         <Route path="/admin-dashboard" element={<AdminDashboard onLogout={handleLogout} />} />

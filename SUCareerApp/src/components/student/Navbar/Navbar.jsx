@@ -2,11 +2,44 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { Bell, ChevronDown, LogOut, UserCircle } from "lucide-react";
+import {
+  Bell,
+  BriefcaseBusiness,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  FileText,
+  Heart,
+  LayoutDashboard,
+  LogOut,
+  UserCircle,
+} from "lucide-react";
 import { auth, db } from "../../../config/firebase";
 import { useAuth } from "../../../contexts/AuthContext";
 import { subscribeToUserNotifications } from "../../../services/notificationService";
 import "./Navbar.css";
+
+function getNotificationTone(notification) {
+  if (notification.type === "application_status_update") return "status";
+  if (notification.type === "deadline_48h") return "deadline";
+  return "default";
+}
+
+function renderNotificationIcon(notification) {
+  if (notification.type === "application_status_update") {
+    return <CheckCircle2 size={16} strokeWidth={2.4} />;
+  }
+
+  if (notification.type === "deadline_48h") {
+    return <Clock3 size={16} strokeWidth={2.4} />;
+  }
+
+  if (notification.type === "saved_opportunity") {
+    return <BriefcaseBusiness size={16} strokeWidth={2.4} />;
+  }
+
+  return <Bell size={16} strokeWidth={2.4} />;
+}
 
 function Navbar() {
   const navigate = useNavigate();
@@ -83,10 +116,13 @@ function Navbar() {
   return (
     <nav className="navbar">
       <div className="navbar-left">
-        <div className="navbar-logo su-logo-mark" aria-hidden="true">
-          <span />
+        <div className="navbar-logo" aria-hidden="true">
+          SU
         </div>
-        <span className="navbar-brand">SU Career Portal</span>
+        <div className="navbar-brand-group">
+          <span className="navbar-brand">SU Career Portal</span>
+          <span className="navbar-subbrand">Student Portal</span>
+        </div>
       </div>
 
       {/*  Tab links */}
@@ -95,18 +131,21 @@ function Navbar() {
           to="/student-dashboard/dashboard"
           className={({ isActive }) => isActive ? "nav-tab active-tab" : "nav-tab"}
         >
+          <LayoutDashboard size={16} aria-hidden="true" />
           Dashboard
         </NavLink>
         <NavLink
           to="/student-dashboard/favorites"
           className={({ isActive }) => isActive ? "nav-tab active-tab" : "nav-tab"}
         >
+          <Heart size={16} aria-hidden="true" />
           Favorites
         </NavLink>
         <NavLink
           to="/student-dashboard/applications"
           className={({ isActive }) => isActive ? "nav-tab active-tab" : "nav-tab"}
         >
+          <FileText size={16} aria-hidden="true" />
           My Applications
         </NavLink>
       </div>
@@ -147,20 +186,20 @@ function Navbar() {
                 {previewNotifications.length > 0 ? (
                   previewNotifications.map((notification) => (
                     <div className="notification-preview" key={notification.id}>
-                      <div className="notification-icon" aria-hidden="true">
-                        !
+                      <div className={`notification-icon ${getNotificationTone(notification)}`} aria-hidden="true">
+                        {renderNotificationIcon(notification)}
                       </div>
                       <div>
                         <h3>{notification.title}</h3>
                         <p>{notification.message}</p>
-                        {notification.date && <small>{notification.date}</small>}
+                        {notification.time || notification.date ? <small>{notification.time || notification.date}</small> : null}
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="notification-preview">
                     <div className="notification-icon" aria-hidden="true">
-                      i
+                      <Bell size={16} strokeWidth={2.4} />
                     </div>
                     <div>
                       <h3>No notifications yet</h3>

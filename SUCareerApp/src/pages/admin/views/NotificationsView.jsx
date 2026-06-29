@@ -9,8 +9,35 @@ const iconMap = {
   userPlus: UserPlus,
 };
 
-export default function NotificationsView({ notificationsData = [], onNotificationAction }) {
+export default function NotificationsView({ notificationsData = [], employersData = [], onNotificationAction }) {
   const unreadCount = notificationsData.filter(n => !n.read && !n.isRead).length;
+  const getEmployerId = (note) => (
+    note.targetId ||
+    note.action?.entityId ||
+    note.metadata?.employerId ||
+    note.metadata?.id ||
+    ''
+  );
+  const getEmployerStatus = (note) => {
+    if (note.type !== 'employer_access_request') {
+      return '';
+    }
+
+    const employerId = getEmployerId(note);
+    const employer = employersData.find((item) => item.id === employerId || item.uid === employerId);
+    return employer?.verificationStatus || '';
+  };
+  const getActionLabel = (note) => {
+    if (note.type === 'employer_access_request') {
+      return getEmployerStatus(note) === 'approved' ? 'Approved' : 'Review';
+    }
+
+    return note.actionLabel;
+  };
+  const isActionDisabled = (note) => (
+    note.type === 'employer_access_request' && getEmployerStatus(note) === 'approved'
+  );
+  const isRead = (note) => Boolean(note.read || note.isRead);
   const markAllAsRead = async () => {
     try {
       await markAllNotificationsAsRead(notificationsData);
@@ -64,28 +91,51 @@ export default function NotificationsView({ notificationsData = [], onNotificati
               })()}
             </div>
             <div style={{ marginTop: 6 }}>
-              {note.read ? (
+              {isRead(note) ? (
                 <div style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #cbd5e1' }} />
               ) : (
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: GOLD }} />
               )}
             </div>
             <div style={{ flex: 1 }}>
-              <h3 style={{ margin: '0 0 8px 0', fontSize: 15, fontWeight: note.read ? 600 : 700, color: note.read ? '#64748b' : NAVY }}>{note.title}</h3>
-              <p style={{ margin: '0 0 12px 0', fontSize: 14, color: note.read ? '#94a3b8' : '#475569', lineHeight: 1.6 }}>{note.desc || note.message}</p>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: 15, fontWeight: isRead(note) ? 600 : 700, color: isRead(note) ? '#64748b' : NAVY }}>{note.title}</h3>
+              <p style={{ margin: '0 0 12px 0', fontSize: 14, color: isRead(note) ? '#94a3b8' : '#475569', lineHeight: 1.6 }}>{note.desc || note.message}</p>
               <div style={{ fontSize: 12, color: '#94a3b8' }}>{note.time || note.date}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {note.actionLabel && (
-                <button onClick={() => onNotificationAction(note)} style={{ background: NAVY, border: 'none', color: '#ffffff', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: '8px 12px' }}>
-                  {note.actionLabel}
+              {getActionLabel(note) && (
+                <button
+                  onClick={() => {
+                    if (!isActionDisabled(note)) {
+                      onNotificationAction(note);
+                    }
+                  }}
+                  disabled={isActionDisabled(note)}
+                  style={{
+                    background: isActionDisabled(note) ? '#dcfce7' : NAVY,
+                    border: 'none',
+                    color: isActionDisabled(note) ? '#166534' : '#ffffff',
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: isActionDisabled(note) ? 'default' : 'pointer',
+                    padding: '8px 12px'
+                  }}
+                >
+                  {getActionLabel(note)}
                 </button>
               )}
-              {!note.read && (
-              <button onClick={() => handleMarkRead(note.id)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: '4px 8px' }}>
-                Mark read
+              <button
+                onClick={() => {
+                  if (!isRead(note)) {
+                    handleMarkRead(note.id);
+                  }
+                }}
+                disabled={isRead(note)}
+                style={{ background: 'none', border: 'none', color: isRead(note) ? '#94a3b8' : '#64748b', fontSize: 13, fontWeight: 600, cursor: isRead(note) ? 'default' : 'pointer', padding: '4px 8px' }}
+              >
+                {isRead(note) ? 'Read' : 'Mark read'}
               </button>
-              )}
               <button onClick={() => handleDelete(note.id)} style={{ background: '#f1f5f9', border: 'none', color: '#64748b', borderRadius: 6, cursor: 'pointer', padding: 8, display: 'flex' }}>
                 <Trash2 size={14} />
               </button>
