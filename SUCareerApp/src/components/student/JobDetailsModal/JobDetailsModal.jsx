@@ -1,8 +1,52 @@
 import { useState } from "react";
+import { File, Download } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { submitApplication } from "../../../services/applicationService";
 import { toggleSavedOpportunityForUser } from "../../../utils/saveOpportunity";
 import "./JobDetailsModal.css";
+
+const defaultDocument = {
+  key: "cv-resume",
+  label: "CV / Resume",
+  format: "any",
+  formatLabel: "Any Format",
+  inputType: "file",
+};
+
+function normalizeApplicationDocument(document) {
+  if (typeof document === "string") {
+    return {
+      key: document.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      label: document,
+      format: "any",
+      formatLabel: "Any Format",
+      inputType: "file",
+    };
+  }
+
+  const label = document.label || document.name || "Document";
+  const format = document.format || "any";
+
+  return {
+    key: document.key || label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    label,
+    format,
+    formatLabel: document.formatLabel || "Any Format",
+    inputType: document.inputType || (format === "link" ? "url" : "file"),
+  };
+}
+
+function getAcceptValue(format) {
+  if (format === "pdf") {
+    return ".pdf,application/pdf";
+  }
+
+  if (format === "docx") {
+    return ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+
+  return ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+}
 
 function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSaveButton = false }) {
   const { user } = useAuth();
@@ -17,7 +61,24 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
 
   const isDeadlineUrgent = opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
   const requiredDocuments = opportunity.documentsRequired || [];
-  const applicationDocuments = requiredDocuments.length > 0 ? requiredDocuments : ["CV / Resume"];
+  
+  // ─── FIX: Keep only ONE declaration of applicationDocuments ──────────
+  // Normalize documents: if none, fallback to defaultDocument
+  const applicationDocuments = (requiredDocuments.length > 0 ? requiredDocuments : [defaultDocument])
+    .map(normalizeApplicationDocument);
+
+  const hasPdf = opportunity.jobDescriptionPdfUrl && opportunity.jobDescriptionPdfUrl.trim() !== "";
+
+  // ─── DEADLINE DISPLAY LOGIC ──────────────────────────────────────────────
+  const getDeadlineDisplay = () => {
+    if (!opportunity.deadline || opportunity.daysLeft === null || opportunity.daysLeft === undefined) {
+      return "No deadline specified";
+    }
+    if (opportunity.daysLeft === 0 || opportunity.daysLeft < 0) {
+      return "Deadline has passed";
+    }
+    return `Closes in ${opportunity.daysLeft} day${opportunity.daysLeft > 1 ? 's' : ''}`;
+  };
 
   function closeApplicationForm() {
     setShowApplyForm(false);
@@ -25,10 +86,10 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
     setApplicationStatus({ type: "", message: "" });
   }
 
-  function handleDocumentFileChange(label, file) {
+  function handleDocumentInputChange(key, value) {
     setDocumentFiles((prev) => ({
       ...prev,
-      [label]: file,
+      [key]: value,
     }));
   }
 
@@ -58,9 +119,9 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
       return;
     }
 
-    const missingDocument = applicationDocuments.find((label) => !documentFiles[label]);
+    const missingDocument = applicationDocuments.find((document) => !documentFiles[document.key]);
     if (missingDocument) {
-      setApplicationStatus({ type: "error", message: `Please upload ${missingDocument}.` });
+      setApplicationStatus({ type: "error", message: `Please provide ${missingDocument.label}.` });
       return;
     }
 
@@ -168,18 +229,55 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
             <section>
               <h3>Role Details</h3>
               <ul>
-                <li>Start date: {opportunity.startDate}</li>
+                {/* Start Date – only shown if present and not 'Not specified' */}
+                {opportunity.startDate && opportunity.startDate !== 'Not specified' && (
+                  <li>Start date: {opportunity.startDate}</li>
+                )}
+                {opportunity.department && <li>Department: {opportunity.department}</li>}
                 <li>Duration: {opportunity.duration}</li>
                 <li>Open positions: {opportunity.positions}</li>
+                {opportunity.stipend && <li>Stipend / Salary: {opportunity.stipend}</li>}
               </ul>
             </section>
+
+            {/* ─── PDF DOWNLOAD LINK (with file name) ──────────────────── */}
+            {hasPdf && (
+              <section>
+                <h3>Job Description PDF</h3>
+                <p style={{ marginTop: '6px' }}>
+                  <a
+                    href={opportunity.jobDescriptionPdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 16px',
+                      background: '#1B3A6B',
+                      color: '#ffffff',
+                      borderRadius: '6px',
+                      textDecoration: 'none',
+                      fontWeight: 600,
+                      fontSize: '14px',
+                    }}
+                  >
+                    <File size={16} />
+                    {opportunity.pdfFileName || 'Download Job Description'}
+                    <Download size={14} />
+                  </a>
+                </p>
+              </section>
+            )}
 
             <section>
               <h3>Documents Required</h3>
               {requiredDocuments.length > 0 ? (
                 <ul>
-                  {requiredDocuments.map((item) => (
-                    <li key={item}>{item}</li>
+                  {applicationDocuments.map((item) => (
+                    <li key={item.key}>
+                      {item.label}{item.format !== "any" ? ` (${item.formatLabel})` : ""}
+                    </li>
                   ))}
                 </ul>
               ) : (
@@ -187,8 +285,9 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
               )}
             </section>
 
+            {/* ─── FIXED DEADLINE MESSAGE ──────────────────────────────────── */}
             <p className="job-modal-closes">
-              {opportunity.daysLeft === null ? "Deadline not set" : `Closes in ${opportunity.daysLeft} days`}
+              {getDeadlineDisplay()}
             </p>
           </div>
         </section>
@@ -222,18 +321,31 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
               {requiredDocuments.length > 0 && (
                 <div className="application-required-docs">
                   <strong>Required by employer:</strong>
-                  <span>{requiredDocuments.join(", ")}</span>
+                  <span>
+                    {applicationDocuments
+                      .map((item) => item.format !== "any" ? `${item.label} (${item.formatLabel})` : item.label)
+                      .join(", ")}
+                  </span>
                 </div>
               )}
 
-              {applicationDocuments.map((label) => (
-                <label key={label}>
-                  {label} *
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    onChange={(e) => handleDocumentFileChange(label, e.target.files?.[0] || null)}
-                  />
+              {applicationDocuments.map((document) => (
+                <label key={document.key}>
+                  {document.label}{document.format !== "any" ? ` (${document.formatLabel})` : ""} *
+                  {document.inputType === "url" ? (
+                    <input
+                      type="url"
+                      placeholder="https://example.com/your-document"
+                      value={documentFiles[document.key] || ""}
+                      onChange={(e) => handleDocumentInputChange(document.key, e.target.value)}
+                    />
+                  ) : (
+                    <input
+                      type="file"
+                      accept={getAcceptValue(document.format)}
+                      onChange={(e) => handleDocumentInputChange(document.key, e.target.files?.[0] || null)}
+                    />
+                  )}
                 </label>
               ))}
 

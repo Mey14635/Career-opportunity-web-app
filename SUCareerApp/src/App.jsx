@@ -1,37 +1,63 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import './index.css';
-
-// Public Pages
 import LandingPage from './pages/public/LandingPage';
-import Login from './pages/public/login';
+import LoginPage from './pages/public/Login';
 import EmployerAccess from './pages/public/EmployerAccess';
-
-// Dashboards
 import AdminDashboard from './pages/admin/AdminDashboard';
 import EmployerDashboard from './pages/employer/EmployerDashboard';
 import StudentDashboard from './pages/student/StudentDashboard';
+import CompanyPublicView from './pages/public/CompanyPublicView';
 import ProtectedRoute from './routes/protectedRoute';
 
-export default function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/employer-access" element={<EmployerAccess />} />
-          
-          {/* Dashboard Routes */}
-          <Route path="/admin-dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/employer-dashboard" element={<ProtectedRoute allowedRoles={['employer']}><EmployerDashboard /></ProtectedRoute>} />
-          <Route path="/student-dashboard/*" element={<StudentDashboard />} />
+function handleLogout() {
+  window.location.href = '/';
+}
 
-          {/* Catch-all redirect for bad URLs */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+function handleEmployerLogin() {
+  window.location.href = '/employer-dashboard';
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* ─── PUBLIC ROUTES ────────────────────────────────────────────────── */}
+        <Route path="/" element={<LandingPage onNavigate={(route) => {
+          if (route === 'login') window.location.href = '/login';
+          else if (route === 'employer-access') window.location.href = '/employer-access';
+        }} />} />
+        
+        <Route path="/login" element={<LoginPage 
+          onLogin={() => window.location.href = '/admin-dashboard'}
+          onBack={() => window.location.href = '/'}
+        />} />
+
+        <Route path="/employer-access" element={<EmployerAccess 
+          onNavigate={(route) => {
+            if (route === 'landing') window.location.href = '/';
+          }}
+          onLogin={handleEmployerLogin}
+        />} />
+
+        {/* ─── PROTECTED ROUTES ────────────────────────────────────────────── */}
+        <Route path="/admin-dashboard" element={<AdminDashboard onLogout={handleLogout} />} />
+        <Route path="/employer-dashboard" element={<EmployerDashboard onLogout={handleLogout} />} />
+        <Route path="/student-dashboard/*" element={<StudentDashboard />} />
+
+        {/* ─── COMPANY PROFILE (all authenticated roles) ───────────────────── */}
+        <Route 
+          path="/company/:employerId" 
+          element={
+            <ProtectedRoute allowedRoles={['student', 'employer', 'admin']}>
+              <CompanyPublicView />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* ─── CATCH-ALL ────────────────────────────────────────────────────── */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
+
+export default App;

@@ -255,7 +255,8 @@
   font-weight: 700;
 }
 
-.job-apply-form input[type="file"] {
+.job-apply-form input[type="file"],
+.job-apply-form input[type="url"] {
   background: var(--su-field);
   border: 1px solid var(--su-border);
   border-radius: 8px;

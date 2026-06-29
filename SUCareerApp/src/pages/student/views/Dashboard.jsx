@@ -28,23 +28,19 @@ function compactFilterValue(value) {
 
 function singularizeFilterValue(value) {
   const normalizedValue = normalizeFilterValue(value);
-
   return normalizedValue.endsWith("s") ? normalizedValue.slice(0, -1) : normalizedValue;
 }
 
 function normalizeCategoryValue(value) {
   const normalizedValue = singularizeFilterValue(value);
-
   return normalizedValue === "tech" ? "technology" : normalizedValue;
 }
 
 function getCanonicalDefaultOption(defaultOptions, value) {
   const compactValue = compactFilterValue(value);
-
   if (compactValue === "tech" && defaultOptions.some((option) => compactFilterValue(option) === "technology")) {
     return "Technology";
   }
-
   return defaultOptions.find((option) => compactFilterValue(option) === compactValue) || value;
 }
 
@@ -78,7 +74,6 @@ function buildFilterOptions(defaultOptions, opportunities, fieldName, config = {
 const categoryBlocklist = ["general", ...defaultJobTypes.map(singularizeFilterValue)];
 
 function Dashboard() {
-  // selectedTypes holds an array of the checked job types 
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [selectedIndustries, setSelectedIndustries] = useState([]);
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
@@ -104,7 +99,6 @@ function Dashboard() {
       try {
         const opportunitiesSnap = await getDocs(query(collection(db, "opportunities")));
         const visibleOpportunities = opportunitiesSnap.docs
-          // Keep admin approval as the student-side publish gate.
           .filter((docSnap) => isStudentVisibleOpportunity(docSnap.data()))
           .map(mapOpportunityDoc);
 
@@ -136,7 +130,7 @@ function Dashboard() {
         const ids = [
           ...new Set(
             [...userSavedSnap.docs, ...studentSavedSnap.docs]
-              .map((docSnap) => docSnap.data().opportunityID || docSnap.data().opportunityId)
+              .map((docSnap) => docSnap.data().opportunityId || docSnap.data().opportunityID)
               .filter(Boolean)
           ),
         ];
@@ -150,20 +144,15 @@ function Dashboard() {
     loadSavedOpportunities();
   }, [user]);
 
-  // This function adds or removes a filter when checkbox is clicked
   function toggleFilter(value, list, setList, normalizeValue = normalizeFilterValue) {
     const normalizedValue = normalizeValue(value);
-
     if (list.includes(normalizedValue)) {
-      // If already in list, remove it
       setList(list.filter((item) => item !== normalizedValue));
     } else {
-      // If not in list, add it
       setList([...list, normalizedValue]);
     }
   }
 
-  // Filter the opportunities based on what user selected
   const filtered = opportunities.filter((opp) => {
     const matchesSearch =
       searchText === "" ||
@@ -173,7 +162,6 @@ function Dashboard() {
       opp.type.toLowerCase().includes(searchText) ||
       opp.industry.toLowerCase().includes(searchText);
 
-    // If no filters selected, show all. Otherwise check if it matches.
     const opportunityType = normalizeFilterValue(opp.type);
     const opportunityCategory = normalizeCategoryValue(opp.industry);
     const matchesType =
@@ -185,6 +173,7 @@ function Dashboard() {
 
     return matchesSearch && matchesType && matchesIndustry;
   });
+
   const linkedOpportunity = opportunityIdFromUrl
     ? opportunities.find((opp) => opp.id === opportunityIdFromUrl)
     : null;
@@ -192,7 +181,6 @@ function Dashboard() {
 
   function handleCloseOpportunityModal() {
     setSelectedOpportunity(null);
-
     if (opportunityIdFromUrl) {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.delete("opportunity");
@@ -205,7 +193,6 @@ function Dashboard() {
       <aside className="sidebar">
         <h2 className="sidebar-title">Filter Opportunities</h2>
 
-        {/* Job Type filters */}
         <p className="filter-label">JOB TYPE</p>
         {jobTypes.map((type) => (
           <label key={type} className="filter-option">
@@ -218,7 +205,6 @@ function Dashboard() {
           </label>
         ))}
 
-        {/* Category filters */}
         <p className="filter-label">CATEGORY</p>
         {categories.map((category) => (
           <label key={category} className="filter-option">
@@ -234,17 +220,12 @@ function Dashboard() {
         ))}
       </aside>
 
-     
       <main className="main-content">
-        
-
-
         <div className="section-heading">
           <h1>Recommended for You</h1>
           <p>{filtered.length} opportunities matching your profile</p>
         </div>
 
-        {/* Grid of cards */}
         <div className="cards-grid">
           {loadingOpportunities ? (
             <p className="no-results">Loading opportunities...</p>
@@ -257,6 +238,7 @@ function Dashboard() {
                 opportunity={opp}
                 title={opp.title}
                 company={opp.company}
+                employerId={opp.employerId}   // ← FIXED: now uses correct field name
                 location={opp.location}
                 description={opp.description}
                 type={opp.type}
@@ -268,7 +250,6 @@ function Dashboard() {
                     if (nextSaved) {
                       return currentIds.includes(opportunityId) ? currentIds : [...currentIds, opportunityId];
                     }
-
                     return currentIds.filter((id) => id !== opportunityId);
                   })
                 }
@@ -293,7 +274,6 @@ function Dashboard() {
             if (nextSaved) {
               return currentIds.includes(opportunityId) ? currentIds : [...currentIds, opportunityId];
             }
-
             return currentIds.filter((id) => id !== opportunityId);
           })
         }

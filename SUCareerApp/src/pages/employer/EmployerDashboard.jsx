@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Check, FileText, Building2 } from 'lucide-react'; // ✅ only used icons
+import { FileText, Users } from 'lucide-react';
 import { signOut } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+import { doc, getDoc, deleteDoc } from 'firebase/firestore';
 
 // ─── SHARED COMPONENTS ──────────────────────────────────────────────────
 import EmployerSidebar from '../../components/employer/EmployerSidebar';
-import EmployerTopBar from '../../components/employer/EmployerTopBar';
+import TopBar from '../../components/shared/TopBar';
 import DocumentReviewModal from '../../components/employer/DocumentReviewModal';
+import Modal from '../../components/shared/Modal';
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────
 import { BG_GRAY } from './constants';
-import { auth } from '../../config/firebase';
+import { auth, db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 
 // ─── FIRESTORE SERVICES ────────────────────────────────────────────────
@@ -19,6 +20,10 @@ import {
   getJobApplicants,
   updateApplicationStatus,
 } from '../../services/firestoreService';
+import {
+  markNotificationAsRead,
+  subscribeToUserNotifications,
+} from '../../services/notificationService';
 
 // ─── VIEWS ──────────────────────────────────────────────────────────────
 import DashboardView from './views/DashboardView';
@@ -30,70 +35,151 @@ import ReportsAnalyticsView from './views/ReportsAnalyticsView';
 import SettingsView from './views/SettingsView';
 import NotificationsView from './views/NotificationsView';
 import ActivityHistoryView from './views/ActivityHistoryView';
+import MyJobsView from './views/MyJobsView';
 
 export default function EmployerDashboard({ onLogout }) {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const employerId = user?.uid;
 
+  // ─── DEBUG LOGS ──────────────────────────────────────────────────────
+  console.log('🔍 EmployerDashboard mounted');
+  console.log('🔍 user from useAuth:', user);
+  console.log('🔍 employerId:', employerId);
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedJob, setSelectedJob] = useState(null);
+  const [editingJob, setEditingJob] = useState(null);
   const [atsFilter, setAtsFilter] = useState('All');
   const [reviewApplicant, setReviewApplicant] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ─── DATA STATE ──────────────────────────────────────────────────────
   const [myJobs, setMyJobs] = useState([]);
   const [applicants, setApplicants] = useState([]);
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'New Application', desc: 'Jane Doe submitted credentials.', time: '2 hours ago', read: false },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [realActivities, setRealActivities] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Mock activities (can be replaced with real activity log later)
-  const recentActivities = [
-    { id: 1, action: 'Application Received', details: 'Jane Doe applied for Frontend Developer Intern.', time: '2h ago', icon: FileText, color: '#3b82f6', bg: '#eff6ff' },
-    { id: 2, action: 'Listing Published', details: 'Data Analyst — Graduate is now live.', time: '1d ago', icon: Check, color: '#16a34a', bg: '#dcfce7' },
-  ];
-  const fullHistory = [
-    ...recentActivities,
-    { id: 3, action: 'Profile Updated', details: 'Corporate branding logo was updated.', time: '2w ago', icon: Building2, color: '#8b5cf6', bg: '#ede9fe' },
-  ];
+  const [companyName, setCompanyName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
 
-  // ─── FETCH DATA ──────────────────────────────────────────────────────
+  // ─── DELETE MODAL STATE ──────────────────────────────────────────────
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteModalConfig, setDeleteModalConfig] = useState(null);
+
   useEffect(() => {
-    const fetchData = async () => {
+    console.log('🔥🔥🔥 useEffect is RUNNING! employerId:', employerId);
+
+    const fetchAllData = async () => {
+      console.log('🔥 fetchAllData called with employerId:', employerId);
+
+      // ─── 1. Set email from Firebase Auth user (reliable) ──────────
+      if (user && user.email) {
+        console.log('✅ User email from Firebase Auth:', user.email);
+        setUserEmail(user.email);
+      } else {
+        console.warn('⚠️ No user email from Firebase Auth, using fallback.');
+        setUserEmail('employer@company.com');
+      }
+
       if (!employerId) {
+        console.log('⚠️ No employerId, setting loading false and returning.');
         setLoading(false);
         return;
       }
 
       try {
-        // 1. Fetch jobs posted by this employer
+        // ─── 2. Fetch company name from employer_profiles ────────────
+        const profileRef = doc(db, 'employer_profiles', employerId);
+        const profileSnap = await getDoc(profileRef);
+        if (profileSnap.exists()) {
+          const data = profileSnap.data();
+          console.log('✅ Company Name from Firestore:', data.companyName);
+          setCompanyName(data.companyName || '');
+        } else {
+          console.warn('⚠️ employer_profiles document missing for employerId:', employerId);
+          // Fallback: try to get company name from first job posting (if any)
+          // or just leave empty.
+        }
+
+        // ─── 3. Fetch jobs and applicants ─────────────────────────────
         const jobs = await getEmployerJobs(employerId);
         setMyJobs(jobs);
 
-        // 2. Fetch applicants for all jobs
         let allApplicants = [];
         for (const job of jobs) {
           const apps = await getJobApplicants(job.id);
           allApplicants = [...allApplicants, ...apps.map(a => ({ ...a, jobId: job.id }))];
         }
         setApplicants(allApplicants);
+
+        // ─── 4. Build activity log ────────────────────────────────────
+        const buildActivities = (jobs, apps) => {
+          const activities = [];
+          jobs.forEach(job => {
+            const date = job.createdAt?.toDate?.() || new Date();
+            activities.push({
+              id: `job-${job.id}`,
+              action: 'Job Posted',
+              details: `"${job.title}" was published`,
+              time: date.toLocaleString(),
+              timestamp: date.getTime(),
+              icon: FileText,
+              color: '#3b82f6',
+              bg: '#eff6ff',
+            });
+          });
+          apps.forEach(app => {
+            const date = app.appliedAt?.toDate?.() || new Date();
+            const jobTitle = jobs.find(j => j.id === app.jobId)?.title || 'a job';
+            activities.push({
+              id: `app-${app.id}`,
+              action: 'Application Received',
+              details: `${app.name || 'A student'} applied for "${jobTitle}"`,
+              time: date.toLocaleString(),
+              timestamp: date.getTime(),
+              icon: Users,
+              color: '#16a34a',
+              bg: '#dcfce7',
+            });
+          });
+          activities.sort((a, b) => b.timestamp - a.timestamp);
+          return activities;
+        };
+
+        const activities = buildActivities(jobs, allApplicants);
+        setRealActivities(activities);
       } catch (err) {
-        console.error('Error fetching employer data:', err);
+        console.error('❌ Error fetching employer data:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchAllData();
+  }, [employerId, refreshKey, user]);
+
+  useEffect(() => {
+    if (!employerId) {
+      return undefined;
+    }
+
+    return subscribeToUserNotifications(
+      employerId,
+      setNotifications,
+      (err) => console.error('Failed to load employer notifications:', err)
+    );
   }, [employerId]);
 
-  // ─── EVENT HANDLERS ──────────────────────────────────────────────────
+  const getInitials = () => {
+    if (!companyName) return 'EM';
+    const words = companyName.split(' ');
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+    return companyName.substring(0, 2).toUpperCase();
+  };
+
   const handleStatusChange = async (appId, newStatus) => {
     try {
       await updateApplicationStatus(appId, newStatus);
-      // Update local state
-      setApplicants(prev => prev.map(app => 
+      setApplicants(prev => prev.map(app =>
         app.id === appId ? { ...app, status: newStatus } : app
       ));
     } catch (err) {
@@ -108,18 +194,100 @@ export default function EmployerDashboard({ onLogout }) {
 
   const handleAction = (msg) => alert(`Action triggered: ${msg}`);
 
-  const handleLogout = async () => {
-    if (onLogout) {
-      onLogout();
+  const handleNotificationAction = async (notification) => {
+    try {
+      if (!notification.read && !notification.isRead) {
+        await markNotificationAsRead(notification.id);
+      }
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+
+    if (notification.type === 'student_application' || notification.action?.targetTab === 'ats') {
+      const applicationId = notification.targetId || notification.action?.entityId || notification.metadata?.applicationId;
+      const applicant = applicants.find((item) => item.id === applicationId || item.applicationId === applicationId);
+
+      setActiveTab('ats');
+      setSelectedJob(null);
+      setEditingJob(null);
+
+      if (applicant) {
+        setReviewApplicant(applicant);
+      }
       return;
     }
 
-    await signOut(auth);
-    navigate('/employer-access', { replace: true, state: { mode: 'login' } });
+    setActiveTab(notification.action?.targetTab || 'notifications');
+  };
+
+  // ─── IMPROVED LOGOUT ──────────────────────────────────────────────────
+  const handleLogout = async () => {
+    try {
+      if (onLogout) {
+        onLogout();
+        return;
+      }
+      await signOut(auth);
+      localStorage.clear();
+      sessionStorage.clear();
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      window.location.replace('/employer-access?mode=login');
+    } catch (err) {
+      console.error('Logout error:', err);
+      window.location.replace('/employer-access?mode=login');
+    }
+  };
+
+  const handleEditJob = (job) => {
+    setEditingJob(job);
+    setActiveTab('edit-job');
+  };
+
+  const handleViewPublicProfile = () => {
+    if (employerId) {
+      window.open(`/company/${employerId}`, '_blank');
+    } else {
+      alert('Employer ID not available.');
+    }
+  };
+
+  const confirmDeleteJob = (job) => {
+    setDeleteModalConfig({
+      title: 'Delete Job',
+      message: `Are you sure you want to delete "${job.title}"? This action cannot be undone.`,
+      type: 'danger',
+      jobId: job.id,
+    });
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteJob = async () => {
+    if (!deleteModalConfig) return;
+    try {
+      await deleteDoc(doc(db, 'opportunities', deleteModalConfig.jobId));
+      setRefreshKey(prev => prev + 1);
+      alert('Job deleted successfully.');
+    } catch (err) {
+      console.error('Error deleting job:', err);
+      alert('Failed to delete job. Please try again.');
+    }
+    setDeleteModalOpen(false);
+    setDeleteModalConfig(null);
+  };
+
+  const handleUpdateJob = () => {
+    setEditingJob(null);
+    setRefreshKey(prev => prev + 1);
+    setActiveTab('my-jobs');
   };
 
   const getBreadcrumb = () => {
     if (activeTab === 'post-role') return 'Dashboard > Post a Job';
+    if (activeTab === 'edit-job') return 'Dashboard > Edit Job';
     if (selectedJob) return `Dashboard > ${selectedJob.title} > Applicant Pipeline`;
     if (activeTab === 'ats') return 'Applicant Tracking System';
     if (activeTab === 'profile') return 'Company Profile';
@@ -127,46 +295,61 @@ export default function EmployerDashboard({ onLogout }) {
     if (activeTab === 'analytics') return 'Reports & Analytics';
     if (activeTab === 'notifications') return 'Notifications';
     if (activeTab === 'history') return 'Dashboard > Activity History';
+    if (activeTab === 'my-jobs') return 'Dashboard > My Jobs';
     return 'Dashboard';
   };
 
   const navigateTab = (tab) => {
     setActiveTab(tab);
     setSelectedJob(null);
+    setEditingJob(null);
   };
 
-  // ─── RENDER ────────────────────────────────────────────────────────────
+  const handleJobPosted = () => {
+    setRefreshKey(prev => prev + 1);
+    navigateTab('dashboard');
+  };
+
   const renderView = () => {
-    if (loading) {
-      return <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading your data...</div>;
-    }
+    if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading your data...</div>;
 
     switch (activeTab) {
       case 'history':
-        return <ActivityHistoryView activities={fullHistory} onBack={() => navigateTab('dashboard')} />;
+        return <ActivityHistoryView activities={realActivities} onBack={() => navigateTab('dashboard')} />;
       case 'notifications':
-        return <NotificationsView notifications={notifications} setNotifications={setNotifications} />;
+        return <NotificationsView notifications={notifications} onNotificationAction={handleNotificationAction} />;
       case 'profile':
         return (
           <CompanyProfileView
-            onSave={() => handleAction('Saving Profile Details to Database')}
-            onViewPublic={() => handleAction('Navigating to Public Profile View')}
+            employerId={employerId}
+            onViewPublic={handleViewPublicProfile}
             onUploadLogo={() => handleAction('Opening local file dialog for Logo Upload')}
           />
         );
       case 'settings':
         return <SettingsView onUpdatePassword={() => handleAction('Updating Security Token via Authentication Service')} />;
       case 'analytics':
-        return <ReportsAnalyticsView onExport={() => handleAction('Generating and downloading CSV Export')} />;
+        return <ReportsAnalyticsView employerId={employerId} />;
       case 'post-role':
         return (
           <PostJobView
             employerId={employerId}
+            companyName={companyName}
             onCancel={() => navigateTab('dashboard')}
-            onSuccess={() => {
-              alert('Job posted successfully! It will appear after admin approval.');
-              navigateTab('dashboard');
+            onSuccess={handleJobPosted}
+          />
+        );
+      case 'edit-job':
+        return (
+          <PostJobView
+            employerId={employerId}
+            companyName={companyName}
+            editingJob={editingJob}
+            onCancel={() => {
+              setEditingJob(null);
+              setActiveTab('my-jobs');
             }}
+            onSuccess={handleUpdateJob}
           />
         );
       case 'ats':
@@ -180,6 +363,19 @@ export default function EmployerDashboard({ onLogout }) {
             onReview={setReviewApplicant}
           />
         );
+      case 'my-jobs':
+        return (
+          <MyJobsView
+            jobs={myJobs}
+            applicants={applicants}
+            onSelectJob={(job) => {
+              setSelectedJob(job);
+              setActiveTab('job-detail');
+            }}
+            onEditJob={handleEditJob}
+            onDeleteJob={confirmDeleteJob}
+          />
+        );
       default: // dashboard or job detail
         if (selectedJob) {
           return (
@@ -189,7 +385,10 @@ export default function EmployerDashboard({ onLogout }) {
               onBack={() => setSelectedJob(null)}
               onStatusChange={handleStatusChange}
               onReview={setReviewApplicant}
-              onEdit={() => handleAction('Opening Edit Listing Module')}
+              onEdit={() => {
+                setEditingJob(selectedJob);
+                setActiveTab('edit-job');
+              }}
             />
           );
         } else {
@@ -197,9 +396,13 @@ export default function EmployerDashboard({ onLogout }) {
             <DashboardView
               myJobs={myJobs}
               applicants={applicants}
+              companyName={companyName}
+              recentActivities={realActivities.slice(0, 3)}
               onPostJob={() => navigateTab('post-role')}
-              onSelectJob={setSelectedJob}
-              recentActivities={recentActivities}
+              onSelectJob={(job) => {
+                setSelectedJob(job);
+                setActiveTab('job-detail');
+              }}
               onViewAllHistory={() => navigateTab('history')}
             />
           );
@@ -215,19 +418,26 @@ export default function EmployerDashboard({ onLogout }) {
           if (tab === 'dashboard') {
             setActiveTab('dashboard');
             setSelectedJob(null);
+            setEditingJob(null);
           } else {
             navigateTab(tab);
           }
         }}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <EmployerTopBar
-          breadcrumb={getBreadcrumb()}
+        <TopBar
           notifications={notifications}
           setNotifications={setNotifications}
           onSettings={() => navigateTab('settings')}
           onLogout={handleLogout}
-          onSeeAllNotifications={() => navigateTab('notifications')}
+          setActiveTab={setActiveTab}
+          onNotificationAction={handleNotificationAction}
+          breadcrumb={getBreadcrumb()}
+          showSearch={false}
+          searchPlaceholder="Search your jobs..."
+          userInitials={getInitials()}
+          userName={companyName || 'Employer'}
+          userEmail={userEmail || 'employer@company.com'}
         />
         <main style={{ flex: 1, overflowY: 'auto', padding: '40px', backgroundColor: BG_GRAY }}>
           {renderView()}
@@ -241,6 +451,16 @@ export default function EmployerDashboard({ onLogout }) {
           onSave={handleModalSave}
         />
       )}
+
+      <Modal
+        isOpen={deleteModalOpen}
+        config={deleteModalConfig}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeleteModalConfig(null);
+        }}
+        onConfirm={handleDeleteJob}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 // src/components/OpportunityCard/OpportunityCard.jsx
 
+import { Link } from 'react-router-dom';
 import { useAuth } from "../../../contexts/AuthContext";
 import { toggleSavedOpportunityForUser } from "../../../utils/saveOpportunity";
 import "./OpportunityCard.css";
@@ -8,6 +9,7 @@ function OpportunityCard({
   opportunity,
   title,
   company,
+  employerId,   // ← NEW prop
   location,
   description,
   type,
@@ -60,8 +62,17 @@ function OpportunityCard({
             {saved ? "💛" : "🤍"}
         </button>
       </div>
+
+      {/* ─── COMPANY NAME WITH LINK ────────────────────────────────── */}
       <p className="card-company">
-        {company} &nbsp;📍 {location}
+        {employerId ? (
+          <Link to={`/company/${employerId}`} className="company-link">
+            {company}
+          </Link>
+        ) : (
+          company
+        )}
+        &nbsp;📍 {location}
       </p>
 
       {/* Short description */}

@@ -1,6 +1,15 @@
+// src/components/admin/AdminSidebar.jsx
 import NavButton from '../shared/NavButton';
 import { NAVY, GOLD } from '../../pages/admin/constants';
-import { LayoutDashboard, GraduationCap, Building2, Shield, Briefcase, BarChart2 } from 'lucide-react';
+import {
+  LayoutDashboard,
+  GraduationCap,
+  Building2,
+  Shield,
+  Briefcase,
+  XCircle,
+  BarChart2,
+} from 'lucide-react';
 
 export default function AdminSidebar({ activeTab, setActiveTab }) {
   return (
@@ -22,6 +31,7 @@ export default function AdminSidebar({ activeTab, setActiveTab }) {
         <NavButton active={activeTab === 'employer-approvals'} onClick={() => setActiveTab('employer-approvals')} icon={Building2} label="Employer Approvals" />
         <NavButton active={activeTab === 'job-reviews'} onClick={() => setActiveTab('job-reviews')} icon={Shield} label="Job Reviews" />
         <NavButton active={activeTab === 'active-opportunities'} onClick={() => setActiveTab('active-opportunities')} icon={Briefcase} label="Active Opportunities" />
+        <NavButton active={activeTab === 'rejected-jobs'} onClick={() => setActiveTab('rejected-jobs')} icon={XCircle} label="Rejected Jobs" />
         <NavButton active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} icon={BarChart2} label="Analytics" />
       </nav>
     </aside>

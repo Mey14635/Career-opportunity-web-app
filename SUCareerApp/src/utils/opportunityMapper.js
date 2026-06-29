@@ -49,6 +49,75 @@ function normalizeList(value) {
   return [];
 }
 
+function normalizeDocumentFormat(format = "any") {
+  const normalizedFormat = String(format || "any").trim().toLowerCase();
+
+  if (["pdf", "docx", "link"].includes(normalizedFormat)) {
+    return normalizedFormat;
+  }
+
+  return "any";
+}
+
+function getDocumentFormatLabel(format) {
+  const labels = {
+    any: "Any Format",
+    pdf: "PDF only",
+    docx: "DOCX only",
+    link: "Link (URL)",
+  };
+
+  return labels[format] || labels.any;
+}
+
+function normalizeRequiredDocuments(value) {
+  if (Array.isArray(value)) {
+    return value
+      .filter(Boolean)
+      .map((item) => {
+        if (typeof item === "string") {
+          return normalizeRequiredDocumentText(item);
+        }
+
+        const format = normalizeDocumentFormat(item.format);
+        const label = item.label || item.name || "Document";
+
+        return {
+          key: item.key || label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          label,
+          format,
+          formatLabel: item.formatLabel || getDocumentFormatLabel(format),
+          inputType: item.inputType || (format === "link" ? "url" : "file"),
+          custom: item.custom === true,
+        };
+      });
+  }
+
+  return normalizeList(value).map(normalizeRequiredDocumentText);
+}
+
+function normalizeRequiredDocumentText(value) {
+  const text = String(value || "").trim();
+  const formatMatch = text.match(/\((PDF only|DOCX only|Link \(URL\)|Any Format)\)$/i);
+  const label = formatMatch ? text.replace(formatMatch[0], "").trim() : text;
+  const formatText = formatMatch?.[1]?.toLowerCase() || "any";
+  const format = formatText.includes("pdf")
+    ? "pdf"
+    : formatText.includes("docx")
+      ? "docx"
+      : formatText.includes("link")
+        ? "link"
+        : "any";
+
+  return {
+    key: label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    label,
+    format,
+    formatLabel: getDocumentFormatLabel(format),
+    inputType: format === "link" ? "url" : "file",
+  };
+}
+
 function normalizeKey(key) {
   return key.toLowerCase().replace(/[\s_-]/g, "");
 }
@@ -79,7 +148,6 @@ export function isStudentVisibleOpportunity(data = {}) {
   const status = normalizeStatus(pickField(data, ["status", "approvalStatus", "approval status"]));
   const isActive = pickField(data, ["isActive", "is active", "active"]);
 
-  // Students should only see jobs that admin has approved/published.
   const approvedStatuses = ["approved", "open", "active", "published"];
   const isApproved = approvedStatuses.includes(status);
   const isExplicitlyActive = isActive === undefined || isActive === true;
@@ -117,16 +185,23 @@ export function mapOpportunityData(id, data = {}) {
     id,
     title,
     company,
+    employerId: pickField(data, ["employerId", "employerID", "employerId", "employer", "uid"]),
+    employerId: pickField(data, ["employerId", "employerID", "employer", "uid"]),
+    department: pickField(data, ["department"]) || "",
     location: pickField(data, ["location", "city", "workLocation", "work location", "workMode", "work mode"]) || "Location not specified",
     description,
     type: pickField(data, ["type", "jobType", "job type", "opportunityType", "opportunity type"]) || "Opportunity",
     industry: pickField(data, ["industry", "category"]) || "General",
+    stipend: pickField(data, ["stipend", "salary", "compensation"]) || "",
+    applicationEmail: pickField(data, ["applicationEmail", "application email"]) || "",
+    applicationSubject: pickField(data, ["applicationSubject", "application subject"]) || "",
     deadline: formatDate(deadlineValue),
     daysLeft: calculateDaysLeft(deadlineValue),
     about: pickField(data, ["about", "roleDescription", "role description"]) || description,
-    startDate: formatDate(pickField(data, ["startDate", "start date"])),
     duration: pickField(data, ["duration"]) || "Duration not specified",
     positions: pickField(data, ["positions", "openPositions", "open positions"]) || "Not specified",
+    jobDescriptionPdfUrl: pickField(data, ["jobDescriptionPdfUrl", "jobDescriptionPdf", "pdfUrl"]),
+    pdfFileName: pickField(data, ["pdfFileName", "pdfName", "fileName"]), // ✅ Added: stores original file name
     responsibilities: normalizeList(
       pickField(data, [
         "responsibilities",
@@ -152,12 +227,12 @@ export function mapOpportunityData(id, data = {}) {
         "skills",
       ])
     ),
-    documentsRequired: normalizeList(
+    documentsRequired: normalizeRequiredDocuments(
       pickField(data, [
-        "documentsRequired",
-        "documents required",
         "requiredDocuments",
         "required documents",
+        "documentsRequired",
+        "documents required",
         "requiredDocument",
         "required document",
         "documents",

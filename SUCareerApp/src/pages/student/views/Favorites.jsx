@@ -48,7 +48,7 @@ function Favorites() {
         const opportunityIds = [
           ...new Set(
             [...userSavedSnap.docs, ...studentSavedSnap.docs]
-              .map((docSnap) => docSnap.data().opportunityID || docSnap.data().opportunityId)
+              .map((docSnap) => docSnap.data().opportunityId || docSnap.data().opportunityID)
               .filter(Boolean)
           ),
         ];

@@ -10,7 +10,7 @@ import SignUp from "./views/SignUp";
 import StudentLayout from "./layouts/StudentLayout";
 import VerifyEmail from "./views/VerifyEmail";
 
-function StudentDashboard() {
+export default function StudentDashboard() {
   return (
     <Routes>
       <Route path="/signup" element={<SignUp />} />

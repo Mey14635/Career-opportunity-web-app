@@ -8,9 +8,15 @@ import {
   query,
   where,
   orderBy,
+  limit,          // ✅ Uncommented – now used in getRecentOpportunities
   Timestamp,
   setDoc,
 } from 'firebase/firestore';
+import {
+  createAdminJobReviewNotification,
+  createEmployerJobApprovedNotification,
+  createStudentApplicationStatusNotification,
+} from './notificationService';
 
 // ─── EMPLOYERS ────────────────────────────────────────────────────────────
 export const getEmployers = async () => {
@@ -45,13 +51,30 @@ export const getOpportunities = async (statusFilter) => {
 
 export const updateOpportunityStatus = async (opportunityId, status) => {
   const ref = doc(db, 'opportunities', opportunityId);
-  // Keep the existing admin status field and the ERD approval/isActive fields in sync.
+  const opportunitySnap = await getDoc(ref);
+  const opportunityData = opportunitySnap.exists() ? opportunitySnap.data() : {};
+
   await updateDoc(ref, {
     status,
-    approvalStatus: status,
-    isActive: status === 'open',
     updatedAt: Timestamp.now(),
   });
+
+  if (status === 'open') {
+    createEmployerJobApprovedNotification(opportunityId, opportunityData).catch((notificationError) => {
+      console.error('Job approval notification failed:', notificationError);
+    });
+  }
+};
+
+// ─── RECENT OPPORTUNITIES (for Analytics) ──────────────────────────────
+export const getRecentOpportunities = async (limitCount = 5) => {
+  const q = query(
+    collection(db, 'opportunities'),
+    orderBy('createdAt', 'desc'),
+    limit(limitCount)   // ✅ uses the imported 'limit'
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 };
 
 // ─── EMPLOYER JOBS (for Employer Dashboard) ──────────────────────────────
@@ -79,10 +102,11 @@ export const createJob = async (jobData) => {
     const ref = doc(collection(db, 'opportunities'));
     await setDoc(ref, {
       ...jobData,
-      approvalStatus: jobData.approvalStatus || jobData.status || 'pending',
-      isActive: jobData.isActive === true,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
+    });
+    createAdminJobReviewNotification(ref.id, jobData).catch((notificationError) => {
+      console.error('Job review notification failed:', notificationError);
     });
     return ref.id;
   } catch (error) {
@@ -210,7 +234,14 @@ export const getJobApplicants = async (jobId) => {
 
 export const updateApplicationStatus = async (applicationId, status) => {
   const ref = doc(db, 'applications', applicationId);
+  const applicationSnap = await getDoc(ref);
+  const applicationData = applicationSnap.exists() ? applicationSnap.data() : {};
+
   await updateDoc(ref, { status });
+
+  createStudentApplicationStatusNotification(applicationId, applicationData, status).catch((notificationError) => {
+    console.error('Application status notification failed:', notificationError);
+  });
 };
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────
