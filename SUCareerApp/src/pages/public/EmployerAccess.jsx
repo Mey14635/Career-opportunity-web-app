@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { createUserWithEmailAndPassword, onAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { createAdminEmployerVerificationNotification } from '../../services/notificationService';
 import AuthAlert from '../../components/shared/Auth/AuthAlert';
 import AuthCard from '../../components/shared/Auth/AuthCard';
 import AuthInput from '../../components/shared/Auth/AuthInput';
@@ -30,6 +31,7 @@ export default function EmployerAccess() {
   const navigate = useNavigate();
   const location = useLocation();
   const { refreshAuthStatus } = useAuth();
+  const notifiedVerifiedEmployersRef = useRef(new Set());
   const employerEmailVerified = new URLSearchParams(location.search).get('verified') === 'employer';
   const employerApprovalPending = location.state?.authError === 'Your employer account is awaiting admin approval.';
   const [authMode, setAuthMode] = useState(location.state?.mode === 'login' || location.state?.authError ? 'login' : 'register');
@@ -90,6 +92,25 @@ export default function EmployerAccess() {
         return;
       }
 
+      if (employerEmailVerified) {
+        await currentUser.reload();
+
+        if (currentUser.emailVerified && !notifiedVerifiedEmployersRef.current.has(currentUser.uid)) {
+          notifiedVerifiedEmployersRef.current.add(currentUser.uid);
+          const employerSnap = await getDoc(doc(db, 'employer_profiles', currentUser.uid));
+          const employerData = employerSnap.exists() ? employerSnap.data() : userData;
+
+          createAdminEmployerVerificationNotification({
+            ...employerData,
+            id: currentUser.uid,
+            uid: currentUser.uid,
+          }).catch((notificationError) => {
+            notifiedVerifiedEmployersRef.current.delete(currentUser.uid);
+            console.error('Employer verification notification failed:', notificationError);
+          });
+        }
+      }
+
       if (userData.verificationStatus !== 'approved') {
         setWaitingForApproval(true);
         return;
@@ -144,7 +165,7 @@ export default function EmployerAccess() {
         window.clearInterval(refreshIntervalId);
       }
     };
-  }, [navigate, refreshAuthStatus]);
+  }, [employerEmailVerified, navigate, refreshAuthStatus]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -254,6 +275,14 @@ export default function EmployerAccess() {
       }
 
       if (userData.verificationStatus !== 'approved') {
+        const employerSnap = await getDoc(doc(db, 'employer_profiles', credential.user.uid));
+        const employerData = employerSnap.exists() ? employerSnap.data() : userData;
+
+        await createAdminEmployerVerificationNotification({
+          ...employerData,
+          id: credential.user.uid,
+          uid: credential.user.uid,
+        });
         await signOut(auth);
         setError('Your employer account is awaiting admin approval.');
         return;

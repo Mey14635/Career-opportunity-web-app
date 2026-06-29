@@ -34,9 +34,15 @@ export default function CompanyPublicView() {
         setCompany(data);
 
         const jobsRef = collection(db, 'opportunities');
-        const q = query(jobsRef, where('employerID', '==', employerId), where('status', '==', 'open'));
-        const jobsSnap = await getDocs(q);
-        const jobsData = jobsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const jobSnaps = await Promise.all([
+          getDocs(query(jobsRef, where('employerId', '==', employerId), where('status', '==', 'open'))),
+          getDocs(query(jobsRef, where('employerID', '==', employerId), where('status', '==', 'open'))),
+        ]);
+        const jobsById = new Map();
+        jobSnaps.forEach((jobsSnap) => {
+          jobsSnap.docs.forEach((d) => jobsById.set(d.id, { id: d.id, ...d.data() }));
+        });
+        const jobsData = [...jobsById.values()];
         setJobs(jobsData);
       } catch (err) {
         console.error('Error fetching company data:', err);

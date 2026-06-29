@@ -30,3 +30,33 @@
 	border-color: var(--su-blue);
 	box-shadow: 0 0 0 3px rgba(46, 91, 191, 0.14);
 }
+
+.su-password-input-wrap {
+	position: relative;
+}
+
+.su-password-input {
+	padding-right: 2.7rem;
+}
+
+.su-password-toggle {
+	position: absolute;
+	top: 50%;
+	right: 0.75rem;
+	transform: translateY(-50%);
+	width: 30px;
+	height: 30px;
+	border: none;
+	border-radius: 8px;
+	background: transparent;
+	color: #64748b;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.su-password-toggle:hover {
+	background: #eef2ff;
+	color: var(--su-blue);
+}

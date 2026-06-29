@@ -1,5 +1,5 @@
 // src/pages/admin/views/EmployersView.jsx
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Eye, X, Building2, Mail, User, Calendar, Globe, Phone, Users, Award } from 'lucide-react';
 import StatusBadge from '../../../components/shared/StatusBadge';
 import { NAVY } from '../constants';
@@ -266,8 +266,9 @@ function EmployerDetailModal({ employer, onClose }) {
 }
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────
-export default function EmployersView({ employersData, triggerModal }) {
+export default function EmployersView({ employersData, triggerModal, focusedEmployerId }) {
   const [activeTab, setActiveTab] = useState('all');
+  const [manualTabSelected, setManualTabSelected] = useState(false);
   const [selectedEmployer, setSelectedEmployer] = useState(null);
 
   const tabs = [
@@ -276,9 +277,16 @@ export default function EmployersView({ employersData, triggerModal }) {
     { key: 'revoked', label: 'Access Suspended' }
   ];
 
-  const filtered = activeTab === 'pending'
+  const focusedEmployer = useMemo(
+    () => employersData.find((emp) => emp.id === focusedEmployerId) || null,
+    [employersData, focusedEmployerId]
+  );
+
+  const effectiveTab = focusedEmployer?.verificationStatus === 'pending' && !manualTabSelected ? 'pending' : activeTab;
+
+  const filtered = effectiveTab === 'pending'
     ? employersData.filter(emp => emp.verificationStatus === 'pending')
-    : activeTab === 'revoked'
+    : effectiveTab === 'revoked'
       ? employersData.filter(emp => emp.verificationStatus === 'rejected')
       : employersData;
 
@@ -294,11 +302,14 @@ export default function EmployersView({ employersData, triggerModal }) {
         {tabs.map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              setManualTabSelected(true);
+              setActiveTab(tab.key);
+            }}
             style={{
               padding: '8px 20px', borderRadius: 8, border: 'none',
-              background: activeTab === tab.key ? NAVY : 'transparent',
-              color: activeTab === tab.key ? 'white' : '#475569',
+              background: effectiveTab === tab.key ? NAVY : 'transparent',
+              color: effectiveTab === tab.key ? 'white' : '#475569',
               fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
             }}
           >
@@ -319,7 +330,7 @@ export default function EmployersView({ employersData, triggerModal }) {
           </thead>
           <tbody>
             {filtered.map((emp) => (
-              <tr key={emp.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <tr key={emp.id} style={{ borderBottom: '1px solid #f1f5f9', background: emp.id === focusedEmployerId ? '#fffbeb' : 'transparent' }}>
                 <td style={{ padding: '20px 24px', fontSize: 14, fontWeight: 700, color: NAVY }}>{emp.companyName}</td>
                 <td style={{ padding: '20px 24px', fontSize: 14, color: '#64748b' }}>{emp.industry}</td>
                 <td style={{ padding: '20px 24px', fontSize: 14, color: '#475569' }}>{emp.contactPerson}</td>

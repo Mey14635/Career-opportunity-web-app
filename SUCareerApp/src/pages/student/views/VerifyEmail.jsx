@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { applyActionCode } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../../../config/firebase";
 import AuthAlert from "../../../components/shared/Auth/AuthAlert";
@@ -30,15 +30,22 @@ const VerifyEmail = () => {
     const lastName = lastNameParts.join(" ");
 
     try {
-      // Create user auth profile document
-      await setDoc(doc(db, "user", verifiedUid), {
+      const userRef = doc(db, "user", verifiedUid);
+      const userSnap = await getDoc(userRef);
+      const userData = {
         uid: verifiedUid,
         email: verifiedEmail,
         role: "student",
         isActive: true,
-        profileCompleted: false, 
-        createdAt: serverTimestamp(),
-      }, { merge: true });
+        profileCompleted: false,
+      };
+
+      if (!userSnap.exists() || !userSnap.data().createdAt) {
+        userData.createdAt = serverTimestamp();
+      }
+
+      // Create user auth profile document
+      await setDoc(userRef, userData, { merge: true });
 
       // Create student detailed meta profile document
       await setDoc(doc(db, "student_profiles", verifiedUid), {

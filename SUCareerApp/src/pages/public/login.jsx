@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const { refreshAuthStatus } = useAuth();
   const [email, setEmail] = useState(ADMIN_DEMO_EMAIL);
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(location.state?.authError || '');
   const [loading, setLoading] = useState(false);
 
@@ -27,14 +28,21 @@ export default function LoginPage() {
   };
 
   const saveAdminRecord = async (user, trimmedEmail) => {
-    await setDoc(doc(db, 'user', user.uid), {
+    const userRef = doc(db, 'user', user.uid);
+    const userSnap = await getDoc(userRef);
+    const adminData = {
       uid: user.uid,
       email: trimmedEmail,
       role: 'admin',
       profileCompleted: true,
-      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    }, { merge: true });
+    };
+
+    if (!userSnap.exists() || !userSnap.data().createdAt) {
+      adminData.createdAt = serverTimestamp();
+    }
+
+    await setDoc(userRef, adminData, { merge: true });
   };
 
   const signInOrCreateDemoAdmin = async (trimmedEmail) => {
@@ -106,7 +114,17 @@ export default function LoginPage() {
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} required />
+            <div style={{ position: 'relative' }}>
+              <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={{ ...inputStyle, paddingRight: 44 }} required />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword(current => !current)}
+                style={{ position: 'absolute', top: '50%', right: 10, transform: 'translateY(-50%)', width: 30, height: 30, border: 'none', borderRadius: 8, background: 'transparent', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
           </div>
           <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', backgroundColor: NAVY, color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '15px', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '8px', opacity: loading ? 0.7 : 1 }}>
             {loading ? 'Please wait...' : 'Continue to Admin Dashboard'}

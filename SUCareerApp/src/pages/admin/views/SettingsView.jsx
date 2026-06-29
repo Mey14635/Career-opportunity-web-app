@@ -1,4 +1,27 @@
+import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { NAVY } from '../constants';
+
+function PasswordField({ label, inputStyle }) {
+  const [showPassword, setShowPassword] = useState(false);
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8 }}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <input type={showPassword ? 'text' : 'password'} placeholder="••••••••" style={{ ...inputStyle, paddingRight: 44 }} />
+        <button
+          type="button"
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          onClick={() => setShowPassword((current) => !current)}
+          style={{ position: 'absolute', top: '50%', right: 10, transform: 'translateY(-50%)', width: 30, height: 30, border: 'none', borderRadius: 8, background: 'transparent', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsView() {
   const inputStyle = {
@@ -33,18 +56,9 @@ export default function SettingsView() {
         </div>
         <div style={{ marginBottom: 40 }}>
           <h3 style={{ margin: '0 0 24px 0', fontSize: 16, fontWeight: 700, color: NAVY }}>Security</h3>
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8 }}>Current Password</label>
-            <input type="password" placeholder="••••••••" style={inputStyle} />
-          </div>
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8 }}>New Password</label>
-            <input type="password" placeholder="••••••••" style={inputStyle} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8 }}>Confirm New Password</label>
-            <input type="password" placeholder="••••••••" style={inputStyle} />
-          </div>
+          <PasswordField label="Current Password" inputStyle={inputStyle} />
+          <PasswordField label="New Password" inputStyle={inputStyle} />
+          <PasswordField label="Confirm New Password" inputStyle={inputStyle} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
           <button style={{ padding: '12px 32px', backgroundColor: NAVY, color: '#ffffff', borderRadius: 8, border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'background 0.2s' }}>

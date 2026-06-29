@@ -14,7 +14,7 @@ function Notifications() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
-  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
+  const unreadCount = notifications.filter((notification) => !notification.isRead && !notification.read).length;
 
   useEffect(() => {
     if (!user) {
@@ -41,7 +41,7 @@ function Notifications() {
   }
 
   async function handleApply(notification) {
-    if (!notification.opportunityID) {
+    if (!notification.opportunityId) {
       return;
     }
 
@@ -50,7 +50,7 @@ function Notifications() {
         await markNotificationAsRead(notification.id);
       }
 
-      const opportunitySnap = await getOpportunitySnapByReference(notification.opportunityID);
+      const opportunitySnap = await getOpportunitySnapByReference(notification.opportunityId);
 
       if (opportunitySnap) {
         setSelectedOpportunity(mapOpportunityDoc(opportunitySnap));
@@ -94,7 +94,7 @@ function Notifications() {
 
                 <div className="notification-card-content">
                   <div className="notification-card-top">
-                    <h2>Deadline reminder</h2>
+                    <h2>{notification.title}</h2>
                     <div className="notification-card-buttons">
                       <button
                         type="button"
@@ -114,7 +114,7 @@ function Notifications() {
                   </div>
                   <p>{notification.message}</p>
                   <small>{notification.date}</small>
-                  {notification.opportunityID && (
+                  {notification.opportunityId && (
                     <div className="notification-actions">
                       <button type="button" onClick={() => handleApply(notification)}>
                         Apply

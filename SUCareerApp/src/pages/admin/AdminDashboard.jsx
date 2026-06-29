@@ -2,12 +2,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import Modal from '../../components/shared/Modal';
 import TopBar from '../../components/shared/TopBar';
 import Sidebar from '../../components/admin/AdminSidebar';
 import { BG_GRAY } from './constants';
 import { auth, db } from '../../config/firebase';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+  createAdminEmployerVerificationNotification,
+  markNotificationAsRead,
+  subscribeToUserNotifications,
+} from '../../services/notificationService';
 
 import DashboardView from './views/DashboardView';
 import StudentsView from './views/StudentsView';
@@ -30,6 +36,7 @@ import {
 
 export default function AdminDashboard({ onLogout }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
 
@@ -41,6 +48,10 @@ export default function AdminDashboard({ onLogout }) {
   const [activeJobs, setActiveJobs] = useState([]);
   const [rejectedJobs, setRejectedJobs] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [focusedEmployerId, setFocusedEmployerId] = useState('');
+  const [focusedJobId, setFocusedJobId] = useState('');
+  const [notificationFocusKey, setNotificationFocusKey] = useState(0);
+  const [notificationJobReview, setNotificationJobReview] = useState(null);
 
   // Confirmation modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -68,6 +79,12 @@ export default function AdminDashboard({ onLogout }) {
       setJobQueue(pendingJobs);
       setActiveJobs(openJobs);
       setRejectedJobs(rejectedJobsData);
+
+      Promise.all(
+        employersData
+          .filter((employer) => employer.verificationStatus === 'pending')
+          .map((employer) => createAdminEmployerVerificationNotification(employer))
+      ).catch((err) => console.error('Failed to backfill employer approval notifications:', err));
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -79,6 +96,69 @@ export default function AdminDashboard({ onLogout }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAllData();
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      return undefined;
+    }
+
+    return subscribeToUserNotifications(
+      user.uid,
+      setNotifications,
+      (err) => console.error('Failed to load admin notifications:', err)
+    );
+  }, [user?.uid]);
+
+  const handleNotificationAction = async (notification) => {
+    try {
+      if (!notification.read && !notification.isRead) {
+        await markNotificationAsRead(notification.id);
+      }
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+
+    const targetTab =
+      notification.action?.targetTab ||
+      (notification.type === 'job_review_request' ? 'job-reviews' : '') ||
+      (notification.type === 'employer_access_request' ? 'employer-approvals' : '');
+    const entityId =
+      notification.targetId ||
+      notification.action?.entityId ||
+      notification.metadata?.jobId ||
+      notification.metadata?.employerId ||
+      notification.metadata?.id ||
+      '';
+
+    if (targetTab === 'employer-approvals') {
+      setFocusedEmployerId(entityId);
+      setFocusedJobId('');
+      setNotificationFocusKey((key) => key + 1);
+    } else if (targetTab === 'job-reviews') {
+      let selectedJob = jobQueue.find((job) => job.id === entityId);
+
+      if (!selectedJob && entityId) {
+        try {
+          const jobSnap = await getDoc(doc(db, 'opportunities', entityId));
+          selectedJob = jobSnap.exists() ? { id: jobSnap.id, ...jobSnap.data() } : null;
+        } catch (err) {
+          console.error('Failed to load notification job review:', err);
+        }
+      }
+
+      if (selectedJob) {
+        setNotificationJobReview(selectedJob);
+        return;
+      }
+
+      setActiveTab('notifications');
+      setFocusedJobId('');
+      setFocusedEmployerId('');
+      return;
+    }
+
+    setActiveTab(targetTab || 'notifications');
+  };
 
   // ─── MODAL CONFIRM ─────────────────────────────────────────────
   const handleModalConfirm = async () => {
@@ -119,7 +199,7 @@ export default function AdminDashboard({ onLogout }) {
         const pendingJobs = await getOpportunities('pending');
         setJobQueue(pendingJobs);
       } else if (modalConfig.type === 'unrequest_edits') {
-        // ─── NEW: Unrequest edits – clear pendingReason ───
+        // Unrequest edits – clear pendingReason
         await updateDoc(jobRef, {
           pendingReason: null,
           updatedAt: new Date()
@@ -207,34 +287,19 @@ export default function AdminDashboard({ onLogout }) {
           onSettings={() => setActiveTab('settings')}
           notifications={notifications}
           setActiveTab={setActiveTab}
+          onNotificationAction={handleNotificationAction}
         />
         <main style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
           {activeTab === 'dashboard' && <DashboardView statsData={stats}
             recentPendingJobs={jobQueue} 
             pendingEmployers={employers.filter(emp => emp.verificationStatus === 'pending')}/>}
           {activeTab === 'students' && <StudentsView studentsData={students} />}
-          {activeTab === 'employer-approvals' && <EmployersView employersData={employers} triggerModal={triggerModal} />}
-          {activeTab === 'job-reviews' && (
-            <JobReviewsView
-              queueData={jobQueue}
-              triggerModal={triggerModal}
-              onRefresh={fetchAllData}
-            />
-          )}
-          {activeTab === 'active-opportunities' && (
-            <ActiveOpportunitiesView
-              activeJobsData={activeJobs}
-              triggerModal={triggerModal}
-            />
-          )}
-          {activeTab === 'rejected-jobs' && (
-            <RejectedJobsView
-              rejectedJobsData={rejectedJobs}
-              triggerModal={triggerModal}
-            />
-          )}
+          {activeTab === 'employer-approvals' && <EmployersView key={`employers-${notificationFocusKey}`} employersData={employers} triggerModal={triggerModal} focusedEmployerId={focusedEmployerId} />}
+          {activeTab === 'job-reviews' && <JobReviewsView key={`jobs-${notificationFocusKey}`} queueData={jobQueue} triggerModal={triggerModal} focusedJobId={focusedJobId} onRefresh={fetchAllData} />}
+          {activeTab === 'active-opportunities' && <ActiveOpportunitiesView activeJobsData={activeJobs} triggerModal={triggerModal} />}
+          {activeTab === 'rejected-jobs' && <RejectedJobsView rejectedJobsData={rejectedJobs} triggerModal={triggerModal} />}
           {activeTab === 'analytics' && <AnalyticsView />}
-          {activeTab === 'notifications' && <NotificationsView notificationsData={notifications} setNotifications={setNotifications} />}
+          {activeTab === 'notifications' && <NotificationsView notificationsData={notifications} onNotificationAction={handleNotificationAction} />}
           {activeTab === 'settings' && <SettingsView />}
         </main>
       </div>
@@ -246,6 +311,39 @@ export default function AdminDashboard({ onLogout }) {
         onClose={() => setModalOpen(false)}
         onConfirm={handleModalConfirm}
       />
+      {notificationJobReview && (
+        <div
+          role="presentation"
+          onClick={() => setNotificationJobReview(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(15, 23, 42, 0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Job review details"
+            onClick={(event) => event.stopPropagation()}
+            style={{ width: 'min(1000px, 100%)', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto', position: 'relative' }}
+          >
+            <button
+              type="button"
+              aria-label="Close job review"
+              onClick={() => setNotificationJobReview(null)}
+              style={{ position: 'absolute', top: 14, right: 14, zIndex: 2, width: 32, height: 32, border: 'none', borderRadius: 8, background: '#f1f5f9', color: '#64748b', fontSize: 20, lineHeight: 1, cursor: 'pointer' }}
+            >
+              x
+            </button>
+            <JobReviewsView
+              queueData={[notificationJobReview]}
+              triggerModal={triggerModal}
+              onRefresh={() => {
+                fetchAllData();
+                setNotificationJobReview(null);
+              }}
+              focusedJobId={notificationJobReview.id}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

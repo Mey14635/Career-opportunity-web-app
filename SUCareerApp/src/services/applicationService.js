@@ -1,6 +1,7 @@
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { uploadApplicationDocument } from "./cloudinaryUpload";
+import { createEmployerApplicationNotification } from "./notificationService";
 
 export async function hasStudentApplied(studentId, opportunityId) {
   const applicationQuery = query(
@@ -13,16 +14,62 @@ export async function hasStudentApplied(studentId, opportunityId) {
   return !applicationSnap.empty;
 }
 
-function getLegacyDocumentUrl(label, url) {
-  if (/cv|resume/i.test(label)) {
-    return { resumeUrl: url };
+function normalizeRequiredDocument(document) {
+  if (typeof document === "string") {
+    return {
+      key: document.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      label: document,
+      format: "any",
+      inputType: "file",
+    };
   }
 
-  if (/cover/i.test(label)) {
-    return { coverLetterUrl: url };
+  const label = document.label || document.name || "Document";
+  const format = document.format || "any";
+
+  return {
+    key: document.key || label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    label,
+    format,
+    formatLabel: document.formatLabel || "",
+    inputType: document.inputType || (format === "link" ? "url" : "file"),
+  };
+}
+
+function getFileExtension(fileName = "") {
+  const dotIndex = fileName.lastIndexOf(".");
+  return dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
+}
+
+function validateDocumentFormat(file, document) {
+  if (document.format === "pdf" && file.type !== "application/pdf" && getFileExtension(file.name) !== ".pdf") {
+    return `${document.label} must be a PDF file.`;
   }
 
-  return {};
+  if (
+    document.format === "docx" &&
+    file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document" &&
+    getFileExtension(file.name) !== ".docx"
+  ) {
+    return `${document.label} must be a DOCX file.`;
+  }
+
+  return "";
+}
+
+function normalizeUrl(value = "") {
+  const trimmedValue = String(value).trim();
+
+  if (!trimmedValue) {
+    return "";
+  }
+
+  try {
+    const normalizedValue = /^https?:\/\//i.test(trimmedValue) ? trimmedValue : `https://${trimmedValue}`;
+    return new URL(normalizedValue).toString();
+  } catch {
+    throw new Error("Please enter a valid URL.");
+  }
 }
 
 export async function submitApplication({ studentId, opportunityId, requiredDocuments = [], documentFiles = {} }) {
@@ -33,46 +80,71 @@ export async function submitApplication({ studentId, opportunityId, requiredDocu
   }
 
   const documents = [];
-  const legacyUrls = {};
+  const normalizedRequiredDocuments = requiredDocuments.map(normalizeRequiredDocument);
 
-  for (const label of requiredDocuments) {
-    const file = documentFiles[label];
+  for (const document of normalizedRequiredDocuments) {
+    const inputValue = documentFiles[document.key];
 
-    if (!file) {
-      throw new Error(`Please upload ${label}.`);
+    if (!inputValue) {
+      throw new Error(`Please provide ${document.label}.`);
+    }
+
+    if (document.inputType === "url" || document.format === "link") {
+      const url = normalizeUrl(inputValue);
+
+      documents.push({
+        label: document.label,
+        name: document.label,
+        type: "url",
+        url,
+      });
+      continue;
+    }
+
+    const file = inputValue;
+    const formatError = validateDocumentFormat(file, document);
+
+    if (formatError) {
+      throw new Error(formatError);
     }
 
     const upload = await uploadApplicationDocument(file);
     documents.push({
-      label,
-      name: label,
+      label: document.label,
+      name: document.label,
+      type: "file",
+      format: document.format,
       fileName: file.name,
       size: file.size,
       url: upload.url,
     });
-    Object.assign(legacyUrls, getLegacyDocumentUrl(label, upload.url));
   }
 
-  const applicationRef = await addDoc(collection(db, "applications"), {
+  const applicationPayload = {
     applicationId: "",
     appliedAt: serverTimestamp(),
-    coverLetterUrl: legacyUrls.coverLetterUrl || "",
     documents,
-    requiredDocuments,
+    requiredDocuments: normalizedRequiredDocuments,
     opportunityId,
-    resumeUrl: legacyUrls.resumeUrl || "",
     status: "submitted",
     studentId,
-  });
+  };
+
+  const applicationRef = await addDoc(collection(db, "applications"), applicationPayload);
 
   await updateDoc(doc(db, "applications", applicationRef.id), {
     applicationId: applicationRef.id,
   });
 
+  createEmployerApplicationNotification(applicationRef.id, {
+    ...applicationPayload,
+    applicationId: applicationRef.id,
+  }).catch((notificationError) => {
+    console.error("Application notification failed:", notificationError);
+  });
+
   return {
     applicationId: applicationRef.id,
     documents,
-    resumeUrl: legacyUrls.resumeUrl || "",
-    coverLetterUrl: legacyUrls.coverLetterUrl || "",
   };
 }
