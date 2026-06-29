@@ -322,6 +322,11 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           {editingJob ? 'Update your job listing.' : 'Create a new listing for students.'}
         </p>
       </div>
+      {editingJob?.editRequestReason && (
+        <div style={{ marginBottom: 20, padding: '14px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, color: '#92400e', fontSize: 13, lineHeight: 1.6 }}>
+          <strong>Admin requested changes:</strong> {editingJob.editRequestReason}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         {/* ─── JOB DETAILS ────────────────────────────────────────────────── */}

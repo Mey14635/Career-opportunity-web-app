@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { Bell, BriefcaseBusiness, CheckCircle2, Clock3, Trash2 } from "lucide-react";
 import JobDetailsModal from "../../../components/student/JobDetailsModal/JobDetailsModal";
+import { db } from "../../../config/firebase";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
   deleteNotification,
@@ -41,6 +43,7 @@ function Notifications() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
+  const [appliedOpportunityIds, setAppliedOpportunityIds] = useState([]);
   const unreadCount = notifications.filter((notification) => !notification.isRead && !notification.read).length;
 
   useEffect(() => {
@@ -58,6 +61,41 @@ function Notifications() {
       }
     );
   }, [user]);
+
+  useEffect(() => {
+    async function loadAppliedOpportunities() {
+      if (!user) {
+        setAppliedOpportunityIds([]);
+        return;
+      }
+
+      try {
+        const applicationsSnap = await getDocs(query(
+          collection(db, "applications"),
+          where("studentId", "==", user.uid)
+        ));
+        const ids = [
+          ...new Set(
+            applicationsSnap.docs
+              .map((docSnap) => docSnap.data().opportunityId || docSnap.data().opportunityID)
+              .filter(Boolean)
+          ),
+        ];
+
+        setAppliedOpportunityIds(ids);
+      } catch (err) {
+        console.error("Failed to load applied opportunities:", err);
+      }
+    }
+
+    loadAppliedOpportunities();
+  }, [user]);
+
+  function markOpportunityApplied(opportunityId) {
+    setAppliedOpportunityIds((currentIds) =>
+      currentIds.includes(opportunityId) ? currentIds : [...currentIds, opportunityId]
+    );
+  }
 
   async function handleMarkRead(notificationId) {
     try {
@@ -132,6 +170,8 @@ function Notifications() {
         opportunity={selectedOpportunity}
         saved={Boolean(selectedOpportunity)}
         hideSaveButton
+        applied={selectedOpportunity ? appliedOpportunityIds.includes(selectedOpportunity.id) : false}
+        onApplied={markOpportunityApplied}
         onClose={() => setSelectedOpportunity(null)}
       />
     </main>

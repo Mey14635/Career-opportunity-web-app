@@ -1,6 +1,7 @@
 import { db } from '../config/firebase';
 import {
   collection,
+  deleteField,
   getDoc,
   getDocs,
   doc,
@@ -117,7 +118,7 @@ export const createJob = async (jobData) => {
 
 export const updateJob = async (jobId, jobData) => {
   const ref = doc(db, 'opportunities', jobId);
-  await updateDoc(ref, { ...jobData, updatedAt: Timestamp.now() });
+  await updateDoc(ref, { ...jobData, editRequestReason: deleteField(), updatedAt: Timestamp.now() });
 };
 
 // ─── APPLICATIONS ─────────────────────────────────────────────────────────

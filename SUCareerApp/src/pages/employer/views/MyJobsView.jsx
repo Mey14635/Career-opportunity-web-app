@@ -139,6 +139,11 @@ export default function MyJobsView({ jobs, applicants, onSelectJob, onEditJob, o
                         {jobApplicants.length} {jobApplicants.length === 1 ? 'Applicant' : 'Applicants'}
                       </span>
                     </div>
+                    {returnedForEdits && job.editRequestReason && (
+                      <div style={{ marginTop: 10, padding: '10px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, color: '#92400e', fontSize: 12, lineHeight: 1.5, maxWidth: 560 }}>
+                        <strong>Requested change:</strong> {job.editRequestReason}
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import OpportunityCard from "../../../components/student/OpportunityCard/OpportunityCard";
 import JobDetailsModal from "../../../components/student/JobDetailsModal/JobDetailsModal";
 import { db } from "../../../config/firebase";
@@ -11,7 +11,7 @@ import { isStudentVisibleOpportunity, mapOpportunityDoc } from "../../../utils/o
 import "./Dashboard.css";
 
 const defaultJobTypes = ["Internship", "Graduate Program", "Part-time", "Full-time"];
-const defaultCategories = ["Technology", "Finance", "Consulting", "Healthcare", "Marketing", "Design"];
+const defaultCategories = ["Technology", "Finance", "Healthcare", "Education", "Consulting", "Manufacturing", "Retail", "Other"];
 
 function normalizeFilterValue(value) {
   return String(value || "")
@@ -79,6 +79,8 @@ function Dashboard() {
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
   const [opportunities, setOpportunities] = useState([]);
   const [savedOpportunityIds, setSavedOpportunityIds] = useState([]);
+  const [appliedOpportunityIds, setAppliedOpportunityIds] = useState([]);
+  const [studentInterests, setStudentInterests] = useState([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(true);
   const [opportunitiesError, setOpportunitiesError] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
@@ -115,6 +117,26 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
+    async function loadStudentInterests() {
+      if (!user) {
+        setStudentInterests([]);
+        return;
+      }
+
+      try {
+        const profileSnap = await getDoc(doc(db, "student_profiles", user.uid));
+        const profileData = profileSnap.exists() ? profileSnap.data() : {};
+        setStudentInterests(Array.isArray(profileData.interests) ? profileData.interests : []);
+      } catch (err) {
+        console.error("Failed to load student interests:", err);
+        setStudentInterests([]);
+      }
+    }
+
+    loadStudentInterests();
+  }, [user]);
+
+  useEffect(() => {
     async function loadSavedOpportunities() {
       if (!user) {
         setSavedOpportunityIds([]);
@@ -144,6 +166,41 @@ function Dashboard() {
     loadSavedOpportunities();
   }, [user]);
 
+  useEffect(() => {
+    async function loadAppliedOpportunities() {
+      if (!user) {
+        setAppliedOpportunityIds([]);
+        return;
+      }
+
+      try {
+        const applicationsSnap = await getDocs(query(
+          collection(db, "applications"),
+          where("studentId", "==", user.uid)
+        ));
+        const ids = [
+          ...new Set(
+            applicationsSnap.docs
+              .map((docSnap) => docSnap.data().opportunityId || docSnap.data().opportunityID)
+              .filter(Boolean)
+          ),
+        ];
+
+        setAppliedOpportunityIds(ids);
+      } catch (err) {
+        console.error("Failed to load applied opportunities:", err);
+      }
+    }
+
+    loadAppliedOpportunities();
+  }, [user]);
+
+  function markOpportunityApplied(opportunityId) {
+    setAppliedOpportunityIds((currentIds) =>
+      currentIds.includes(opportunityId) ? currentIds : [...currentIds, opportunityId]
+    );
+  }
+
   function toggleFilter(value, list, setList, normalizeValue = normalizeFilterValue) {
     const normalizedValue = normalizeValue(value);
     if (list.includes(normalizedValue)) {
@@ -152,6 +209,8 @@ function Dashboard() {
       setList([...list, normalizedValue]);
     }
   }
+
+  const normalizedStudentInterests = studentInterests.map(normalizeCategoryValue);
 
   const filtered = opportunities.filter((opp) => {
     const matchesSearch =
@@ -172,6 +231,15 @@ function Dashboard() {
       selectedIndustries.map(normalizeCategoryValue).includes(opportunityCategory);
 
     return matchesSearch && matchesType && matchesIndustry;
+  }).sort((a, b) => {
+    const aMatchesInterest = normalizedStudentInterests.includes(normalizeCategoryValue(a.industry));
+    const bMatchesInterest = normalizedStudentInterests.includes(normalizeCategoryValue(b.industry));
+
+    if (aMatchesInterest === bMatchesInterest) {
+      return 0;
+    }
+
+    return aMatchesInterest ? -1 : 1;
   });
 
   const linkedOpportunity = opportunityIdFromUrl
@@ -245,6 +313,7 @@ function Dashboard() {
                 daysLeft={opp.daysLeft}
                 deadline={opp.deadline}
                 saved={savedOpportunityIds.includes(opp.id)}
+                applied={appliedOpportunityIds.includes(opp.id)}
                 onSaved={(opportunityId, nextSaved) =>
                   setSavedOpportunityIds((currentIds) => {
                     if (nextSaved) {
@@ -269,6 +338,7 @@ function Dashboard() {
       <JobDetailsModal
         opportunity={activeOpportunity}
         saved={activeOpportunity ? savedOpportunityIds.includes(activeOpportunity.id) : false}
+        applied={activeOpportunity ? appliedOpportunityIds.includes(activeOpportunity.id) : false}
         onSaved={(opportunityId, nextSaved) =>
           setSavedOpportunityIds((currentIds) => {
             if (nextSaved) {
@@ -277,6 +347,7 @@ function Dashboard() {
             return currentIds.filter((id) => id !== opportunityId);
           })
         }
+        onApplied={markOpportunityApplied}
         onClose={handleCloseOpportunityModal}
       />
     </div>

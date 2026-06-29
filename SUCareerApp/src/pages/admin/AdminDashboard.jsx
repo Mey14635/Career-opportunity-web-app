@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { deleteField, doc, getDoc, updateDoc } from 'firebase/firestore';
 import Modal from '../../components/shared/Modal';
 import TopBar from '../../components/shared/TopBar';
 import Sidebar from '../../components/admin/AdminSidebar';
@@ -11,6 +11,7 @@ import { auth, db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   createAdminEmployerVerificationNotification,
+  createEmployerJobEditsRequestedNotification,
   markNotificationAsRead,
   subscribeToUserNotifications,
 } from '../../services/notificationService';
@@ -187,6 +188,7 @@ export default function AdminDashboard({ onLogout }) {
         // Approve: set status to 'open', make active, clear pendingReason
         await updateOpportunityStatus(modalConfig.id, 'open');
         await updateDoc(jobRef, {
+          editRequestReason: deleteField(),
           isActive: true,
           pendingReason: null,
           updatedAt: new Date()
@@ -199,12 +201,21 @@ export default function AdminDashboard({ onLogout }) {
         setActiveJobs(openJobs);
         setJobQueue(pendingJobs);
       } else if (modalConfig.type === 'request_edits') {
+        const jobSnap = await getDoc(jobRef);
+        const jobData = jobSnap.exists() ? jobSnap.data() : modalConfig.job || {};
         // Request edits: set status to 'pending', keep inactive, add pendingReason
         await updateOpportunityStatus(modalConfig.id, 'pending');
         await updateDoc(jobRef, {
+          editRequestReason: modalConfig.editRequestReason,
           isActive: false,
           pendingReason: 'edits_requested',
           updatedAt: new Date()
+        });
+        createEmployerJobEditsRequestedNotification(modalConfig.id, {
+          ...jobData,
+          editRequestReason: modalConfig.editRequestReason,
+        }).catch((notificationError) => {
+          console.error('Job edits requested notification failed:', notificationError);
         });
         // Refresh pending list
         const pendingJobs = await getOpportunities('pending');
@@ -212,6 +223,7 @@ export default function AdminDashboard({ onLogout }) {
       } else if (modalConfig.type === 'unrequest_edits') {
         // Unrequest edits – clear pendingReason
         await updateDoc(jobRef, {
+          editRequestReason: deleteField(),
           pendingReason: null,
           updatedAt: new Date()
         });
@@ -222,6 +234,7 @@ export default function AdminDashboard({ onLogout }) {
         // Reject: set status to 'rejected', keep inactive, clear pendingReason
         await updateOpportunityStatus(modalConfig.id, 'rejected');
         await updateDoc(jobRef, {
+          editRequestReason: deleteField(),
           isActive: false,
           pendingReason: null,
           updatedAt: new Date()
@@ -255,6 +268,7 @@ export default function AdminDashboard({ onLogout }) {
         const jobRef = doc(db, 'opportunities', modalConfig.id);
         await updateOpportunityStatus(modalConfig.id, 'pending');
         await updateDoc(jobRef, {
+          editRequestReason: deleteField(),
           isActive: false,
           pendingReason: null,
           updatedAt: new Date()

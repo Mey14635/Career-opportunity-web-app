@@ -7,6 +7,7 @@ const iconMap = {
   check: CheckCircle2,
   fileCheck: FileCheck2,
   userPlus: UserPlus,
+  bell: Bell,
 };
 
 export default function NotificationsView({ notifications = [], onNotificationAction }) {

@@ -124,7 +124,6 @@ export async function submitApplication({ studentId, opportunityId, requiredDocu
     applicationId: "",
     appliedAt: serverTimestamp(),
     documents,
-    requiredDocuments: normalizedRequiredDocuments,
     opportunityId,
     status: "submitted",
     studentId,

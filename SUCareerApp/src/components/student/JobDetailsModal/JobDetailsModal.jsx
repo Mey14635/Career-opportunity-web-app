@@ -48,7 +48,7 @@ function getAcceptValue(format) {
   return ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 }
 
-function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSaveButton = false }) {
+function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved, onApplied, onClose, hideSaveButton = false }) {
   const { user } = useAuth();
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [documentFiles, setDocumentFiles] = useState({});
@@ -135,7 +135,8 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
         requiredDocuments: applicationDocuments,
         documentFiles,
       });
-      setApplicationStatus({ type: "success", message: "Application submitted successfully." });
+      onApplied?.(opportunity.id);
+      closeApplicationForm();
       setDocumentFiles({});
     } catch (err) {
       console.error("Failed to submit application:", err);
@@ -174,8 +175,17 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
           </header>
 
           <div className={`job-modal-actions ${hideSaveButton ? "apply-only" : ""}`}>
-            <button className="job-apply-btn" type="button" onClick={() => setShowApplyForm(true)}>
-              Apply Now
+            <button
+              className={`job-apply-btn ${applied ? "applied" : ""}`}
+              type="button"
+              disabled={applied}
+              onClick={() => {
+                if (!applied) {
+                  setShowApplyForm(true);
+                }
+              }}
+            >
+              {applied ? "Applied" : "Apply Now"}
             </button>
             {!hideSaveButton && (
               <button
