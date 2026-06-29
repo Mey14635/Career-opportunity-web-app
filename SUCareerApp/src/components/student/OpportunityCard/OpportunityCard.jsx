@@ -16,6 +16,7 @@ function OpportunityCard({
   daysLeft,
   deadline,
   saved = false,
+  applied = false,
   onSaved,
   onOpen,
 }) {
@@ -46,7 +47,7 @@ function OpportunityCard({
 
   return (
     <article
-      className="card"
+      className={`card ${applied ? "applied" : ""}`}
       onClick={onOpen}
       onKeyDown={handleCardKeyDown}
       role="button"
@@ -54,13 +55,16 @@ function OpportunityCard({
     >
       <div className="card-top">
         <h3 className="card-title">{title}</h3>
-        <button
-          className={`heart-btn ${saved ? "saved" : ""}`}
-          onClick={handleSave}
-          aria-label={saved ? "Remove saved opportunity" : "Save opportunity"}
-        >
-            {saved ? "💛" : "🤍"}
-        </button>
+        <div className="card-actions">
+          {applied && <span className="applied-pill">Applied</span>}
+          <button
+            className={`heart-btn ${saved ? "saved" : ""}`}
+            onClick={handleSave}
+            aria-label={saved ? "Remove saved opportunity" : "Save opportunity"}
+          >
+              {saved ? "💛" : "🤍"}
+          </button>
+        </div>
       </div>
 
       {/* ─── COMPANY NAME WITH LINK ────────────────────────────────── */}

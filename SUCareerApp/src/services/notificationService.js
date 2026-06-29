@@ -44,6 +44,12 @@ const NOTIFICATION_CONFIG = {
     actionLabel: "",
     targetTab: "notifications",
   },
+  job_edits_requested: {
+    title: "Job posting needs edits",
+    iconKey: "briefcase",
+    actionLabel: "",
+    targetTab: "notifications",
+  },
   deadline_48h: {
     title: "Application deadline approaching",
     iconKey: "clock",
@@ -473,6 +479,26 @@ export async function createEmployerJobApprovedNotification(jobId, jobData = {})
     targetId: jobId,
     targetType: "job",
   });
+}
+
+export async function createEmployerJobEditsRequestedNotification(jobId, jobData = {}) {
+  const employerId = jobData.employerID || jobData.employerId;
+  const jobTitle = getOpportunityTitle(jobData);
+  const editRequestReason = String(jobData.editRequestReason || "").trim();
+  const reasonText = editRequestReason ? ` Reason: ${editRequestReason}` : "";
+
+  if (!jobId || !employerId) {
+    return;
+  }
+
+  await setDoc(doc(db, "notifications", `${employerId}_job_edits_requested_${jobId}`), buildNotificationDoc({
+    uid: employerId,
+    type: "job_edits_requested",
+    notificationId: `${employerId}_job_edits_requested_${jobId}`,
+    message: `"${jobTitle}" needs edits before it can be published.${reasonText}`,
+    targetId: jobId,
+    targetType: "job",
+  }));
 }
 
 function buildDeadlineNotificationId(uid, opportunityId) {

@@ -67,6 +67,10 @@
   transform: translateY(-2px);
 }
 
+.favorite-card.applied {
+  border-color: #bbf7d0;
+}
+
 .favorite-card-body {
   height: 100%;
   padding: 18px;
@@ -93,7 +97,14 @@
   overflow: hidden;
 }
 
-.favorite-card-top span {
+.favorite-card-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.favorite-card-tags span {
   color: #1B3A6B;
   background: #fff7e3;
   border: 1px solid #f3d78d;
@@ -103,6 +114,12 @@
   line-height: 1;
   padding: 6px 8px;
   white-space: nowrap;
+}
+
+.favorite-card-tags .favorite-applied {
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+  color: #15803d;
 }
 
 .favorite-company {

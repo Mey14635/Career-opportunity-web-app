@@ -100,6 +100,19 @@
   background: var(--su-blue-dark);
 }
 
+.job-apply-btn:disabled,
+.job-apply-btn.applied {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #15803d;
+  cursor: default;
+}
+
+.job-apply-btn:disabled:hover,
+.job-apply-btn.applied:hover {
+  background: #ecfdf3;
+}
+
 .job-save-btn {
   border: 1px solid var(--su-border);
   background: var(--su-panel);
