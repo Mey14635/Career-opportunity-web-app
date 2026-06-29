@@ -29,7 +29,7 @@ export default function NotificationsView({ notificationsData = [], employersDat
   };
   const getActionLabel = (note) => {
     if (note.type === 'employer_access_request') {
-      return getEmployerStatus(note) === 'approved' ? 'Approved' : 'Activate Partner';
+      return getEmployerStatus(note) === 'approved' ? 'Approved' : 'Review';
     }
 
     return note.actionLabel;

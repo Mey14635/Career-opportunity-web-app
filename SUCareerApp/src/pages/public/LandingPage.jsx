@@ -27,7 +27,10 @@ export default function LandingPage() {
           <span style={{ color: '#ffffff', fontWeight: 800, fontSize: 22, letterSpacing: '-0.5px' }}>Career Portal</span>
         </div>
         <div style={{ display: 'flex', gap: 16 }}>
-          <button style={{ padding: '12px 24px', backgroundColor: 'transparent', color: '#ffffff', border: 'none', fontWeight: 600, fontSize: '15px', cursor: 'pointer' }}>
+          <button
+            onClick={() => navigate('/help-center')}
+            style={{ padding: '12px 24px', backgroundColor: 'transparent', color: '#ffffff', border: 'none', fontWeight: 600, fontSize: '15px', cursor: 'pointer' }}
+          >
             Help Center
           </button>
           <button 

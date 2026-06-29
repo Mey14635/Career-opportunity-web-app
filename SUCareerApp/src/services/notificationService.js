@@ -17,7 +17,7 @@ const NOTIFICATION_CONFIG = {
   employer_access_request: {
     title: "Employer access approval",
     iconKey: "userPlus",
-    actionLabel: "Activate Partner",
+    actionLabel: "Review",
     targetTab: "employer-approvals",
   },
   job_review_request: {

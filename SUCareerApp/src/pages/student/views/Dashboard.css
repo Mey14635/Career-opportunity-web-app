@@ -11,23 +11,24 @@
   width: 220px;
   min-width: 220px;
   padding: 26px 18px;
-  border-right: 1px solid rgba(226, 231, 240, 0.85);
-  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
-  box-shadow: 10px 0 30px rgba(7, 21, 47, 0.04);
+  border-right: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: none;
 }
 
 .sidebar-title {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--su-text);
+  font-size: 14px;
+  font-weight: 700;
+  color: #1B3A6B;
   margin-bottom: 18px;
 }
 
 .filter-label {
   font-size: 11px;
-  font-weight: 800;
-  color: var(--su-blue);
+  font-weight: 700;
+  color: #64748b;
   margin: 18px 0 9px;
+  text-transform: uppercase;
 }
 
 .filter-option {
@@ -35,7 +36,7 @@
   align-items: center;
   gap: 10px;
   font-size: 13px;
-  color: var(--su-heading);
+  color: #475569;
   margin-bottom: 7px;
   padding: 8px 9px;
   border: 1px solid transparent;
@@ -45,9 +46,9 @@
 }
 
 .filter-option:hover {
-  background: var(--su-blue-soft);
-  border-color: #c8d7fb;
-  color: var(--su-blue);
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #1B3A6B;
 }
 
 .filter-option input {
@@ -59,12 +60,13 @@
 .main-content {
   flex: 1;
   padding: 30px 34px 48px;
+  background: #F5F6FA;
 }
 
 .section-heading h1 {
-  font-size: 26px;
-  font-weight: 850;
-  color: var(--su-text);
+  font-size: 24px;
+  font-weight: 800;
+  color: #1B3A6B;
   margin: 0;
 }
 

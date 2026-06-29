@@ -70,7 +70,7 @@ export default function TopBar({
   };
 
   const getActionLabel = (notification) => (
-    notification.type === 'employer_access_request' ? 'Activate Partner' : notification.actionLabel
+    notification.type === 'employer_access_request' ? 'Review' : notification.actionLabel
   );
 
   return (

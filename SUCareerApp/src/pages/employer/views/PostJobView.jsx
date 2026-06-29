@@ -233,7 +233,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
   };
 
   // ─── BUILD REQUIRED DOCUMENTS STRING ──────────────────────────────────
-  const buildRequiredDocs = () => {
+  const buildRequiredDocsLabel = () => {
     const items = buildRequiredDocItems();
     return items.map(doc => 
       doc.format !== 'any' ? `${doc.label} (${doc.formatLabel})` : doc.label
@@ -244,8 +244,6 @@ export default function PostJobView({ employerId, companyName, editingJob = null
   const buildAdditionalDocs = () => {
     return customDocuments.map(d => d.name).join(', ');
   };
-
-  const buildAdditionalDocs = () => customDocuments.map(doc => doc.name).join(', ');
 
   // ─── SUBMIT ──────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
@@ -293,9 +291,6 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       // Always set status to pending and clear pendingReason
       status: 'pending',
       pendingReason: null,
-      jobDescriptionPdfUrl: pdfUrl,
-      pdfFileName,
-      status: editingJob ? editingJob.status : 'pending',
       metrics: editingJob?.metrics || { views: 0, applications: 0 },
     };
 
@@ -546,7 +541,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           <div style={{ marginTop: '20px', padding: '12px 16px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
             <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>📄 Documents Required:</p>
             <p style={{ fontSize: '13px', color: NAVY, fontWeight: 500 }}>
-              {buildRequiredDocs()}
+              {buildRequiredDocsLabel()}
             </p>
           </div>
         </div>
