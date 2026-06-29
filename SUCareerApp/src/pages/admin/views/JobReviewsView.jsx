@@ -6,8 +6,6 @@ import { NAVY, GOLD, BG_GRAY } from '../constants';
 function getRequiredDocuments(job = {}) {
   let docs = [];
 
-  if (Array.isArray(job.documentsRequired) && job.documentsRequired.length > 0) {
-  // If it's already an array
   if (Array.isArray(job.requiredDocuments) && job.requiredDocuments.length > 0) {
     docs = job.requiredDocuments;
   } else if (Array.isArray(job.documentsRequired) && job.documentsRequired.length > 0) {
@@ -59,6 +57,7 @@ function sortByCreatedDescending(data) {
 export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelection }) {
   const docs = getRequiredDocuments(selectedJob);
   const reqs = getRequirements(selectedJob);
+  const closeDetails = clearSelection || (() => {});
 
   return (
     <div style={{ maxWidth: '1000px' }}>
@@ -66,35 +65,19 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
         <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#64748b', fontSize: 14, cursor: 'pointer', marginBottom: 24 }}>
           <ArrowLeft size={16} /> Back to Job Reviews
         </button>
-        <div style={{ background: 'white', borderRadius: 16, padding: 32, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-          <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
-              {selectedJob.pendingReason === 'unpublished' && (
-                <span style={{
-                  background: '#fef3c7',
-                  color: '#d97706',
-                  padding: '4px 12px',
-                  borderRadius: '20px',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  marginBottom: 8,
-                }}>
-                  Returned for edits
-                </span>
-              )}
-            </div>
-            <p style={{ margin: 0, color: '#64748b', fontSize: 16 }}>
-              {selectedJob.companyName || selectedJob.employerId || selectedJob.employerID || 'Company'} &bull; 
-              {selectedJob.location || selectedJob.workMode || 'Location not specified'}
-            </p>
-          </div>
       )}
       <div style={{ background: 'white', borderRadius: 16, padding: 32, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
         <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
-          <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
+            {selectedJob.pendingReason === 'unpublished' && (
+              <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 12px', borderRadius: '20px', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                Returned for edits
+              </span>
+            )}
+          </div>
           <p style={{ margin: 0, color: '#64748b', fontSize: 16 }}>
-            {selectedJob.companyName || selectedJob.employerId || selectedJob.employerID || 'Company'} &bull; 
+            {selectedJob.companyName || selectedJob.employerId || selectedJob.employerID || 'Company'} &bull;{' '}
             {selectedJob.location || selectedJob.workMode || 'Location not specified'}
           </p>
         </div>
@@ -127,15 +110,11 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
               </div>
               <div style={{ marginBottom: 12 }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>DURATION</p>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
-                  {selectedJob.duration || 'Not specified'}
-                </p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>{selectedJob.duration || 'Not specified'}</p>
               </div>
               <div>
                 <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>OPEN POSITIONS</p>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
-                  {selectedJob.positions || 'Not specified'}
-                </p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>{selectedJob.positions || 'Not specified'}</p>
               </div>
             </div>
 
@@ -152,75 +131,41 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
           </div>
         </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, borderTop: '1px solid #e2e8f0', paddingTop: 24, marginTop: 32 }}>
-            {/* Request Edits button */}
-            <button
-              onClick={() => {
-                triggerModal('Request Edits', `Request changes for "${selectedJob.title}"? The employer will be notified to update the listing.`, 'warning', {
-                  view: 'job',
-                  id: selectedJob.id,
-                  type: 'request_edits',
-                  clearSelection: () => setSelectedJob(null),
-                });
-              }}
-              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fef3c7', color: '#d97706', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Request Edits
-            </button>
-            {/* Reject button */}
-            <button
-              onClick={() => {
-                triggerModal('Reject Listing', `Reject "${selectedJob.title}"? The job will be permanently moved to rejected.`, 'danger', {
-                  view: 'job',
-                  id: selectedJob.id,
-                  type: 'reject',
-                  clearSelection: () => setSelectedJob(null),
-                });
-              }}
-              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Reject
-            </button>
-            {/* Approve button */}
-            <button
-              onClick={() => {
-                triggerModal('Approve & Publish', `Publish "${selectedJob.title}"? It will become active immediately.`, 'primary', {
-                  view: 'job',
-                  id: selectedJob.id,
-                  type: 'approve',
-                  job: selectedJob,
-                  clearSelection: () => setSelectedJob(null),
-                });
-              }}
-              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: GOLD, color: NAVY, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Approve & Publish
-            </button>
-          </div>
-        </div>
-      </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, borderTop: '1px solid #e2e8f0', paddingTop: 24, marginTop: 32 }}>
           <button
             onClick={() => {
-              triggerModal('Reject Listing', `Reject "${selectedJob.title}"?`, 'danger', {
+              triggerModal('Request Edits', `Request changes for "${selectedJob.title}"? The employer will be notified to update the listing.`, 'warning', {
+                view: 'job',
+                id: selectedJob.id,
+                type: 'request_edits',
+                clearSelection: closeDetails,
+              });
+            }}
+            style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fef3c7', color: '#d97706', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Request Edits
+          </button>
+          <button
+            onClick={() => {
+              triggerModal('Reject Listing', `Reject "${selectedJob.title}"? The job will be permanently moved to rejected.`, 'danger', {
                 view: 'job',
                 id: selectedJob.id,
                 type: 'reject',
-                clearSelection,
+                clearSelection: closeDetails,
               });
             }}
             style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
           >
-            Reject / Request Edits
+            Reject
           </button>
           <button
             onClick={() => {
-              triggerModal('Approve & Publish', `Publish "${selectedJob.title}"?`, 'primary', {
+              triggerModal('Approve & Publish', `Publish "${selectedJob.title}"? It will become active immediately.`, 'primary', {
                 view: 'job',
                 id: selectedJob.id,
                 type: 'approve',
                 job: selectedJob,
-                clearSelection,
+                clearSelection: closeDetails,
               });
             }}
             style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: GOLD, color: NAVY, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}

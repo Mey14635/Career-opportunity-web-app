@@ -2,13 +2,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import Modal from '../../components/shared/Modal';
 import TopBar from '../../components/shared/TopBar';
 import Sidebar from '../../components/admin/AdminSidebar';
 import { BG_GRAY } from './constants';
-import { auth, db } from '../../config/firebase';
 import { auth, db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -133,9 +131,21 @@ export default function AdminDashboard({ onLogout }) {
       '';
 
     if (targetTab === 'employer-approvals') {
+      const selectedEmployer = employers.find((employer) => employer.id === entityId || employer.uid === entityId);
+
+      if (selectedEmployer?.verificationStatus === 'pending') {
+        triggerModal('Activate Partner', `Approve ${selectedEmployer.companyName || selectedEmployer.email || 'this employer'}?`, 'primary', {
+          view: 'employer',
+          id: selectedEmployer.id || selectedEmployer.uid || entityId,
+          type: 'approve',
+        });
+        return;
+      }
+
       setFocusedEmployerId(entityId);
       setFocusedJobId('');
       setNotificationFocusKey((key) => key + 1);
+      setActiveTab('employer-approvals');
     } else if (targetTab === 'job-reviews') {
       let selectedJob = jobQueue.find((job) => job.id === entityId);
 
@@ -172,6 +182,7 @@ export default function AdminDashboard({ onLogout }) {
       } else if (modalConfig.type === 'revoke') {
         await updateEmployerStatus(modalConfig.id, 'rejected');
       }
+      setFocusedEmployerId('');
     } else if (modalConfig.view === 'job') {
       const jobRef = doc(db, 'opportunities', modalConfig.id);
       if (modalConfig.type === 'approve') {
@@ -287,19 +298,6 @@ export default function AdminDashboard({ onLogout }) {
             recentPendingJobs={jobQueue} 
             pendingEmployers={employers.filter(emp => emp.verificationStatus === 'pending')}/>}
           {activeTab === 'students' && <StudentsView studentsData={students} />}
-          {activeTab === 'employer-approvals' && <EmployersView employersData={employers} triggerModal={triggerModal} />}
-          {activeTab === 'job-reviews' && (
-            <JobReviewsView
-              queueData={jobQueue}
-              triggerModal={triggerModal}
-            />
-          )}
-          {activeTab === 'active-opportunities' && (
-            <ActiveOpportunitiesView
-              activeJobsData={activeJobs}
-              triggerModal={triggerModal}
-            />
-          )}
           {activeTab === 'rejected-jobs' && (
             <RejectedJobsView
               rejectedJobsData={rejectedJobs}
@@ -310,7 +308,7 @@ export default function AdminDashboard({ onLogout }) {
           {activeTab === 'job-reviews' && <JobReviewsView key={`jobs-${notificationFocusKey}`} queueData={jobQueue} triggerModal={triggerModal} focusedJobId={focusedJobId} />}
           {activeTab === 'active-opportunities' && <ActiveOpportunitiesView activeJobsData={activeJobs} triggerModal={triggerModal} />}
           {activeTab === 'analytics' && <AnalyticsView />}
-          {activeTab === 'notifications' && <NotificationsView notificationsData={notifications} onNotificationAction={handleNotificationAction} />}
+          {activeTab === 'notifications' && <NotificationsView notificationsData={notifications} employersData={employers} onNotificationAction={handleNotificationAction} />}
           {activeTab === 'settings' && <SettingsView />}
         </main>
       </div>

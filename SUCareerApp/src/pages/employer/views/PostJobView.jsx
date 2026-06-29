@@ -100,6 +100,11 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       });
 
       // Parse custom docs from the additionalDocs field (if it exists)
+      const standardLabels = standardDocumentOptions.map((option) => option.label);
+      const structuredCustomDocs = structuredDocs.filter((doc) => {
+        const label = doc?.label || doc?.name || '';
+        return label && !standardLabels.includes(label);
+      });
       const customDocs = editingJob.additionalDocs ? editingJob.additionalDocs.split(',').map(d => d.trim()).filter(Boolean) : [];
       setCustomDocuments(structuredCustomDocs.length > 0 ? structuredCustomDocs : customDocs.map(name => ({ name, format: 'any' })));
     }
@@ -219,6 +224,8 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     return docs.join(', ') || 'None specified';
   };
 
+  const buildAdditionalDocs = () => customDocuments.map(doc => doc.name).join(', ');
+
   // ─── SUBMIT ──────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -256,8 +263,12 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       stipend: formData.stipend,
       description: formData.description,
       requirement: formData.requirement,
-      requiredDocument: buildRequiredDocs(),
+      requiredDocument: buildRequiredDocsLabel(),
+      requiredDocuments: buildRequiredDocItems(),
+      documentsRequired: buildRequiredDocItems(),
       additionalDocs: buildAdditionalDocs(),
+      jobDescriptionPdfUrl: pdfUrl,
+      pdfFileName,
       status: editingJob ? editingJob.status : 'pending',
       metrics: editingJob?.metrics || { views: 0, applications: 0 },
     };

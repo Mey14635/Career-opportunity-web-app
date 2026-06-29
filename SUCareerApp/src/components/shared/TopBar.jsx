@@ -69,6 +69,10 @@ export default function TopBar({
     }
   };
 
+  const getActionLabel = (notification) => (
+    notification.type === 'employer_access_request' ? 'Activate Partner' : notification.actionLabel
+  );
+
   return (
     <header style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '12px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 5 }}>
       {/* ─── LEFT SIDE: Breadcrumb or Search ─────────────────────────── */}
@@ -128,9 +132,9 @@ export default function TopBar({
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                         <span style={{ fontSize: 11, color: '#94a3b8' }}>{n.time || n.date}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {n.actionLabel && (
+                          {getActionLabel(n) && (
                             <button type="button" onClick={() => handleActionClick(n)} style={{ border: 'none', background: NAVY, color: 'white', borderRadius: 6, padding: '5px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                              {n.actionLabel}
+                              {getActionLabel(n)}
                             </button>
                           )}
                           <button type="button" aria-label="Delete notification" onClick={(event) => handleDelete(event, n.id)} style={{ border: 'none', background: '#f1f5f9', color: '#64748b', borderRadius: 6, padding: 5, cursor: 'pointer', display: 'flex' }}>

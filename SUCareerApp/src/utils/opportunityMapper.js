@@ -185,7 +185,6 @@ export function mapOpportunityData(id, data = {}) {
     id,
     title,
     company,
-    employerId: pickField(data, ["employerId", "employerID", "employerId", "employer", "uid"]),
     employerId: pickField(data, ["employerId", "employerID", "employer", "uid"]),
     department: pickField(data, ["department"]) || "",
     location: pickField(data, ["location", "city", "workLocation", "work location", "workMode", "work mode"]) || "Location not specified",

@@ -61,7 +61,6 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
 
   const isDeadlineUrgent = opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
   const requiredDocuments = opportunity.documentsRequired || [];
-  const applicationDocuments = requiredDocuments.length > 0 ? requiredDocuments : ["CV / Resume"];
   const hasPdf = opportunity.jobDescriptionPdfUrl && opportunity.jobDescriptionPdfUrl.trim() !== "";
 
   // ─── DEADLINE DISPLAY LOGIC ──────────────────────────────────────────────
