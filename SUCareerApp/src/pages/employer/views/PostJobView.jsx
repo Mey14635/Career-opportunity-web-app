@@ -1,10 +1,11 @@
+// src/pages/employer/views/PostJobView.jsx
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, X, Upload, File, Download } from 'lucide-react';
 import { createJob, updateJob } from '../../../services/firestoreService';
 import { NAVY, GOLD, inputStyle, labelStyle } from '../constants';
 import DocCheckbox from '../../../components/employer/DocCheckbox';
 import { uploadApplicationDocument } from '../../../services/cloudinaryUpload.js';
-import Modal from '../../../components/shared/Modal'; // ✅ Import Modal
+import Modal from '../../../components/shared/Modal';
 
 const standardDocumentOptions = [
   { key: 'cv', label: 'CV / Resume' },
@@ -80,8 +81,11 @@ export default function PostJobView({ employerId, companyName, editingJob = null
         pdfFileName: editingJob.pdfFileName || '',
       });
 
+      // Parse structured documents if available
       const structuredDocs = Array.isArray(editingJob.requiredDocuments) ? editingJob.requiredDocuments : [];
       const docString = editingJob.requiredDocument || '';
+      
+      // Helper to find structured doc by label
       const findStructuredDoc = (label) => structuredDocs.find((doc) => doc?.label === label || doc?.name === label);
       
       setDocuments({
@@ -99,6 +103,18 @@ export default function PostJobView({ employerId, companyName, editingJob = null
         },
       });
 
+      // Parse custom docs: prefer structured, fallback to comma-separated string
+      const customStructured = structuredDocs.filter(doc => 
+        !standardDocumentOptions.some(opt => doc.label === opt.label || doc.name === opt.label)
+      );
+      const customString = editingJob.additionalDocs || '';
+      const customNames = customString.split(',').map(d => d.trim()).filter(Boolean);
+      
+      if (customStructured.length > 0) {
+        setCustomDocuments(customStructured.map(doc => ({ name: doc.label || doc.name, format: doc.format || 'any' })));
+      } else {
+        setCustomDocuments(customNames.map(name => ({ name, format: 'any' })));
+      }
       // Parse custom docs from the additionalDocs field (if it exists)
       const standardLabels = standardDocumentOptions.map((option) => option.label);
       const structuredCustomDocs = structuredDocs.filter((doc) => {
@@ -216,12 +232,17 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     return docs;
   };
 
-  const buildRequiredDocsLabel = () => {
-    const docs = buildRequiredDocItems().map((doc) => (
+  // ─── BUILD REQUIRED DOCUMENTS STRING ──────────────────────────────────
+  const buildRequiredDocs = () => {
+    const items = buildRequiredDocItems();
+    return items.map(doc => 
       doc.format !== 'any' ? `${doc.label} (${doc.formatLabel})` : doc.label
-    ));
+    ).join(', ') || 'None specified';
+  };
 
-    return docs.join(', ') || 'None specified';
+  // ─── BUILD ADDITIONAL DOCS STRING ──────────────────────────────────────
+  const buildAdditionalDocs = () => {
+    return customDocuments.map(d => d.name).join(', ');
   };
 
   const buildAdditionalDocs = () => customDocuments.map(doc => doc.name).join(', ');
@@ -252,7 +273,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     const jobData = {
       title: formData.title,
       companyName: companyName,
-      employerId,
+      employerID: employerId,  // Use employerID to match Firestore schema
       department: formData.department,
       category: formData.category,
       jobType: formData.jobType,
@@ -268,6 +289,11 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       documentsRequired: buildRequiredDocItems(),
       additionalDocs: buildAdditionalDocs(),
       jobDescriptionPdfUrl: pdfUrl,
+      pdfFileName: pdfFileName,
+      // Always set status to pending and clear pendingReason
+      status: 'pending',
+      pendingReason: null,
+      jobDescriptionPdfUrl: pdfUrl,
       pdfFileName,
       status: editingJob ? editingJob.status : 'pending',
       metrics: editingJob?.metrics || { views: 0, applications: 0 },
@@ -276,7 +302,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     try {
       if (editingJob) {
         await updateJob(editingJob.id, jobData);
-        alert('✅ Job updated successfully!');
+        alert('✅ Job updated successfully! It will be reviewed by the admin again.');
       } else {
         await createJob(jobData);
         alert('✅ Job posted successfully! It will appear after admin approval.');
@@ -520,7 +546,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           <div style={{ marginTop: '20px', padding: '12px 16px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
             <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>📄 Documents Required:</p>
             <p style={{ fontSize: '13px', color: NAVY, fontWeight: 500 }}>
-              {buildRequiredDocsLabel()}
+              {buildRequiredDocs()}
             </p>
           </div>
         </div>
@@ -551,7 +577,6 @@ export default function PostJobView({ employerId, companyName, editingJob = null
                 {formData.pdfFileName || 'Download PDF'}
                 <Download size={14} />
               </a>
-              {/* Remove button now opens a confirmation modal */}
               <button
                 type="button"
                 onClick={confirmRemovePdf}

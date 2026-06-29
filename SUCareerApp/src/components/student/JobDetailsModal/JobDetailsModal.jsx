@@ -61,6 +61,12 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
 
   const isDeadlineUrgent = opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
   const requiredDocuments = opportunity.documentsRequired || [];
+  
+  // ─── FIX: Keep only ONE declaration of applicationDocuments ──────────
+  // Normalize documents: if none, fallback to defaultDocument
+  const applicationDocuments = (requiredDocuments.length > 0 ? requiredDocuments : [defaultDocument])
+    .map(normalizeApplicationDocument);
+
   const hasPdf = opportunity.jobDescriptionPdfUrl && opportunity.jobDescriptionPdfUrl.trim() !== "";
 
   // ─── DEADLINE DISPLAY LOGIC ──────────────────────────────────────────────
@@ -73,8 +79,6 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
     }
     return `Closes in ${opportunity.daysLeft} day${opportunity.daysLeft > 1 ? 's' : ''}`;
   };
-  const applicationDocuments = (requiredDocuments.length > 0 ? requiredDocuments : [defaultDocument])
-    .map(normalizeApplicationDocument);
 
   function closeApplicationForm() {
     setShowApplyForm(false);

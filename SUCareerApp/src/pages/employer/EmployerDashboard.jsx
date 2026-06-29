@@ -41,6 +41,11 @@ export default function EmployerDashboard({ onLogout }) {
   const { user } = useAuth();
   const employerId = user?.uid;
 
+  // ─── DEBUG LOGS ──────────────────────────────────────────────────────
+  console.log('🔍 EmployerDashboard mounted');
+  console.log('🔍 user from useAuth:', user);
+  console.log('🔍 employerId:', employerId);
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedJob, setSelectedJob] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
@@ -62,26 +67,41 @@ export default function EmployerDashboard({ onLogout }) {
   const [deleteModalConfig, setDeleteModalConfig] = useState(null);
 
   useEffect(() => {
+    console.log('🔥🔥🔥 useEffect is RUNNING! employerId:', employerId);
+
     const fetchAllData = async () => {
+      console.log('🔥 fetchAllData called with employerId:', employerId);
+
+      // ─── 1. Set email from Firebase Auth user (reliable) ──────────
+      if (user && user.email) {
+        console.log('✅ User email from Firebase Auth:', user.email);
+        setUserEmail(user.email);
+      } else {
+        console.warn('⚠️ No user email from Firebase Auth, using fallback.');
+        setUserEmail('employer@company.com');
+      }
+
       if (!employerId) {
+        console.log('⚠️ No employerId, setting loading false and returning.');
         setLoading(false);
         return;
       }
 
       try {
+        // ─── 2. Fetch company name from employer_profiles ────────────
         const profileRef = doc(db, 'employer_profiles', employerId);
         const profileSnap = await getDoc(profileRef);
         if (profileSnap.exists()) {
           const data = profileSnap.data();
+          console.log('✅ Company Name from Firestore:', data.companyName);
           setCompanyName(data.companyName || '');
+        } else {
+          console.warn('⚠️ employer_profiles document missing for employerId:', employerId);
+          // Fallback: try to get company name from first job posting (if any)
+          // or just leave empty.
         }
 
-        const userRef = doc(db, 'users', employerId);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          setUserEmail(userSnap.data().email || '');
-        }
-
+        // ─── 3. Fetch jobs and applicants ─────────────────────────────
         const jobs = await getEmployerJobs(employerId);
         setMyJobs(jobs);
 
@@ -92,6 +112,7 @@ export default function EmployerDashboard({ onLogout }) {
         }
         setApplicants(allApplicants);
 
+        // ─── 4. Build activity log ────────────────────────────────────
         const buildActivities = (jobs, apps) => {
           const activities = [];
           jobs.forEach(job => {
@@ -128,13 +149,13 @@ export default function EmployerDashboard({ onLogout }) {
         const activities = buildActivities(jobs, allApplicants);
         setRealActivities(activities);
       } catch (err) {
-        console.error('Error fetching employer data:', err);
+        console.error('❌ Error fetching employer data:', err);
       } finally {
         setLoading(false);
       }
     };
     fetchAllData();
-  }, [employerId, refreshKey]);
+  }, [employerId, refreshKey, user]);
 
   useEffect(() => {
     if (!employerId) {
@@ -202,21 +223,19 @@ export default function EmployerDashboard({ onLogout }) {
   // ─── IMPROVED LOGOUT ──────────────────────────────────────────────────
   const handleLogout = async () => {
     try {
+      if (onLogout) {
+        onLogout();
+        return;
+      }
       // 1. Sign out from Firebase
       await signOut(auth);
-      
-      // 2. Clear all browser storage
       localStorage.clear();
       sessionStorage.clear();
-      
-      // 3. Clear cookies (if any)
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
           .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
-      
-      // 4. Force a full page reload to reset everything
       window.location.replace('/employer-access?mode=login');
     } catch (err) {
       console.error('Logout error:', err);
@@ -234,7 +253,6 @@ export default function EmployerDashboard({ onLogout }) {
     setActiveTab('edit-job');
   };
 
-  // ─── VIEW PUBLIC PROFILE ──────────────────────────────────────────────
   const handleViewPublicProfile = () => {
     if (employerId) {
       window.open(`/company/${employerId}`, '_blank');
@@ -243,7 +261,6 @@ export default function EmployerDashboard({ onLogout }) {
     }
   };
 
-  // ─── DELETE JOB ──────────────────────────────────────────────────────
   const confirmDeleteJob = (job) => {
     setDeleteModalConfig({
       title: 'Delete Job',
@@ -318,7 +335,6 @@ export default function EmployerDashboard({ onLogout }) {
       case 'settings':
         return <SettingsView onUpdatePassword={() => handleAction('Updating Security Token via Authentication Service')} />;
       case 'analytics':
-        // ✅ FIXED: Pass employerId to ReportsAnalyticsView
         return <ReportsAnalyticsView employerId={employerId} />;
       case 'post-role':
         return (
@@ -442,7 +458,6 @@ export default function EmployerDashboard({ onLogout }) {
         />
       )}
 
-      {/* ─── DELETE CONFIRMATION MODAL ────────────────────────────────── */}
       <Modal
         isOpen={deleteModalOpen}
         config={deleteModalConfig}

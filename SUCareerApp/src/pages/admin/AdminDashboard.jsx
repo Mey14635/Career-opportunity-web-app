@@ -18,7 +18,7 @@ import {
 import DashboardView from './views/DashboardView';
 import StudentsView from './views/StudentsView';
 import EmployersView from './views/EmployersView';
-import JobReviewsView, { JobReviewDetails } from './views/JobReviewsView';
+import JobReviewsView from './views/JobReviewsView';
 import ActiveOpportunitiesView from './views/ActiveOpportunitiesView';
 import RejectedJobsView from './views/RejectedJobsView';
 import AnalyticsView from './views/AnalyticsView';
@@ -211,6 +211,15 @@ export default function AdminDashboard({ onLogout }) {
         // Refresh pending list
         const pendingJobs = await getOpportunities('pending');
         setJobQueue(pendingJobs);
+      } else if (modalConfig.type === 'unrequest_edits') {
+        // Unrequest edits – clear pendingReason
+        await updateDoc(jobRef, {
+          pendingReason: null,
+          updatedAt: new Date()
+        });
+        // Refresh pending list
+        const pendingJobs = await getOpportunities('pending');
+        setJobQueue(pendingJobs);
       } else if (modalConfig.type === 'reject') {
         // Reject: set status to 'rejected', keep inactive, clear pendingReason
         await updateOpportunityStatus(modalConfig.id, 'rejected');
@@ -305,8 +314,9 @@ export default function AdminDashboard({ onLogout }) {
             />
           )}
           {activeTab === 'employer-approvals' && <EmployersView key={`employers-${notificationFocusKey}`} employersData={employers} triggerModal={triggerModal} focusedEmployerId={focusedEmployerId} />}
-          {activeTab === 'job-reviews' && <JobReviewsView key={`jobs-${notificationFocusKey}`} queueData={jobQueue} triggerModal={triggerModal} focusedJobId={focusedJobId} />}
+          {activeTab === 'job-reviews' && <JobReviewsView key={`jobs-${notificationFocusKey}`} queueData={jobQueue} triggerModal={triggerModal} focusedJobId={focusedJobId} onRefresh={fetchAllData} />}
           {activeTab === 'active-opportunities' && <ActiveOpportunitiesView activeJobsData={activeJobs} triggerModal={triggerModal} />}
+          {activeTab === 'rejected-jobs' && <RejectedJobsView rejectedJobsData={rejectedJobs} triggerModal={triggerModal} />}
           {activeTab === 'analytics' && <AnalyticsView />}
           {activeTab === 'notifications' && <NotificationsView notificationsData={notifications} employersData={employers} onNotificationAction={handleNotificationAction} />}
           {activeTab === 'settings' && <SettingsView />}
@@ -341,10 +351,14 @@ export default function AdminDashboard({ onLogout }) {
             >
               x
             </button>
-            <JobReviewDetails
-              selectedJob={notificationJobReview}
+            <JobReviewsView
+              queueData={[notificationJobReview]}
               triggerModal={triggerModal}
-              clearSelection={() => setNotificationJobReview(null)}
+              onRefresh={() => {
+                fetchAllData();
+                setNotificationJobReview(null);
+              }}
+              focusedJobId={notificationJobReview.id}
             />
           </div>
         </div>
