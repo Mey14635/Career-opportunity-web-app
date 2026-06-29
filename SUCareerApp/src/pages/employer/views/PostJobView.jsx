@@ -4,7 +4,7 @@ import { createJob, updateJob } from '../../../services/firestoreService';
 import { NAVY, GOLD, inputStyle, labelStyle } from '../constants';
 import DocCheckbox from '../../../components/employer/DocCheckbox';
 import { uploadApplicationDocument } from '../../../services/cloudinaryUpload.js';
-import Modal from '../../../components/shared/Modal'; // ✅ Import Modal
+import Modal from '../../../components/shared/Modal';
 
 export default function PostJobView({ employerId, companyName, editingJob = null, onCancel, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
@@ -219,15 +219,19 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       additionalDocs: buildAdditionalDocs(),
       jobDescriptionPdfUrl: pdfUrl,
       pdfFileName: pdfFileName,
-      status: editingJob ? editingJob.status : 'pending',
+      // ─── FIX: When editing, set status to 'pending' and clear pendingReason ───
+      status: 'pending',  // Always set to pending when saved (new or edit)
+      pendingReason: null, // Clear any previous pendingReason so the admin badge disappears
       metrics: editingJob?.metrics || { views: 0, applications: 0 },
     };
 
     try {
       if (editingJob) {
+        // Update existing job
         await updateJob(editingJob.id, jobData);
-        alert('✅ Job updated successfully!');
+        alert('✅ Job updated successfully! It will be reviewed by the admin again.');
       } else {
+        // Create new job
         await createJob(jobData);
         alert('✅ Job posted successfully! It will appear after admin approval.');
       }
@@ -501,7 +505,6 @@ export default function PostJobView({ employerId, companyName, editingJob = null
                 {formData.pdfFileName || 'Download PDF'}
                 <Download size={14} />
               </a>
-              {/* Remove button now opens a confirmation modal */}
               <button
                 type="button"
                 onClick={confirmRemovePdf}

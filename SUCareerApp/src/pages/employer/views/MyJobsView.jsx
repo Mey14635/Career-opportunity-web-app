@@ -16,6 +16,11 @@ export default function MyJobsView({ jobs, applicants, onSelectJob, onEditJob, o
     ? jobs
     : jobs.filter(j => j.status === statusFilter);
 
+  // Helper: Check if job was returned for edits
+  const isReturnedForEdits = (job) => {
+    return job.pendingReason === 'unpublished' || job.pendingReason === 'edits_requested';
+  };
+
   const getStatusBadge = (status) => {
     const styles = {
       pending: { bg: '#fef3c7', color: '#d97706', label: 'Pending' },
@@ -85,6 +90,7 @@ export default function MyJobsView({ jobs, applicants, onSelectJob, onEditJob, o
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
           {filteredJobs.map(job => {
             const jobApplicants = applicants.filter(a => a.jobId === job.id);
+            const returnedForEdits = isReturnedForEdits(job);
             return (
               <div
                 key={job.id}
@@ -106,11 +112,24 @@ export default function MyJobsView({ jobs, applicants, onSelectJob, onEditJob, o
                     <FileText size={20} color={NAVY} />
                   </div>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
                       <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: NAVY }}>{job.title}</h3>
                       {getStatusBadge(job.status)}
+                      {/* ─── "Returned for edits" badge ─── */}
+                      {returnedForEdits && (
+                        <span style={{
+                          background: '#fef3c7',
+                          color: '#d97706',
+                          padding: '2px 10px',
+                          borderRadius: '12px',
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}>
+                          Returned for edits
+                        </span>
+                      )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#64748b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#64748b', flexWrap: 'wrap' }}>
                       <span>Deadline: {job.deadline?.toDate?.()?.toDateString() || 'N/A'}</span>
                       <span style={{ color: '#cbd5e1' }}>•</span>
                       {getTypeBadge(job)}
@@ -147,6 +166,7 @@ export default function MyJobsView({ jobs, applicants, onSelectJob, onEditJob, o
                     <Eye size={14} /> View
                   </button>
 
+                  {/* ─── Only show Edit/Delete for pending jobs ────────── */}
                   {job.status === 'pending' && (
                     <>
                       <button

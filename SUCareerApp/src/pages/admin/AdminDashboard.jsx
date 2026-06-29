@@ -118,6 +118,15 @@ export default function AdminDashboard({ onLogout }) {
         // Refresh pending list
         const pendingJobs = await getOpportunities('pending');
         setJobQueue(pendingJobs);
+      } else if (modalConfig.type === 'unrequest_edits') {
+        // ─── NEW: Unrequest edits – clear pendingReason ───
+        await updateDoc(jobRef, {
+          pendingReason: null,
+          updatedAt: new Date()
+        });
+        // Refresh pending list
+        const pendingJobs = await getOpportunities('pending');
+        setJobQueue(pendingJobs);
       } else if (modalConfig.type === 'reject') {
         // Reject: set status to 'rejected', keep inactive, clear pendingReason
         await updateOpportunityStatus(modalConfig.id, 'rejected');
@@ -209,6 +218,7 @@ export default function AdminDashboard({ onLogout }) {
             <JobReviewsView
               queueData={jobQueue}
               triggerModal={triggerModal}
+              onRefresh={fetchAllData}
             />
           )}
           {activeTab === 'active-opportunities' && (

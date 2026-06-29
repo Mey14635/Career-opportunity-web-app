@@ -1,5 +1,8 @@
+// src/pages/admin/views/JobReviewsView.jsx
 import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
 import { NAVY, GOLD, BG_GRAY } from '../constants';
 
 // Helper: Extract documents from job (handles both array and comma‑separated string)
@@ -17,15 +20,24 @@ function getRequiredDocuments(job = {}) {
   return docs;
 }
 
-// Helper: Parse requirements (comma‑separated string → array)
-function getRequirements(job = {}) {
+// Helper: Get requirements as an array of bullet points (split by period)
+function getRequirementsList(job = {}) {
+  let rawText;
+
   if (Array.isArray(job.requirements) && job.requirements.length > 0) {
-    return job.requirements;
+    rawText = job.requirements.join('. ');
+  } else if (typeof job.requirement === 'string' && job.requirement.trim()) {
+    rawText = job.requirement;
+  } else {
+    return [];
   }
-  if (typeof job.requirement === 'string' && job.requirement.trim()) {
-    return job.requirement.split(',').map(r => r.trim()).filter(Boolean);
-  }
-  return [];
+
+  // Split by period, clean up, and filter out empty strings
+  return rawText
+    .split('.')
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(s => s + '.');
 }
 
 // Helper: Sort queue data by createdAt descending (newest first)
@@ -37,12 +49,62 @@ function sortByCreatedDescending(data) {
   });
 }
 
-export default function JobReviewsView({ queueData, triggerModal }) {
-  const [selectedJob, setSelectedJob] = useState(null);
+// Helper: Check if job was returned for edits
+function isReturnedForEdits(job) {
+  return job.pendingReason === 'unpublished' || job.pendingReason === 'edits_requested';
+}
 
+export default function JobReviewsView({ queueData, triggerModal, onRefresh }) {
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [loadingJob, setLoadingJob] = useState(false);
+
+  // ─── FETCH FRESH JOB DATA ──────────────────────────────────────────
+  const handleSelectJob = async (job) => {
+    setLoadingJob(true);
+    try {
+      const jobRef = doc(db, 'opportunities', job.id);
+      const jobSnap = await getDoc(jobRef);
+      if (jobSnap.exists()) {
+        setSelectedJob({ id: jobSnap.id, ...jobSnap.data() });
+      } else {
+        setSelectedJob(job);
+      }
+    } catch (error) {
+      console.error('Error fetching job details:', error);
+      setSelectedJob(job);
+    } finally {
+      setLoadingJob(false);
+    }
+  };
+
+  // ─── WRAPPER FOR TRIGGER MODAL ─────────────────────────────────────
+  const handleModalAction = (title, message, type, actionData) => {
+    const wrappedActionData = {
+      ...actionData,
+      onComplete: () => {
+        if (onRefresh) onRefresh();
+        if (actionData.clearSelection) {
+          actionData.clearSelection();
+        }
+        setSelectedJob(null);
+      }
+    };
+    triggerModal(title, message, type, wrappedActionData);
+  };
+
+  // ─── DETAIL VIEW ───────────────────────────────────────────────────
   if (selectedJob) {
     const docs = getRequiredDocuments(selectedJob);
-    const reqs = getRequirements(selectedJob);
+    const reqList = getRequirementsList(selectedJob);
+    const returnedForEdits = isReturnedForEdits(selectedJob);
+
+    if (loadingJob) {
+      return (
+        <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
+          Loading job details...
+        </div>
+      );
+    }
 
     return (
       <div style={{ maxWidth: '1000px' }}>
@@ -53,7 +115,7 @@ export default function JobReviewsView({ queueData, triggerModal }) {
           <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
-              {selectedJob.pendingReason === 'unpublished' && (
+              {returnedForEdits && (
                 <span style={{
                   background: '#fef3c7',
                   color: '#d97706',
@@ -81,9 +143,11 @@ export default function JobReviewsView({ queueData, triggerModal }) {
               </p>
 
               <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Requirements</h3>
-              {reqs.length > 0 ? (
+              {reqList.length > 0 ? (
                 <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 15, lineHeight: 1.8 }}>
-                  {reqs.map((req, idx) => <li key={idx}>{req}</li>)}
+                  {reqList.map((req, idx) => (
+                    <li key={idx}>{req}</li>
+                  ))}
                 </ul>
               ) : (
                 <p style={{ color: '#94a3b8', fontSize: 15 }}>No specific requirements listed.</p>
@@ -127,24 +191,49 @@ export default function JobReviewsView({ queueData, triggerModal }) {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, borderTop: '1px solid #e2e8f0', paddingTop: 24, marginTop: 32 }}>
-            {/* Request Edits button */}
+            {/* ─── Request Edits / Unrequest Edits ───────────────────── */}
+            {returnedForEdits ? (
+              <button
+                onClick={() => {
+                  handleModalAction(
+                    'Unrequest Edits',
+                    `Remove the "Returned for edits" status for "${selectedJob.title}"? The job will become a normal pending review.`,
+                    'warning',
+                    {
+                      view: 'job',
+                      id: selectedJob.id,
+                      type: 'unrequest_edits',
+                      clearSelection: () => setSelectedJob(null),
+                    }
+                  );
+                }}
+                style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#e2e8f0', color: '#475569', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Unrequest Edits
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  handleModalAction(
+                    'Request Edits',
+                    `Request changes for "${selectedJob.title}"? The employer will be notified to update the listing.`,
+                    'warning',
+                    {
+                      view: 'job',
+                      id: selectedJob.id,
+                      type: 'request_edits',
+                      clearSelection: () => setSelectedJob(null),
+                    }
+                  );
+                }}
+                style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fef3c7', color: '#d97706', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Request Edits
+              </button>
+            )}
             <button
               onClick={() => {
-                triggerModal('Request Edits', `Request changes for "${selectedJob.title}"? The employer will be notified to update the listing.`, 'warning', {
-                  view: 'job',
-                  id: selectedJob.id,
-                  type: 'request_edits',
-                  clearSelection: () => setSelectedJob(null),
-                });
-              }}
-              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fef3c7', color: '#d97706', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Request Edits
-            </button>
-            {/* Reject button */}
-            <button
-              onClick={() => {
-                triggerModal('Reject Listing', `Reject "${selectedJob.title}"? The job will be permanently moved to rejected.`, 'danger', {
+                handleModalAction('Reject Listing', `Reject "${selectedJob.title}"? The job will be permanently moved to rejected.`, 'danger', {
                   view: 'job',
                   id: selectedJob.id,
                   type: 'reject',
@@ -155,10 +244,9 @@ export default function JobReviewsView({ queueData, triggerModal }) {
             >
               Reject
             </button>
-            {/* Approve button */}
             <button
               onClick={() => {
-                triggerModal('Approve & Publish', `Publish "${selectedJob.title}"? It will become active immediately.`, 'primary', {
+                handleModalAction('Approve & Publish', `Publish "${selectedJob.title}"? It will become active immediately.`, 'primary', {
                   view: 'job',
                   id: selectedJob.id,
                   type: 'approve',
@@ -177,7 +265,6 @@ export default function JobReviewsView({ queueData, triggerModal }) {
   }
 
   // ─── LIST VIEW ──────────────────────────────────────────────────────
-  // Sort queueData by createdAt descending (newest first)
   const sortedQueue = sortByCreatedDescending(queueData);
 
   return (
@@ -193,10 +280,11 @@ export default function JobReviewsView({ queueData, triggerModal }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {sortedQueue.map(job => {
             const docs = getRequiredDocuments(job);
+            const returnedForEdits = isReturnedForEdits(job);
             return (
               <div
                 key={job.id}
-                onClick={() => setSelectedJob(job)}
+                onClick={() => handleSelectJob(job)}
                 style={{ background: 'white', borderRadius: 12, padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
                 onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; }}
@@ -204,7 +292,7 @@ export default function JobReviewsView({ queueData, triggerModal }) {
                 <div style={{ flex: 1, paddingRight: 24 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <h3 style={{ margin: '0 0 6px 0', fontSize: 16, fontWeight: 700, color: NAVY }}>{job.title}</h3>
-                    {job.pendingReason === 'unpublished' && (
+                    {returnedForEdits && (
                       <span style={{
                         background: '#fef3c7',
                         color: '#d97706',
