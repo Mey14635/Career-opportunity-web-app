@@ -8,7 +8,13 @@ import { NAVY, GOLD } from '../constants';
 export default function ReportsAnalyticsView({ employerId }) {
   const [loading, setLoading] = useState(true);
   const [opportunities, setOpportunities] = useState([]);
-  const [funnelData, setFunnelData] = useState({ views: 0, applications: 0, submissions: 0 });
+  const [funnelData, setFunnelData] = useState({ 
+    views: 0, 
+    applications: 0, 
+    submissions: 0,
+    shortlisted: 0,
+    rejected: 0
+  });
   const [demographics, setDemographics] = useState([]);
 
   useEffect(() => {
@@ -30,6 +36,9 @@ export default function ReportsAnalyticsView({ employerId }) {
 
         let totalViews = 0;
         let totalApplications = 0;
+        let shortlistedCount = 0;
+        let rejectedCount = 0;
+
         const oppsWithMetrics = opps.map((opp) => {
           const views = opp.metrics?.views || 0;
           const apps = opp.metrics?.applications || 0;
@@ -45,8 +54,8 @@ export default function ReportsAnalyticsView({ employerId }) {
 
         const sortedOpps = oppsWithMetrics.sort((a, b) => b.conversionRate - a.conversionRate);
         setOpportunities(sortedOpps);
-        setFunnelData({ views: totalViews, applications: totalApplications, submissions: totalApplications });
 
+        // ─── FETCH APPLICATIONS FOR STATUS BREAKDOWN ──────────────────
         if (opps.length > 0) {
           const oppIds = opps.map((o) => o.id);
           const appsQuery = query(
@@ -54,8 +63,14 @@ export default function ReportsAnalyticsView({ employerId }) {
             where('opportunityId', 'in', oppIds)
           );
           const appsSnapshot = await getDocs(appsQuery);
-          const studentIds = [...new Set(appsSnapshot.docs.map((d) => d.data().studentId))];
+          const allApps = appsSnapshot.docs.map((d) => d.data());
+          
+          // Count by status
+          shortlistedCount = allApps.filter(a => a.status === 'shortlisted').length;
+          rejectedCount = allApps.filter(a => a.status === 'rejected').length;
 
+          // ─── ACADEMIC DEMOGRAPHICS ──────────────────────────────────
+          const studentIds = [...new Set(allApps.map((a) => a.studentId))];
           const courseCounts = {};
           for (const studentId of studentIds) {
             const studentRef = doc(db, 'student_profiles', studentId);
@@ -73,6 +88,16 @@ export default function ReportsAnalyticsView({ employerId }) {
           }));
           setDemographics(demog);
         }
+
+        // ─── SET FUNNEL DATA ──────────────────────────────────────────
+        setFunnelData({ 
+          views: totalViews, 
+          applications: totalApplications, 
+          submissions: totalApplications,
+          shortlisted: shortlistedCount,
+          rejected: rejectedCount
+        });
+
       } catch (err) {
         console.error('Error fetching report data:', err);
       } finally {
@@ -116,8 +141,12 @@ export default function ReportsAnalyticsView({ employerId }) {
     );
   }
 
+  // ─── HELPER: Check if funnel has any data ────────────────────────────
+  const hasFunnelData = funnelData.views > 0 || funnelData.applications > 0 || funnelData.submissions > 0;
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      {/* ─── HEADER ────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: '0 0 4px 0', fontSize: 24, fontWeight: 800, color: NAVY }}>Reports & Analytics</h1>
@@ -144,6 +173,7 @@ export default function ReportsAnalyticsView({ employerId }) {
         </button>
       </div>
 
+      {/* ─── TOP PERFORMING LISTINGS ──────────────────────────────────── */}
       <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: NAVY }}>Top Performing Listings</h3>
@@ -197,34 +227,40 @@ export default function ReportsAnalyticsView({ employerId }) {
         )}
       </div>
 
+      {/* ─── FUNNEL & DEMOGRAPHICS ────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
 
+        {/* ─── APPLICANT FUNNEL ───────────────────────────────────────── */}
         <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: NAVY }}>Applicant Funnel</h3>
           </div>
           <div style={{ padding: '20px 24px' }}>
-            {funnelData.views === 0 ? (
+            {!hasFunnelData ? (
               <div style={{ textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: 14 }}>No data available yet.</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid #f1f5f9' }}>
                   <span style={{ fontSize: 13, color: '#64748b' }}>Listing Views</span>
                   <span style={{ fontSize: 14, fontWeight: 600, color: NAVY }}>{funnelData.views}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ fontSize: 13, color: '#64748b' }}>Applications Started</span>
+                  <span style={{ fontSize: 13, color: '#64748b' }}>Applications</span>
                   <span style={{ fontSize: 14, fontWeight: 600, color: NAVY }}>{funnelData.applications}</span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ fontSize: 13, color: '#64748b' }}>Shortlisted</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#16a34a' }}>{funnelData.shortlisted}</span>
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, color: '#64748b' }}>Completed Submissions</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: NAVY }}>{funnelData.submissions}</span>
+                  <span style={{ fontSize: 13, color: '#64748b' }}>Rejected</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#dc2626' }}>{funnelData.rejected}</span>
                 </div>
                 <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Conversion Rate</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Application Rate</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: GOLD }}>
-                      {funnelData.views > 0 ? ((funnelData.submissions / funnelData.views) * 100).toFixed(1) : 0}%
+                      {funnelData.views > 0 ? ((funnelData.applications / funnelData.views) * 100).toFixed(1) : 0}%
                     </span>
                   </div>
                 </div>
@@ -233,6 +269,7 @@ export default function ReportsAnalyticsView({ employerId }) {
           </div>
         </div>
 
+        {/* ─── ACADEMIC DEMOGRAPHICS ──────────────────────────────────── */}
         <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: NAVY }}>Academic Demographics</h3>

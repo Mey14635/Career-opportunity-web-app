@@ -1,6 +1,8 @@
+// src/services/firestoreService.js
 import { db } from '../config/firebase';
 import {
   collection,
+  deleteField,
   getDoc,
   getDocs,
   doc,
@@ -8,7 +10,7 @@ import {
   query,
   where,
   orderBy,
-  limit,          // ✅ Uncommented – now used in getRecentOpportunities
+  limit,
   Timestamp,
   setDoc,
 } from 'firebase/firestore';
@@ -71,7 +73,7 @@ export const getRecentOpportunities = async (limitCount = 5) => {
   const q = query(
     collection(db, 'opportunities'),
     orderBy('createdAt', 'desc'),
-    limit(limitCount)   // ✅ uses the imported 'limit'
+    limit(limitCount)
   );
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -117,7 +119,7 @@ export const createJob = async (jobData) => {
 
 export const updateJob = async (jobId, jobData) => {
   const ref = doc(db, 'opportunities', jobId);
-  await updateDoc(ref, { ...jobData, updatedAt: Timestamp.now() });
+  await updateDoc(ref, { ...jobData, editRequestReason: deleteField(), updatedAt: Timestamp.now() });
 };
 
 // ─── APPLICATIONS ─────────────────────────────────────────────────────────

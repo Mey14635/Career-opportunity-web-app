@@ -12,6 +12,7 @@ import AuthInput from '../../components/shared/Auth/AuthInput';
 import Button from '../../components/shared/Button/Button';
 
 const NAVY = "#1B3A6B";
+const EMPLOYER_ACCESS_PATH = '/employer-access';
 
 // ─── INDUSTRY OPTIONS ──────────────────────────────────────────────────────
 const INDUSTRY_OPTIONS = [
@@ -32,9 +33,10 @@ export default function EmployerAccess() {
   const location = useLocation();
   const { refreshAuthStatus } = useAuth();
   const notifiedVerifiedEmployersRef = useRef(new Set());
+  const modeParam = new URLSearchParams(location.search).get('mode');
   const employerEmailVerified = new URLSearchParams(location.search).get('verified') === 'employer';
   const employerApprovalPending = location.state?.authError === 'Your employer account is awaiting admin approval.';
-  const [authMode, setAuthMode] = useState(location.state?.mode === 'login' || location.state?.authError ? 'login' : 'register');
+  const [authMode, setAuthMode] = useState(modeParam === 'login' || location.state?.mode === 'login' || location.state?.authError ? 'login' : 'register');
   const [isSubmitted, setIsSubmitted] = useState(employerEmailVerified || employerApprovalPending);
   const [waitingForApproval, setWaitingForApproval] = useState(employerEmailVerified || employerApprovalPending);
   const [loading, setLoading] = useState(false);
@@ -68,6 +70,7 @@ export default function EmployerAccess() {
     setError('');
     setIsSubmitted(false);
     setWaitingForApproval(false);
+    navigate(EMPLOYER_ACCESS_PATH, { replace: true });
   };
 
   const showLogin = () => {
@@ -75,6 +78,7 @@ export default function EmployerAccess() {
     setError('');
     setIsSubmitted(false);
     setWaitingForApproval(false);
+    navigate(`${EMPLOYER_ACCESS_PATH}?mode=login`, { replace: true });
   };
 
   const isStrathmoreEmail = (email) => {
@@ -334,6 +338,16 @@ export default function EmployerAccess() {
         title={waitingForApproval ? 'Approval in Progress' : authMode === 'login' ? 'Employer Sign In' : 'Employer Registration'}
         subtitle={waitingForApproval ? 'Your employer account is waiting for admin approval' : authMode === 'login' ? 'Enter your approved employer credentials' : 'Request access to the CDS Employer Portal'}
       >
+        {!waitingForApproval && (
+          <div className="auth-tabs" aria-label="Employer access options">
+            <button type="button" className={authMode === 'login' ? 'active' : undefined} onClick={showLogin}>
+              Sign In
+            </button>
+            <button type="button" className={authMode === 'register' ? 'active' : undefined} onClick={showRegister}>
+              Register
+            </button>
+          </div>
+        )}
         <AuthAlert message={error} type="danger" />
         {waitingForApproval ? (
           <AuthAlert
@@ -377,14 +391,14 @@ export default function EmployerAccess() {
             <AuthInput type="url" name="website" value={formData.website} onChange={handleChange} label="Website URL" placeholder="https://company.com" />
 
             {/** INDUSTRY DROPDOWN **/}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Industry *</label>
+            <div className="form-group">
+              <label>Industry *</label>
               <select
                 name="industry"
                 value={formData.industry}
                 onChange={handleChange}
                 required
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13, fontFamily: 'Inter', background: '#ffffff' }}
+                className="auth-select"
               >
                 {INDUSTRY_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
@@ -395,14 +409,14 @@ export default function EmployerAccess() {
             <AuthInput type="tel" name="phone" value={formData.phone} onChange={handleChange} label="Contact Phone" placeholder="+254 722 000 000" />
 
             {/** COMPANY SIZE DROPDOWN **/}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Company Size *</label>
+            <div className="form-group">
+              <label>Company Size *</label>
               <select
                 name="companySize"
                 value={formData.companySize}
                 onChange={handleChange}
                 required
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13, fontFamily: 'Inter', background: '#ffffff' }}
+                className="auth-select"
               >
                 <option value="1-50">1-50 Employees</option>
                 <option value="51-200">51-200 Employees</option>

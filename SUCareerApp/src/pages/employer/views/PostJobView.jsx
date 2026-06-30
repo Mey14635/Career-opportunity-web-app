@@ -30,7 +30,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     stipend: editingJob?.stipend || '',
     description: editingJob?.description || '',
     requirement: editingJob?.requirement || '',
-    responsibilities: editingJob?.responsibilities || '',  // ← NEW FIELD
+    responsibilities: editingJob?.responsibilities || '',
     jobDescriptionPdfUrl: editingJob?.jobDescriptionPdfUrl || '',
     pdfFileName: editingJob?.pdfFileName || '',
   });
@@ -78,7 +78,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
         stipend: editingJob.stipend || '',
         description: editingJob.description || '',
         requirement: editingJob.requirement || '',
-        responsibilities: editingJob.responsibilities || '',  // ← NEW FIELD
+        responsibilities: editingJob.responsibilities || '',
         jobDescriptionPdfUrl: editingJob.jobDescriptionPdfUrl || '',
         pdfFileName: editingJob.pdfFileName || '',
       });
@@ -227,7 +227,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
   };
 
   // ─── BUILD REQUIRED DOCUMENTS STRING ──────────────────────────────────
-  const buildRequiredDocs = () => {
+  const buildRequiredDocsLabel = () => {
     const items = buildRequiredDocItems();
     return items.map(doc => 
       doc.format !== 'any' ? `${doc.label} (${doc.formatLabel})` : doc.label
@@ -262,6 +262,8 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       }
     }
 
+    const docItems = buildRequiredDocItems();
+
     const jobData = {
       title: formData.title,
       companyName: companyName,
@@ -276,8 +278,10 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       stipend: formData.stipend,
       description: formData.description,
       requirement: formData.requirement,
-      responsibilities: formData.responsibilities,  // ← NEW FIELD
-      requiredDocument: buildRequiredDocs(),
+      responsibilities: formData.responsibilities,
+      requiredDocument: buildRequiredDocsLabel(),
+      requiredDocuments: docItems,
+      documentsRequired: docItems,
       additionalDocs: buildAdditionalDocs(),
       jobDescriptionPdfUrl: pdfUrl,
       pdfFileName: pdfFileName,
@@ -314,6 +318,12 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           {editingJob ? 'Update your job listing.' : 'Create a new listing for students.'}
         </p>
       </div>
+
+      {editingJob?.editRequestReason && (
+        <div style={{ marginBottom: 20, padding: '14px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, color: '#92400e', fontSize: 13, lineHeight: 1.6 }}>
+          <strong>Admin requested changes:</strong> {editingJob.editRequestReason}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         {/* ─── JOB DETAILS ────────────────────────────────────────────────── */}
@@ -544,7 +554,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           <div style={{ marginTop: '20px', padding: '12px 16px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
             <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>📄 Documents Required:</p>
             <p style={{ fontSize: '13px', color: NAVY, fontWeight: 500 }}>
-              {buildRequiredDocs()}
+              {buildRequiredDocsLabel()}
             </p>
           </div>
         </div>

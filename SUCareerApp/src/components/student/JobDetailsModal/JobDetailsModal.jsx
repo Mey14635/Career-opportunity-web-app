@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { File, Download } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { submitApplication } from "../../../services/applicationService";
 import { toggleSavedOpportunityForUser } from "../../../utils/saveOpportunity";
+import { incrementViews, incrementApplications } from "../../../services/metricsService";
 import "./JobDetailsModal.css";
 
 const defaultDocument = {
@@ -48,12 +49,19 @@ function getAcceptValue(format) {
   return ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 }
 
-function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSaveButton = false }) {
+function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved, onApplied, onClose, hideSaveButton = false }) {
   const { user } = useAuth();
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [documentFiles, setDocumentFiles] = useState({});
   const [applicationStatus, setApplicationStatus] = useState({ type: "", message: "" });
   const [submittingApplication, setSubmittingApplication] = useState(false);
+
+  // ─── INCREMENT VIEWS WHEN MODAL OPENS ──────────────────────────────
+  useEffect(() => {
+    if (opportunity?.id) {
+      incrementViews(opportunity.id);
+    }
+  }, [opportunity?.id]);
 
   if (!opportunity) {
     return null;
@@ -62,7 +70,6 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
   const isDeadlineUrgent = opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
   const requiredDocuments = opportunity.documentsRequired || [];
   
-  // ─── FIX: Keep only ONE declaration of applicationDocuments ──────────
   // Normalize documents: if none, fallback to defaultDocument
   const applicationDocuments = (requiredDocuments.length > 0 ? requiredDocuments : [defaultDocument])
     .map(normalizeApplicationDocument);
@@ -135,7 +142,12 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
         requiredDocuments: applicationDocuments,
         documentFiles,
       });
-      setApplicationStatus({ type: "success", message: "Application submitted successfully." });
+
+      // ─── INCREMENT APPLICATIONS AFTER SUCCESSFUL SUBMISSION ──────
+      await incrementApplications(opportunity.id);
+
+      onApplied?.(opportunity.id);
+      closeApplicationForm();
       setDocumentFiles({});
     } catch (err) {
       console.error("Failed to submit application:", err);
@@ -174,8 +186,17 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
           </header>
 
           <div className={`job-modal-actions ${hideSaveButton ? "apply-only" : ""}`}>
-            <button className="job-apply-btn" type="button" onClick={() => setShowApplyForm(true)}>
-              Apply Now
+            <button
+              className={`job-apply-btn ${applied ? "applied" : ""}`}
+              type="button"
+              disabled={applied}
+              onClick={() => {
+                if (!applied) {
+                  setShowApplyForm(true);
+                }
+              }}
+            >
+              {applied ? "Applied" : "Apply Now"}
             </button>
             {!hideSaveButton && (
               <button
@@ -240,7 +261,7 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
               </ul>
             </section>
 
-            {/* ─── PDF DOWNLOAD LINK (with file name) ──────────────────── */}
+            {/* ─── PDF DOWNLOAD LINK ──────────────────────────────────── */}
             {hasPdf && (
               <section>
                 <h3>Job Description PDF</h3>
@@ -285,7 +306,7 @@ function JobDetailsModal({ opportunity, saved = false, onSaved, onClose, hideSav
               )}
             </section>
 
-            {/* ─── FIXED DEADLINE MESSAGE ──────────────────────────────────── */}
+            {/* ─── DEADLINE MESSAGE ──────────────────────────────────────── */}
             <p className="job-modal-closes">
               {getDeadlineDisplay()}
             </p>

@@ -37,7 +37,7 @@ import NotificationsView from './views/NotificationsView';
 import ActivityHistoryView from './views/ActivityHistoryView';
 import MyJobsView from './views/MyJobsView';
 
-export default function EmployerDashboard({ onLogout }) {
+export default function EmployerDashboard() {
   const { user } = useAuth();
   const employerId = user?.uid;
 
@@ -223,10 +223,7 @@ export default function EmployerDashboard({ onLogout }) {
   // ─── IMPROVED LOGOUT ──────────────────────────────────────────────────
   const handleLogout = async () => {
     try {
-      if (onLogout) {
-        onLogout();
-        return;
-      }
+      // 1. Sign out from Firebase
       await signOut(auth);
       localStorage.clear();
       sessionStorage.clear();
@@ -238,6 +235,7 @@ export default function EmployerDashboard({ onLogout }) {
       window.location.replace('/employer-access?mode=login');
     } catch (err) {
       console.error('Logout error:', err);
+      // Fallback: force reload anyway
       window.location.replace('/employer-access?mode=login');
     }
   };

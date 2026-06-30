@@ -97,6 +97,9 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
   const reqs = getRequirementsList(selectedJob);
   const resp = getResponsibilitiesList(selectedJob); // ← NEW
   const returnedForEdits = isReturnedForEdits(selectedJob);
+  const [editReasonOpen, setEditReasonOpen] = useState(false);
+  const [editReason, setEditReason] = useState(selectedJob.editRequestReason || '');
+  const [editReasonError, setEditReasonError] = useState('');
 
   // ─── WRAPPER FOR TRIGGER MODAL ─────────────────────────────────────
   const handleModalAction = (title, message, type, actionData) => {
@@ -113,6 +116,31 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
     };
     triggerModal(title, message, type, wrappedActionData);
   };
+  const closeDetails = clearSelection || (() => {});
+
+  const submitEditReason = () => {
+    const reason = editReason.trim();
+
+    if (!reason) {
+      setEditReasonError('Please enter the reason the employer needs to address.');
+      return;
+    }
+
+    setEditReasonOpen(false);
+    setEditReasonError('');
+    handleModalAction(
+      'Request Edits',
+      `Request changes for "${selectedJob.title}"? The employer will be notified with your reason.`,
+      'warning',
+      {
+        view: 'job',
+        id: selectedJob.id,
+        type: 'request_edits',
+        editRequestReason: reason,
+        clearSelection: closeDetails,
+      }
+    );
+  };
 
   return (
     <div style={{ maxWidth: '1000px' }}>
@@ -125,22 +153,14 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
         <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
-            {returnedForEdits && (
-              <span style={{
-                background: '#fef3c7',
-                color: '#d97706',
-                padding: '4px 12px',
-                borderRadius: '20px',
-                fontSize: 13,
-                fontWeight: 700,
-                marginBottom: 8,
-              }}>
+            {selectedJob.pendingReason === 'unpublished' && (
+              <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 12px', borderRadius: '20px', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
                 Returned for edits
               </span>
             )}
           </div>
           <p style={{ margin: 0, color: '#64748b', fontSize: 16 }}>
-            {selectedJob.companyName || selectedJob.employerId || selectedJob.employerID || 'Company'} &bull; 
+            {selectedJob.companyName || selectedJob.employerId || selectedJob.employerID || 'Company'} &bull;{' '}
             {selectedJob.location || selectedJob.workMode || 'Location not specified'}
           </p>
         </div>
@@ -183,15 +203,11 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
               </div>
               <div style={{ marginBottom: 12 }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>DURATION</p>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
-                  {selectedJob.duration || 'Not specified'}
-                </p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>{selectedJob.duration || 'Not specified'}</p>
               </div>
               <div>
                 <p style={{ margin: '0 0 4px 0', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>OPEN POSITIONS</p>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>
-                  {selectedJob.positions || 'Not specified'}
-                </p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: NAVY }}>{selectedJob.positions || 'Not specified'}</p>
               </div>
             </div>
 
@@ -209,9 +225,9 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, borderTop: '1px solid #e2e8f0', paddingTop: 24, marginTop: 32 }}>
-          {returnedForEdits ? (
-            <button
-              onClick={() => {
+          <button
+            onClick={() => {
+              if (returnedForEdits) {
                 handleModalAction(
                   'Unrequest Edits',
                   `Remove the "Returned for edits" status for "${selectedJob.title}"? The job will become a normal pending review.`,
@@ -220,41 +236,27 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
                     view: 'job',
                     id: selectedJob.id,
                     type: 'unrequest_edits',
-                    clearSelection,
+                    clearSelection: closeDetails,
                   }
                 );
-              }}
-              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#e2e8f0', color: '#475569', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Unrequest Edits
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                handleModalAction(
-                  'Request Edits',
-                  `Request changes for "${selectedJob.title}"? The employer will be notified to update the listing.`,
-                  'warning',
-                  {
-                    view: 'job',
-                    id: selectedJob.id,
-                    type: 'request_edits',
-                    clearSelection,
-                  }
-                );
-              }}
-              style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fef3c7', color: '#d97706', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Request Edits
-            </button>
-          )}
+                return;
+              }
+
+              setEditReason(selectedJob.editRequestReason || '');
+              setEditReasonError('');
+              setEditReasonOpen(true);
+            }}
+            style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: returnedForEdits ? '#e2e8f0' : '#fef3c7', color: returnedForEdits ? '#475569' : '#d97706', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+          >
+            {returnedForEdits ? 'Unrequest Edits' : 'Request Edits'}
+          </button>
           <button
             onClick={() => {
               handleModalAction('Reject Listing', `Reject "${selectedJob.title}"? The job will be permanently moved to rejected.`, 'danger', {
                 view: 'job',
                 id: selectedJob.id,
                 type: 'reject',
-                clearSelection,
+                clearSelection: closeDetails,
               });
             }}
             style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
@@ -268,7 +270,7 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
                 id: selectedJob.id,
                 type: 'approve',
                 job: selectedJob,
-                clearSelection,
+                clearSelection: closeDetails,
               });
             }}
             style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: GOLD, color: NAVY, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
@@ -277,6 +279,44 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
           </button>
         </div>
       </div>
+      {editReasonOpen && (
+        <div
+          role="presentation"
+          onClick={() => setEditReasonOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 2200, background: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Request edit reason"
+            onClick={(event) => event.stopPropagation()}
+            style={{ width: 'min(520px, 100%)', background: '#ffffff', borderRadius: 12, borderTop: '4px solid #d97706', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' }}
+          >
+            <div style={{ padding: '24px 28px' }}>
+              <h3 style={{ margin: '0 0 8px', color: NAVY, fontSize: 18, fontWeight: 800 }}>Reason for requested edits</h3>
+              <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>
+                This reason will be saved on the job and shown to the employer in their notification and job list.
+              </p>
+              <textarea
+                value={editReason}
+                onChange={(event) => setEditReason(event.target.value)}
+                rows={5}
+                placeholder="Example: Please clarify the responsibilities and add the expected salary range."
+                style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: 8, padding: 12, fontSize: 14, color: '#1e293b', resize: 'vertical', outline: 'none', fontFamily: 'inherit' }}
+              />
+              {editReasonError && <p style={{ margin: '8px 0 0', color: '#dc2626', fontSize: 12, fontWeight: 700 }}>{editReasonError}</p>}
+            </div>
+            <div style={{ padding: '16px 28px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button type="button" onClick={() => setEditReasonOpen(false)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button type="button" onClick={submitEditReason} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: NAVY, color: '#ffffff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Continue
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

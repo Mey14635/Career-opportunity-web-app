@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { Bell, BriefcaseBusiness, CheckCircle2, Clock3, Trash2 } from "lucide-react";
 import JobDetailsModal from "../../../components/student/JobDetailsModal/JobDetailsModal";
+import { db } from "../../../config/firebase";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
   deleteNotification,
@@ -10,10 +13,37 @@ import {
 import { mapOpportunityDoc } from "../../../utils/opportunityMapper";
 import "./Notifications.css";
 
+function getNotificationTone(notification) {
+  if (notification.type === "application_status_update") return "status";
+  if (notification.type === "deadline_48h") return "deadline";
+  return "default";
+}
+
+function renderNotificationIcon(notification) {
+  if (notification.type === "application_status_update") {
+    return <CheckCircle2 size={18} strokeWidth={2.4} />;
+  }
+
+  if (notification.type === "deadline_48h") {
+    return <Clock3 size={18} strokeWidth={2.4} />;
+  }
+
+  if (notification.type === "saved_opportunity") {
+    return <BriefcaseBusiness size={18} strokeWidth={2.4} />;
+  }
+
+  return <Bell size={18} strokeWidth={2.4} />;
+}
+
+function canOpenOpportunity(notification) {
+  return notification.targetType === "opportunity" || notification.type === "deadline_48h";
+}
+
 function Notifications() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
+  const [appliedOpportunityIds, setAppliedOpportunityIds] = useState([]);
   const unreadCount = notifications.filter((notification) => !notification.isRead && !notification.read).length;
 
   useEffect(() => {
@@ -32,6 +62,41 @@ function Notifications() {
     );
   }, [user]);
 
+  useEffect(() => {
+    async function loadAppliedOpportunities() {
+      if (!user) {
+        setAppliedOpportunityIds([]);
+        return;
+      }
+
+      try {
+        const applicationsSnap = await getDocs(query(
+          collection(db, "applications"),
+          where("studentId", "==", user.uid)
+        ));
+        const ids = [
+          ...new Set(
+            applicationsSnap.docs
+              .map((docSnap) => docSnap.data().opportunityId || docSnap.data().opportunityID)
+              .filter(Boolean)
+          ),
+        ];
+
+        setAppliedOpportunityIds(ids);
+      } catch (err) {
+        console.error("Failed to load applied opportunities:", err);
+      }
+    }
+
+    loadAppliedOpportunities();
+  }, [user]);
+
+  function markOpportunityApplied(opportunityId) {
+    setAppliedOpportunityIds((currentIds) =>
+      currentIds.includes(opportunityId) ? currentIds : [...currentIds, opportunityId]
+    );
+  }
+
   async function handleMarkRead(notificationId) {
     try {
       await markNotificationAsRead(notificationId);
@@ -40,7 +105,7 @@ function Notifications() {
     }
   }
 
-  async function handleApply(notification) {
+  async function handleOpenOpportunity(notification) {
     if (!notification.opportunityId) {
       return;
     }
@@ -84,45 +149,13 @@ function Notifications() {
         {notifications.length > 0 ? (
           <div className="notifications-list">
             {notifications.map((notification) => (
-              <article
-                className={`notification-card ${notification.isRead ? "read" : ""}`}
+              <NotificationCard
                 key={notification.id}
-              >
-                <div className="notification-card-icon" aria-hidden="true">
-                  !
-                </div>
-
-                <div className="notification-card-content">
-                  <div className="notification-card-top">
-                    <h2>{notification.title}</h2>
-                    <div className="notification-card-buttons">
-                      <button
-                        type="button"
-                        disabled={notification.isRead}
-                        onClick={() => handleMarkRead(notification.id)}
-                      >
-                        {notification.isRead ? "Read" : "Mark read"}
-                      </button>
-                      <button
-                        className="delete-notification-btn"
-                        type="button"
-                        onClick={() => handleDelete(notification.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                  <p>{notification.message}</p>
-                  <small>{notification.date}</small>
-                  {notification.opportunityId && (
-                    <div className="notification-actions">
-                      <button type="button" onClick={() => handleApply(notification)}>
-                        Apply
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </article>
+                notification={notification}
+                onMarkRead={handleMarkRead}
+                onDelete={handleDelete}
+                onOpenOpportunity={handleOpenOpportunity}
+              />
             ))}
           </div>
         ) : (
@@ -137,9 +170,64 @@ function Notifications() {
         opportunity={selectedOpportunity}
         saved={Boolean(selectedOpportunity)}
         hideSaveButton
+        applied={selectedOpportunity ? appliedOpportunityIds.includes(selectedOpportunity.id) : false}
+        onApplied={markOpportunityApplied}
         onClose={() => setSelectedOpportunity(null)}
       />
     </main>
+  );
+}
+
+function NotificationCard({ notification, onMarkRead, onDelete, onOpenOpportunity }) {
+  const isRead = notification.isRead || notification.read;
+  const canReviewOpportunity = canOpenOpportunity(notification) && notification.opportunityId;
+  const tone = getNotificationTone(notification);
+
+  return (
+    <article className={`notification-card ${isRead ? "read" : ""}`}>
+      <div className={`notification-card-icon ${tone}`} aria-hidden="true">
+        {renderNotificationIcon(notification)}
+      </div>
+
+      <div className="notification-card-content">
+        <div className="notification-card-top">
+          <div className="notification-card-title">
+            <span className={`notification-read-dot ${isRead ? "read" : ""}`} aria-hidden="true" />
+            <h2>{notification.title}</h2>
+          </div>
+          <div className="notification-card-buttons">
+            <button
+              type="button"
+              disabled={isRead}
+              onClick={() => onMarkRead(notification.id)}
+            >
+              {isRead ? "Read" : "Mark read"}
+            </button>
+            <button
+              className="delete-notification-btn"
+              type="button"
+              aria-label="Delete notification"
+              onClick={() => onDelete(notification.id)}
+            >
+              <Trash2 size={14} aria-hidden="true" />
+              Delete
+            </button>
+          </div>
+        </div>
+        <p>{notification.message}</p>
+        {notification.deadlineLabel && notification.type === "deadline_48h" && (
+          <div className="notification-deadline">{notification.deadlineLabel}</div>
+        )}
+        <small>{notification.time || notification.date}</small>
+        {canReviewOpportunity && (
+          <div className="notification-actions">
+            <button type="button" onClick={() => onOpenOpportunity(notification)}>
+              View opportunity
+            </button>
+          </div>
+        )}
+      </div>
+    </article>
   );
 }
 

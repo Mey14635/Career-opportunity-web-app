@@ -23,6 +23,7 @@ function Favorites() {
   const [searchParams] = useSearchParams();
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
   const [savedOpportunities, setSavedOpportunities] = useState([]);
+  const [appliedOpportunityIds, setAppliedOpportunityIds] = useState([]);
   const [loadingSaved, setLoadingSaved] = useState(true);
   const [savedError, setSavedError] = useState("");
   const { user } = useAuth();
@@ -73,6 +74,41 @@ function Favorites() {
     loadSavedOpportunities();
   }, [user]);
 
+  useEffect(() => {
+    async function loadAppliedOpportunities() {
+      if (!user) {
+        setAppliedOpportunityIds([]);
+        return;
+      }
+
+      try {
+        const applicationsSnap = await getDocs(query(
+          collection(db, "applications"),
+          where("studentId", "==", user.uid)
+        ));
+        const ids = [
+          ...new Set(
+            applicationsSnap.docs
+              .map((docSnap) => docSnap.data().opportunityId || docSnap.data().opportunityID)
+              .filter(Boolean)
+          ),
+        ];
+
+        setAppliedOpportunityIds(ids);
+      } catch (err) {
+        console.error("Failed to load applied opportunities:", err);
+      }
+    }
+
+    loadAppliedOpportunities();
+  }, [user]);
+
+  function markOpportunityApplied(opportunityId) {
+    setAppliedOpportunityIds((currentIds) =>
+      currentIds.includes(opportunityId) ? currentIds : [...currentIds, opportunityId]
+    );
+  }
+
   const filteredSavedOpportunities = savedOpportunities.filter((opp) => {
     if (!searchText) {
       return true;
@@ -112,7 +148,7 @@ function Favorites() {
             {filteredSavedOpportunities.map((opp) => (
               <article
                 key={opp.id}
-                className="favorite-card"
+                className={`favorite-card ${appliedOpportunityIds.includes(opp.id) ? "applied" : ""}`}
                 role="button"
                 tabIndex={0}
                 onClick={() => setSelectedOpportunity(opp)}
@@ -126,7 +162,10 @@ function Favorites() {
                 <div className="favorite-card-body">
                   <div className="favorite-card-top">
                     <h2>{opp.title}</h2>
-                    <span aria-label="Saved">Saved</span>
+                    <div className="favorite-card-tags">
+                      {appliedOpportunityIds.includes(opp.id) && <span className="favorite-applied">Applied</span>}
+                      <span aria-label="Saved">Saved</span>
+                    </div>
                   </div>
 
                   <p className="favorite-company">
@@ -155,6 +194,7 @@ function Favorites() {
       <JobDetailsModal
         opportunity={selectedOpportunity}
         saved={Boolean(selectedOpportunity)}
+        applied={selectedOpportunity ? appliedOpportunityIds.includes(selectedOpportunity.id) : false}
         onSaved={(opportunityId, nextSaved) => {
           if (!nextSaved) {
             setSavedOpportunities((currentOpportunities) =>
@@ -163,6 +203,7 @@ function Favorites() {
             setSelectedOpportunity(null);
           }
         }}
+        onApplied={markOpportunityApplied}
         onClose={() => setSelectedOpportunity(null)}
       />
     </main>

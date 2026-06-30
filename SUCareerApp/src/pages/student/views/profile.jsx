@@ -28,10 +28,14 @@ const Profile = () => {
   const navigate = useNavigate();
 
   const interestsOptions = [
-    "Web Development", "Data Analysis", "Finance",
-    "Product Management", "UX Design", "Machine Learning",
-    "Marketing", "Consulting", "Software Engineering",
-    "Cybersecurity", "Business Analytics", "Research",
+    "Technology",
+    "Finance",
+    "Healthcare",
+    "Education",
+    "Consulting",
+    "Manufacturing",
+    "Retail",
+    "Other",
   ];
 
   useEffect(() => {
@@ -143,7 +147,7 @@ const Profile = () => {
     }
 
     if (selectedInterests.length === 0) {
-      setError("Please select at least one professional interest to customize your feed.");
+      setError("Please select at least one industry interest to customize your feed.");
       return;
     }
 
@@ -264,7 +268,7 @@ const Profile = () => {
               </div>
 
               <div className="interests-section">
-                <label>Professional Interests</label>
+                <label>Industry Interests</label>
                 <div className="tags-grid">
                   {interestsOptions.map((interest) => {
                     const isSelected = selectedInterests.includes(interest);
@@ -296,8 +300,8 @@ const Profile = () => {
     <div className="onboard-container">
       <div className="onboard-card">
         <div className="onboard-brand">
-          <div className="brand-logo su-logo-mark" aria-hidden="true">
-            <span />
+          <div className="brand-logo" aria-hidden="true">
+            SU
           </div>
           <p>SU Career Portal</p>
         </div>
@@ -355,8 +359,8 @@ const Profile = () => {
           </div>
 
           <div className="interests-section">
-            <label>Professional Interests</label>
-            <p className="interests-sub">Select all that apply</p>
+            <label>Industry Interests</label>
+            <p className="interests-sub">Select the industries you want to see first</p>
             
             <div className="tags-grid">
               {interestsOptions.map((interest) => {
