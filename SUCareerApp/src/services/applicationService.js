@@ -2,6 +2,7 @@ import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, wh
 import { db } from "../config/firebase";
 import { uploadApplicationDocument } from "./cloudinaryUpload";
 import { createEmployerApplicationNotification } from "./notificationService";
+import { incrementApplications } from "./metricsService";  // ← ADDED
 
 export async function hasStudentApplied(studentId, opportunityId) {
   const applicationQuery = query(
@@ -141,6 +142,9 @@ export async function submitApplication({ studentId, opportunityId, requiredDocu
   }).catch((notificationError) => {
     console.error("Application notification failed:", notificationError);
   });
+
+  // ─── INCREMENT APPLICATIONS METRIC ──────────────────────────────────
+  await incrementApplications(opportunityId);
 
   return {
     applicationId: applicationRef.id,

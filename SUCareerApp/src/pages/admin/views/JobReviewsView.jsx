@@ -57,6 +57,25 @@ function getRequirementsList(job = {}) {
     .map(s => s + '.');
 }
 
+// ─── NEW: Get responsibilities as bullet points ────────────────────────
+function getResponsibilitiesList(job = {}) {
+  let rawText;
+
+  if (Array.isArray(job.responsibilities) && job.responsibilities.length > 0) {
+    rawText = job.responsibilities.join('. ');
+  } else if (typeof job.responsibilities === 'string' && job.responsibilities.trim()) {
+    rawText = job.responsibilities;
+  } else {
+    return [];
+  }
+
+  return rawText
+    .split('.')
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(s => s + '.');
+}
+
 // Helper: Sort queue data by createdAt descending (newest first)
 function sortByCreatedDescending(data) {
   return [...data].sort((a, b) => {
@@ -76,6 +95,7 @@ function isReturnedForEdits(job) {
 export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelection, onRefresh }) {
   const docs = getRequiredDocuments(selectedJob);
   const reqs = getRequirementsList(selectedJob);
+  const resp = getResponsibilitiesList(selectedJob); // ← NEW
   const returnedForEdits = isReturnedForEdits(selectedJob);
   const [editReasonOpen, setEditReasonOpen] = useState(false);
   const [editReason, setEditReason] = useState(selectedJob.editRequestReason || '');
@@ -151,6 +171,16 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
             <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>
               {selectedJob.description || 'No description provided.'}
             </p>
+
+            {/* ─── NEW: Responsibilities ──────────────────────────────── */}
+            <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Responsibilities</h3>
+            {resp.length > 0 ? (
+              <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 15, lineHeight: 1.8, marginBottom: 24 }}>
+                {resp.map((item, idx) => <li key={idx}>{item}</li>)}
+              </ul>
+            ) : (
+              <p style={{ color: '#94a3b8', fontSize: 15, marginBottom: 24 }}>No specific responsibilities listed.</p>
+            )}
 
             <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Requirements</h3>
             {reqs.length > 0 ? (

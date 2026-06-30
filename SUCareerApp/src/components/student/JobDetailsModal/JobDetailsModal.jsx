@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { File, Download } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { submitApplication } from "../../../services/applicationService";
 import { toggleSavedOpportunityForUser } from "../../../utils/saveOpportunity";
+import { incrementViews, incrementApplications } from "../../../services/metricsService";
 import "./JobDetailsModal.css";
 
 const defaultDocument = {
@@ -55,6 +56,13 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
   const [applicationStatus, setApplicationStatus] = useState({ type: "", message: "" });
   const [submittingApplication, setSubmittingApplication] = useState(false);
 
+  // ─── INCREMENT VIEWS WHEN MODAL OPENS ──────────────────────────────
+  useEffect(() => {
+    if (opportunity?.id) {
+      incrementViews(opportunity.id);
+    }
+  }, [opportunity?.id]);
+
   if (!opportunity) {
     return null;
   }
@@ -62,7 +70,6 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
   const isDeadlineUrgent = opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
   const requiredDocuments = opportunity.documentsRequired || [];
   
-  // ─── FIX: Keep only ONE declaration of applicationDocuments ──────────
   // Normalize documents: if none, fallback to defaultDocument
   const applicationDocuments = (requiredDocuments.length > 0 ? requiredDocuments : [defaultDocument])
     .map(normalizeApplicationDocument);
@@ -135,6 +142,10 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
         requiredDocuments: applicationDocuments,
         documentFiles,
       });
+
+      // ─── INCREMENT APPLICATIONS AFTER SUCCESSFUL SUBMISSION ──────
+      await incrementApplications(opportunity.id);
+
       onApplied?.(opportunity.id);
       closeApplicationForm();
       setDocumentFiles({});
@@ -250,7 +261,7 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
               </ul>
             </section>
 
-            {/* ─── PDF DOWNLOAD LINK (with file name) ──────────────────── */}
+            {/* ─── PDF DOWNLOAD LINK ──────────────────────────────────── */}
             {hasPdf && (
               <section>
                 <h3>Job Description PDF</h3>
@@ -295,7 +306,7 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
               )}
             </section>
 
-            {/* ─── FIXED DEADLINE MESSAGE ──────────────────────────────────── */}
+            {/* ─── DEADLINE MESSAGE ──────────────────────────────────────── */}
             <p className="job-modal-closes">
               {getDeadlineDisplay()}
             </p>

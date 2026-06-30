@@ -30,6 +30,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     stipend: editingJob?.stipend || '',
     description: editingJob?.description || '',
     requirement: editingJob?.requirement || '',
+    responsibilities: editingJob?.responsibilities || '',
     jobDescriptionPdfUrl: editingJob?.jobDescriptionPdfUrl || '',
     pdfFileName: editingJob?.pdfFileName || '',
   });
@@ -77,6 +78,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
         stipend: editingJob.stipend || '',
         description: editingJob.description || '',
         requirement: editingJob.requirement || '',
+        responsibilities: editingJob.responsibilities || '',
         jobDescriptionPdfUrl: editingJob.jobDescriptionPdfUrl || '',
         pdfFileName: editingJob.pdfFileName || '',
       });
@@ -115,14 +117,6 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       } else {
         setCustomDocuments(customNames.map(name => ({ name, format: 'any' })));
       }
-      // Parse custom docs from the additionalDocs field (if it exists)
-      const standardLabels = standardDocumentOptions.map((option) => option.label);
-      const structuredCustomDocs = structuredDocs.filter((doc) => {
-        const label = doc?.label || doc?.name || '';
-        return label && !standardLabels.includes(label);
-      });
-      const customDocs = editingJob.additionalDocs ? editingJob.additionalDocs.split(',').map(d => d.trim()).filter(Boolean) : [];
-      setCustomDocuments(structuredCustomDocs.length > 0 ? structuredCustomDocs : customDocs.map(name => ({ name, format: 'any' })));
     }
   }, [editingJob]);
 
@@ -268,10 +262,12 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       }
     }
 
+    const docItems = buildRequiredDocItems();
+
     const jobData = {
       title: formData.title,
       companyName: companyName,
-      employerID: employerId,  // Use employerID to match Firestore schema
+      employerID: employerId,
       department: formData.department,
       category: formData.category,
       jobType: formData.jobType,
@@ -282,13 +278,13 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       stipend: formData.stipend,
       description: formData.description,
       requirement: formData.requirement,
+      responsibilities: formData.responsibilities,
       requiredDocument: buildRequiredDocsLabel(),
-      requiredDocuments: buildRequiredDocItems(),
-      documentsRequired: buildRequiredDocItems(),
+      requiredDocuments: docItems,
+      documentsRequired: docItems,
       additionalDocs: buildAdditionalDocs(),
       jobDescriptionPdfUrl: pdfUrl,
       pdfFileName: pdfFileName,
-      // Always set status to pending and clear pendingReason
       status: 'pending',
       pendingReason: null,
       metrics: editingJob?.metrics || { views: 0, applications: 0 },
@@ -322,6 +318,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
           {editingJob ? 'Update your job listing.' : 'Create a new listing for students.'}
         </p>
       </div>
+
       {editingJob?.editRequestReason && (
         <div style={{ marginBottom: 20, padding: '14px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, color: '#92400e', fontSize: 13, lineHeight: 1.6 }}>
           <strong>Admin requested changes:</strong> {editingJob.editRequestReason}
@@ -408,9 +405,20 @@ export default function PostJobView({ employerId, companyName, editingJob = null
             <textarea name="description" value={formData.description} onChange={handleChange} rows="5" placeholder="Describe the role, responsibilities, and any additional details..." style={{...inputStyle, resize: 'vertical'}} required />
           </div>
 
+          <div style={{ marginBottom: '20px' }}>
+            <label style={labelStyle}>Responsibilities *</label>
+            <textarea name="responsibilities" value={formData.responsibilities} onChange={handleChange} rows="4" placeholder="List the responsibilities of the role. Separate each point with a period." style={{...inputStyle, resize: 'vertical'}} required />
+            <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+              Separate each responsibility with a period (.) for bullet point display.
+            </p>
+          </div>
+
           <div>
             <label style={labelStyle}>Requirements / Qualifications *</label>
             <textarea name="requirement" value={formData.requirement} onChange={handleChange} rows="3" placeholder="e.g. Bachelor's degree, specific skills, experience..." style={{...inputStyle, resize: 'vertical'}} required />
+            <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+              Separate each requirement with a period (.) for bullet point display.
+            </p>
           </div>
         </div>
 

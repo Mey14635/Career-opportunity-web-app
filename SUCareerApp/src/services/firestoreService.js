@@ -1,3 +1,4 @@
+// src/services/firestoreService.js
 import { db } from '../config/firebase';
 import {
   collection,
@@ -9,7 +10,7 @@ import {
   query,
   where,
   orderBy,
-  limit,          // ✅ Uncommented – now used in getRecentOpportunities
+  limit,
   Timestamp,
   setDoc,
 } from 'firebase/firestore';
@@ -72,7 +73,7 @@ export const getRecentOpportunities = async (limitCount = 5) => {
   const q = query(
     collection(db, 'opportunities'),
     orderBy('createdAt', 'desc'),
-    limit(limitCount)   // ✅ uses the imported 'limit'
+    limit(limitCount)
   );
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
