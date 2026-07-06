@@ -119,7 +119,14 @@ export const createJob = async (jobData) => {
 
 export const updateJob = async (jobId, jobData) => {
   const ref = doc(db, 'opportunities', jobId);
-  await updateDoc(ref, { ...jobData, editRequestReason: deleteField(), updatedAt: Timestamp.now() });
+  await updateDoc(ref, {
+    ...jobData,
+    additionalDocs: deleteField(),
+    documentsRequired: deleteField(),
+    editRequestReason: deleteField(),
+    requiredDocument: deleteField(),
+    updatedAt: Timestamp.now(),
+  });
 };
 
 // ─── APPLICATIONS ─────────────────────────────────────────────────────────

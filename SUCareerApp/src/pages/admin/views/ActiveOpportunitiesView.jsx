@@ -16,14 +16,25 @@ function JobDetailModal({ job, onClose }) {
 
   const parseList = (value) => {
     if (!value) return [];
-    if (Array.isArray(value)) return value.filter(item => item && item.trim() !== '');
+    if (Array.isArray(value)) {
+      return value
+        .filter(Boolean)
+        .map(item => {
+          if (typeof item === 'string') return item;
+          const label = item.label || item.name || 'Document';
+          return item.format && item.format !== 'any'
+            ? `${label} (${item.formatLabel || item.format})`
+            : label;
+        })
+        .filter(item => item && item.trim() !== '');
+    }
     if (typeof value === 'string') {
       return value.split(',').map(item => item.trim()).filter(Boolean);
     }
     return [];
   };
 
-  const documentsList = parseList(job.requiredDocument || job.documentsRequired);
+  const documentsList = parseList(job.requiredDocuments || job.documentsRequired || job.requiredDocument);
 
   return (
     <div

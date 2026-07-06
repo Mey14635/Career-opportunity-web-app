@@ -234,11 +234,6 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     ).join(', ') || 'None specified';
   };
 
-  // ─── BUILD ADDITIONAL DOCS STRING ──────────────────────────────────────
-  const buildAdditionalDocs = () => {
-    return customDocuments.map(d => d.name).join(', ');
-  };
-
   // ─── SUBMIT ──────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -279,10 +274,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       description: formData.description,
       requirement: formData.requirement,
       responsibilities: formData.responsibilities,
-      requiredDocument: buildRequiredDocsLabel(),
       requiredDocuments: docItems,
-      documentsRequired: docItems,
-      additionalDocs: buildAdditionalDocs(),
       jobDescriptionPdfUrl: pdfUrl,
       pdfFileName: pdfFileName,
       status: 'pending',
