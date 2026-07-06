@@ -92,7 +92,6 @@ export default function CompanyPublicView() {
     );
   }
 
-  // ─── Only students can apply; others just view ──────────────────────
   const isStudent = role === 'student';
 
   return (
@@ -111,8 +110,28 @@ export default function CompanyPublicView() {
 
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '40px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 32, background: '#ffffff', padding: '32px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-          <div style={{ width: 80, height: 80, borderRadius: '50%', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #bfdbfe' }}>
-            <Building2 size={32} color="#3b82f6" />
+          {/* ─── LOGO ────────────────────────────────────────────────────── */}
+          <div style={{
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            backgroundColor: '#eff6ff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid #bfdbfe',
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}>
+            {company.companyLogoUrl ? (
+              <img
+                src={company.companyLogoUrl}
+                alt={`${company.companyName} logo`}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <Building2 size={32} color="#3b82f6" />
+            )}
           </div>
           <div>
             <h1 style={{ margin: '0 0 4px 0', fontSize: 28, fontWeight: 800, color: NAVY }}>{company.companyName}</h1>
@@ -185,7 +204,6 @@ export default function CompanyPublicView() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               {filteredJobs.map(job => {
-                // Link to student dashboard with opportunity query param
                 const jobLink = `/student-dashboard/dashboard?opportunity=${job.id}`;
                 return (
                   <Link

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Eye, X, FileText } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { NAVY } from '../constants';
+import JobDetailModal from '../../../components/shared/JobDetailModal';
 
 // ─── JOB DETAIL MODAL (moved outside component) ──────────────────────────
 function JobDetailModal({ job, onClose }) {
@@ -192,7 +193,7 @@ export default function ActiveOpportunitiesView({ activeJobsData, triggerModal }
             {activeJobsData.map((job) => (
               <tr key={job.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <td style={{ padding: '20px 24px', fontSize: 14, fontWeight: 700, color: NAVY }}>{job.title}</td>
-                <td style={{ padding: '20px 24px', fontSize: 14, color: '#64748b' }}>{job.companyName || job.employerId}</td>
+                <td style={{ padding: '20px 24px', fontSize: 14, color: '#64748b' }}>{job.companyName || job.employerId || job.employerID}</td>
                 <td style={{ padding: '20px 24px', fontSize: 14, color: '#475569' }}>{job.createdAt?.toDate?.()?.toDateString() || 'N/A'}</td>
                 <td style={{ padding: '20px 24px', fontSize: 14, fontWeight: 600, color: NAVY }}>{job.metrics?.applications || 0}</td>
                 <td style={{ padding: '20px 24px' }}>

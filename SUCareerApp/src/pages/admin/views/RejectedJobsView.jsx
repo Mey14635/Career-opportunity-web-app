@@ -1,7 +1,9 @@
 // src/pages/admin/views/RejectedJobsView.jsx
 import { useState } from 'react';
-import { Eye, X, FileText, RotateCcw } from 'lucide-react';
+import { Eye, RotateCcw } from 'lucide-react';
 import { NAVY } from '../constants';
+import JobDetailModal from '../../../components/shared/JobDetailModal';
+
 
 // ─── JOB DETAIL MODAL ──────────────────────────────────────────
 function JobDetailModal({ job, onClose }) {
@@ -177,7 +179,6 @@ function JobDetailModal({ job, onClose }) {
 export default function RejectedJobsView({ rejectedJobsData, triggerModal }) {
   const [selectedJob, setSelectedJob] = useState(null);
 
-  // Empty state
   if (!rejectedJobsData || rejectedJobsData.length === 0) {
     return (
       <div style={{ maxWidth: '1200px' }}>
@@ -192,7 +193,6 @@ export default function RejectedJobsView({ rejectedJobsData, triggerModal }) {
     );
   }
 
-  // Sort by updatedAt descending (newest rejected first)
   const sortedJobs = [...rejectedJobsData].sort((a, b) => {
     const aTime = a.updatedAt?.toDate?.()?.getTime() || new Date(a.updatedAt).getTime() || 0;
     const bTime = b.updatedAt?.toDate?.()?.getTime() || new Date(b.updatedAt).getTime() || 0;
@@ -220,7 +220,7 @@ export default function RejectedJobsView({ rejectedJobsData, triggerModal }) {
             {sortedJobs.map((job) => (
               <tr key={job.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <td style={{ padding: '20px 24px', fontSize: 14, fontWeight: 700, color: NAVY }}>{job.title}</td>
-                <td style={{ padding: '20px 24px', fontSize: 14, color: '#64748b' }}>{job.companyName || job.employerId}</td>
+                <td style={{ padding: '20px 24px', fontSize: 14, color: '#64748b' }}>{job.companyName || job.employerId || job.employerID}</td>
                 <td style={{ padding: '20px 24px', fontSize: 14, color: '#475569' }}>
                   {job.updatedAt?.toDate?.()?.toDateString() || new Date(job.updatedAt).toDateString() || 'N/A'}
                 </td>
@@ -283,7 +283,6 @@ export default function RejectedJobsView({ rejectedJobsData, triggerModal }) {
         </table>
       </div>
 
-      {/* Job Detail Modal */}
       {selectedJob && (
         <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
       )}

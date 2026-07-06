@@ -41,7 +41,16 @@ export default {
 
   emptyState: { textAlign: 'center', padding: '20px 0', color: '#94a3b8' },
 
-  funnelContainer: { display: 'flex', flexDirection: 'column', gap: 16 },
+  funnelContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+    flex: 1,
+    justifyContent: 'center',
+    maxWidth: '90%',
+    margin: '0 auto',
+    width: '100%',
+  },
 
   funnelRow: { display: 'flex', alignItems: 'center' },
 
@@ -53,13 +62,20 @@ export default {
 
   funnelValue: { minWidth: 60, fontSize: 13, fontWeight: 600, color: NAVY, textAlign: 'right', paddingLeft: 16 },
 
-  funnelFooter: { marginTop: 12, paddingTop: 12, borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between' },
+  funnelFooter: {
+    marginTop: 'auto',
+    paddingTop: 12,
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'center',
+    gap: 16,
+  },
 
   funnelFooterLabel: { fontSize: 13, fontWeight: 600, color: '#475569' },
 
   funnelFooterValue: { fontSize: 14, fontWeight: 700, color: GOLD },
 
-  pieContainer: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  pieContainer: { display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 },
 
   pieChart: { width: 200, height: 200, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
 
@@ -106,4 +122,52 @@ export default {
   barLabel: { fontSize: 12, color: '#475569', textAlign: 'center' },
 
   barCount: { fontSize: 11, fontWeight: 600, color: NAVY },
+
+  employerTable: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 },
+
+  employerTh: { padding: '12px 16px', background: '#f8fafc', fontWeight: 700, color: '#475569', borderBottom: '1px solid #e2e8f0' },
+
+  employerTd: { padding: '12px 16px', borderBottom: '1px solid #f1f5f9' },
+
+  employerRow: (index) => ({
+    background: index % 2 === 0 ? '#ffffff' : '#fafbfc',
+  }),
+
+  statusBadge: (type) => {
+    const colors = {
+      high: { bg: '#dcfce7', color: '#16a34a' },
+      medium: { bg: '#fef3c7', color: '#d97706' },
+      low: { bg: '#fee2e2', color: '#dc2626' },
+    };
+    const s = colors[type] || colors.medium;
+    return {
+      display: 'inline-block',
+      background: s.bg,
+      color: s.color,
+      padding: '4px 10px',
+      borderRadius: '12px',
+      fontSize: 12,
+      fontWeight: 700,
+    };
+  },
+
+  employerCard: { marginTop: 24 },
+
+  calloutBox: {
+    background: '#f8fafc',
+    borderLeft: `4px solid ${GOLD}`,
+    padding: '16px',
+    borderRadius: '0 8px 8px 0',
+    marginBottom: 24,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+
+  calloutText: {
+    fontSize: 13,
+    color: '#475569',
+    margin: 0,
+    lineHeight: 1.5,
+  },
 };

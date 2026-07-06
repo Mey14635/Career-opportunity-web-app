@@ -10,16 +10,19 @@ export default function DashboardView({
   recentActivities,
   onViewAllHistory
 }) {
-  const shortlistedCount = applicants.filter(a => a.status === 'Shortlisted').length;
+  // ─── Filter applicants by status (case-insensitive) ──────────────
+  const shortlistedCount = applicants.filter(a => 
+    a.status?.toLowerCase() === 'shortlisted'
+  ).length;
 
-  // Sort jobs by createdAt (newest first)
+  // ─── Sort jobs by createdAt (newest first) ────────────────────────
   const sortedJobs = [...myJobs].sort((a, b) => {
     const dateA = a.createdAt?.toDate?.() || new Date(0);
     const dateB = b.createdAt?.toDate?.() || new Date(0);
     return dateB - dateA;
   });
 
-  // Only show active (open) jobs on dashboard
+  // ─── Only show active (open) jobs on dashboard ────────────────────
   const activeJobs = sortedJobs.filter(j => j.status === 'open');
 
   // ─── UPCOMING DEADLINES ──────────────────────────────────────────────
@@ -226,7 +229,7 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* Recent Activity (unchanged - shows real student applications) */}
+      {/* Recent Activity (shows real student applications and job posts) */}
       <div>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 16, fontWeight: 800, color: NAVY }}>Recent Activity</h2>
         <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>

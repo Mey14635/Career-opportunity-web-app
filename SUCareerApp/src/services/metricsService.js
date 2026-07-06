@@ -2,7 +2,7 @@
 import { db } from '../config/firebase';
 import { doc, updateDoc, increment } from 'firebase/firestore';
 
-// ─── INCREMENT VIEWS ──────────────────────────────────────────────────────
+// Increments the view count for a specific job opportunity
 export const incrementViews = async (opportunityId) => {
   if (!opportunityId) return;
   try {
@@ -15,7 +15,7 @@ export const incrementViews = async (opportunityId) => {
   }
 };
 
-// ─── INCREMENT APPLICATIONS ──────────────────────────────────────────────
+// Increments the application count for a specific job opportunity
 export const incrementApplications = async (opportunityId) => {
   if (!opportunityId) return;
   try {

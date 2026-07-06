@@ -19,9 +19,8 @@ import {
 import DashboardView from './views/DashboardView';
 import StudentsView from './views/StudentsView';
 import EmployersView from './views/EmployersView';
+import OpportunityListView from './views/OpportunityListView';
 import JobReviewsView from './views/JobReviewsView';
-import ActiveOpportunitiesView from './views/ActiveOpportunitiesView';
-import RejectedJobsView from './views/RejectedJobsView';
 import AnalyticsView from './views/AnalyticsView';
 import NotificationsView from './views/NotificationsView';
 import SettingsView from './views/SettingsView';
@@ -41,7 +40,6 @@ export default function AdminDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
 
-  // Data state
   const [stats, setStats] = useState({ totalStudents: 0, activeEmployers: 0, pendingApprovals: 0, totalJobs: 0 });
   const [students, setStudents] = useState([]);
   const [employers, setEmployers] = useState([]);
@@ -50,12 +48,10 @@ export default function AdminDashboard({ onLogout }) {
   const [rejectedJobs, setRejectedJobs] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [focusedEmployerId, setFocusedEmployerId] = useState('');
-  const [focusedJobId, setFocusedJobId] = useState('');
   const [notificationFocusKey, setNotificationFocusKey] = useState(0);
   const [notificationJobReview, setNotificationJobReview] = useState(null);
   const [notificationEmployerReview, setNotificationEmployerReview] = useState(null);
 
-  // Confirmation modal
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState(null);
 
@@ -64,7 +60,6 @@ export default function AdminDashboard({ onLogout }) {
     setModalOpen(true);
   };
 
-  // Fetch all data
   const fetchAllData = async () => {
     try {
       const [statsData, studentsData, employersData, pendingJobs, openJobs, rejectedJobsData] = await Promise.all([
@@ -122,7 +117,7 @@ export default function AdminDashboard({ onLogout }) {
 
     const targetTab =
       notification.action?.targetTab ||
-      (notification.type === 'job_review_request' ? 'job-reviews' : '') ||
+      (notification.type === 'job_review_request' ? 'opportunity-listings' : '') ||
       (notification.type === 'employer_access_request' ? 'employer-approvals' : '');
     const entityId =
       notification.targetId ||
@@ -141,10 +136,9 @@ export default function AdminDashboard({ onLogout }) {
       }
 
       setFocusedEmployerId(entityId);
-      setFocusedJobId('');
       setNotificationFocusKey((key) => key + 1);
       setActiveTab('employer-approvals');
-    } else if (targetTab === 'job-reviews') {
+    } else if (targetTab === 'opportunity-listings') {
       let selectedJob = jobQueue.find((job) => job.id === entityId);
 
       if (!selectedJob && entityId) {
@@ -162,15 +156,12 @@ export default function AdminDashboard({ onLogout }) {
       }
 
       setActiveTab('notifications');
-      setFocusedJobId('');
-      setFocusedEmployerId('');
       return;
     }
 
     setActiveTab(targetTab || 'notifications');
   };
 
-  // ─── MODAL CONFIRM ─────────────────────────────────────────────
   const handleModalConfirm = async () => {
     if (!modalConfig) return;
 
@@ -185,7 +176,6 @@ export default function AdminDashboard({ onLogout }) {
     } else if (modalConfig.view === 'job') {
       const jobRef = doc(db, 'opportunities', modalConfig.id);
       if (modalConfig.type === 'approve') {
-        // Approve: set status to 'open', make active, clear pendingReason
         await updateOpportunityStatus(modalConfig.id, 'open');
         await updateDoc(jobRef, {
           editRequestReason: deleteField(),
@@ -193,7 +183,6 @@ export default function AdminDashboard({ onLogout }) {
           pendingReason: null,
           updatedAt: new Date()
         });
-        // Refresh both lists
         const [openJobs, pendingJobs] = await Promise.all([
           getOpportunities('open'),
           getOpportunities('pending')
@@ -203,7 +192,6 @@ export default function AdminDashboard({ onLogout }) {
       } else if (modalConfig.type === 'request_edits') {
         const jobSnap = await getDoc(jobRef);
         const jobData = jobSnap.exists() ? jobSnap.data() : modalConfig.job || {};
-        // Request edits: set status to 'pending', keep inactive, add pendingReason
         await updateOpportunityStatus(modalConfig.id, 'pending');
         await updateDoc(jobRef, {
           editRequestReason: modalConfig.editRequestReason,
@@ -217,21 +205,17 @@ export default function AdminDashboard({ onLogout }) {
         }).catch((notificationError) => {
           console.error('Job edits requested notification failed:', notificationError);
         });
-        // Refresh pending list
         const pendingJobs = await getOpportunities('pending');
         setJobQueue(pendingJobs);
       } else if (modalConfig.type === 'unrequest_edits') {
-        // Unrequest edits – clear pendingReason
         await updateDoc(jobRef, {
           editRequestReason: deleteField(),
           pendingReason: null,
           updatedAt: new Date()
         });
-        // Refresh pending list
         const pendingJobs = await getOpportunities('pending');
         setJobQueue(pendingJobs);
       } else if (modalConfig.type === 'reject') {
-        // Reject: set status to 'rejected', keep inactive, clear pendingReason
         await updateOpportunityStatus(modalConfig.id, 'rejected');
         await updateDoc(jobRef, {
           editRequestReason: deleteField(),
@@ -239,7 +223,6 @@ export default function AdminDashboard({ onLogout }) {
           pendingReason: null,
           updatedAt: new Date()
         });
-        // Remove from pending queue and refresh rejected list
         const updatedQueue = jobQueue.filter(j => j.id !== modalConfig.id);
         setJobQueue(updatedQueue);
         const rejectedJobsData = await getOpportunities('rejected');
@@ -247,7 +230,6 @@ export default function AdminDashboard({ onLogout }) {
       }
       if (modalConfig.clearSelection) modalConfig.clearSelection();
     } else if (modalConfig.view === 'active') {
-      // Unpublish: set status to 'pending', add pendingReason
       await updateOpportunityStatus(modalConfig.id, 'pending');
       const jobRef = doc(db, 'opportunities', modalConfig.id);
       await updateDoc(jobRef, {
@@ -255,7 +237,6 @@ export default function AdminDashboard({ onLogout }) {
         pendingReason: 'unpublished',
         updatedAt: new Date()
       });
-      // Refresh both lists
       const [openJobs, pendingJobs] = await Promise.all([
         getOpportunities('open'),
         getOpportunities('pending')
@@ -264,7 +245,6 @@ export default function AdminDashboard({ onLogout }) {
       setJobQueue(pendingJobs);
     } else if (modalConfig.view === 'rejected') {
       if (modalConfig.type === 'unreject') {
-        // Unreject: set status to 'pending', clear pendingReason
         const jobRef = doc(db, 'opportunities', modalConfig.id);
         await updateOpportunityStatus(modalConfig.id, 'pending');
         await updateDoc(jobRef, {
@@ -273,7 +253,6 @@ export default function AdminDashboard({ onLogout }) {
           pendingReason: null,
           updatedAt: new Date()
         });
-        // Refresh rejected and pending lists
         const [rejectedJobsData, pendingJobs] = await Promise.all([
           getOpportunities('rejected'),
           getOpportunities('pending')
@@ -319,28 +298,29 @@ export default function AdminDashboard({ onLogout }) {
             recentPendingJobs={jobQueue} 
             pendingEmployers={employers.filter(emp => emp.verificationStatus === 'pending')}/>}
           {activeTab === 'students' && <StudentsView studentsData={students} />}
-          {activeTab === 'rejected-jobs' && (
-            <RejectedJobsView
-              rejectedJobsData={rejectedJobs}
+          {activeTab === 'employer-approvals' && <EmployersView key={`employers-${notificationFocusKey}`} employersData={employers} triggerModal={triggerModal} focusedEmployerId={focusedEmployerId} />}
+          {activeTab === 'opportunity-listings' && (
+            <OpportunityListView
+              pendingJobs={jobQueue}
+              activeJobs={activeJobs}
+              rejectedJobs={rejectedJobs}
               triggerModal={triggerModal}
+              onRefresh={fetchAllData}
             />
           )}
-          {activeTab === 'employer-approvals' && <EmployersView key={`employers-${notificationFocusKey}`} employersData={employers} triggerModal={triggerModal} focusedEmployerId={focusedEmployerId} />}
-          {activeTab === 'job-reviews' && <JobReviewsView key={`jobs-${notificationFocusKey}`} queueData={jobQueue} triggerModal={triggerModal} focusedJobId={focusedJobId} onRefresh={fetchAllData} />}
-          {activeTab === 'active-opportunities' && <ActiveOpportunitiesView activeJobsData={activeJobs} triggerModal={triggerModal} />}
           {activeTab === 'analytics' && <AnalyticsView />}
           {activeTab === 'notifications' && <NotificationsView notificationsData={notifications} employersData={employers} onNotificationAction={handleNotificationAction} />}
           {activeTab === 'settings' && <SettingsView />}
         </main>
       </div>
 
-      {/* Confirmation Modal */}
       <Modal
         isOpen={modalOpen}
         config={modalConfig}
         onClose={() => setModalOpen(false)}
         onConfirm={handleModalConfirm}
       />
+
       {notificationJobReview && (
         <div
           role="presentation"
@@ -374,6 +354,7 @@ export default function AdminDashboard({ onLogout }) {
           </div>
         </div>
       )}
+
       {notificationEmployerReview && (
         <div
           role="presentation"
