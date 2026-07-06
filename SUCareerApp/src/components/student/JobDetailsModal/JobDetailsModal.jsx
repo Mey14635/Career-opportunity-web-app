@@ -49,14 +49,22 @@ function getAcceptValue(format) {
   return ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 }
 
-function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved, onApplied, onClose, hideSaveButton = false }) {
+function JobDetailsModal({
+  opportunity,
+  saved = false,
+  applied = false,
+  shortlistedCount = 0,
+  onSaved,
+  onApplied,
+  onClose,
+  hideSaveButton = false,
+}) {
   const { user } = useAuth();
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [documentFiles, setDocumentFiles] = useState({});
   const [applicationStatus, setApplicationStatus] = useState({ type: "", message: "" });
   const [submittingApplication, setSubmittingApplication] = useState(false);
 
-  // ─── INCREMENT VIEWS WHEN MODAL OPENS ──────────────────────────────
   useEffect(() => {
     if (opportunity?.id) {
       incrementViews(opportunity.id);
@@ -70,13 +78,15 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
   const isDeadlineUrgent = opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
   const requiredDocuments = opportunity.documentsRequired || [];
   
-  // Normalize documents: if none, fallback to defaultDocument
   const applicationDocuments = (requiredDocuments.length > 0 ? requiredDocuments : [defaultDocument])
     .map(normalizeApplicationDocument);
 
   const hasPdf = opportunity.jobDescriptionPdfUrl && opportunity.jobDescriptionPdfUrl.trim() !== "";
 
-  // ─── DEADLINE DISPLAY LOGIC ──────────────────────────────────────────────
+  // Determine if all positions are filled
+  const totalPositions = opportunity.positions || 0;
+  const isFullyFilled = totalPositions > 0 && shortlistedCount >= totalPositions;
+
   const getDeadlineDisplay = () => {
     if (!opportunity.deadline || opportunity.daysLeft === null || opportunity.daysLeft === undefined) {
       return "No deadline specified";
@@ -143,7 +153,6 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
         documentFiles,
       });
 
-      // ─── INCREMENT APPLICATIONS AFTER SUCCESSFUL SUBMISSION ──────
       await incrementApplications(opportunity.id);
 
       onApplied?.(opportunity.id);
@@ -186,17 +195,19 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
           </header>
 
           <div className={`job-modal-actions ${hideSaveButton ? "apply-only" : ""}`}>
+            {/* ─── Apply Button ──────────────────────────────────────── */}
             <button
               className={`job-apply-btn ${applied ? "applied" : ""}`}
               type="button"
-              disabled={applied}
+              disabled={applied || isFullyFilled}
               onClick={() => {
-                if (!applied) {
+                if (!applied && !isFullyFilled) {
                   setShowApplyForm(true);
                 }
               }}
+              title={isFullyFilled ? "All positions have been filled" : ""}
             >
-              {applied ? "Applied" : "Apply Now"}
+              {applied ? "Applied" : isFullyFilled ? "Positions Filled" : "Apply Now"}
             </button>
             {!hideSaveButton && (
               <button
@@ -209,6 +220,23 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
               </button>
             )}
           </div>
+
+          {isFullyFilled && !applied && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: '8px 16px',
+                backgroundColor: '#f1f5f9',
+                borderRadius: '6px',
+                color: '#64748b',
+                fontSize: 13,
+                fontWeight: 600,
+                textAlign: 'center',
+              }}
+            >
+              All positions have been filled.
+            </div>
+          )}
 
           <div className={`job-deadline ${isDeadlineUrgent ? "urgent" : ""}`}>
             <span aria-hidden="true">i</span>
@@ -250,7 +278,6 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
             <section>
               <h3>Role Details</h3>
               <ul>
-                {/* Start Date – only shown if present and not 'Not specified' */}
                 {opportunity.startDate && opportunity.startDate !== 'Not specified' && (
                   <li>Start date: {opportunity.startDate}</li>
                 )}
@@ -261,7 +288,6 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
               </ul>
             </section>
 
-            {/* ─── PDF DOWNLOAD LINK ──────────────────────────────────── */}
             {hasPdf && (
               <section>
                 <h3>Job Description PDF</h3>
@@ -306,7 +332,6 @@ function JobDetailsModal({ opportunity, saved = false, applied = false, onSaved,
               )}
             </section>
 
-            {/* ─── DEADLINE MESSAGE ──────────────────────────────────────── */}
             <p className="job-modal-closes">
               {getDeadlineDisplay()}
             </p>

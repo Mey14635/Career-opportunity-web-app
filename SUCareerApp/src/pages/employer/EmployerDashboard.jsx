@@ -1,20 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FileText, Users } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc, deleteDoc } from 'firebase/firestore';
 
-// ─── SHARED COMPONENTS ──────────────────────────────────────────────────
 import EmployerSidebar from '../../components/employer/EmployerSidebar';
 import TopBar from '../../components/shared/TopBar';
 import DocumentReviewModal from '../../components/employer/DocumentReviewModal';
 import Modal from '../../components/shared/Modal';
 
-// ─── CONSTANTS ──────────────────────────────────────────────────────────
 import { BG_GRAY } from './constants';
 import { auth, db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 
-// ─── FIRESTORE SERVICES ────────────────────────────────────────────────
 import {
   getEmployerJobs,
   getJobApplicants,
@@ -25,7 +22,6 @@ import {
   subscribeToUserNotifications,
 } from '../../services/notificationService';
 
-// ─── VIEWS ──────────────────────────────────────────────────────────────
 import DashboardView from './views/DashboardView';
 import JobDetailView from './views/JobDetailView';
 import PostJobView from './views/PostJobView';
@@ -40,11 +36,6 @@ import MyJobsView from './views/MyJobsView';
 export default function EmployerDashboard() {
   const { user } = useAuth();
   const employerId = user?.uid;
-
-  // ─── DEBUG LOGS ──────────────────────────────────────────────────────
-  console.log('🔍 EmployerDashboard mounted');
-  console.log('🔍 user from useAuth:', user);
-  console.log('🔍 employerId:', employerId);
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedJob, setSelectedJob] = useState(null);
@@ -62,57 +53,50 @@ export default function EmployerDashboard() {
   const [companyName, setCompanyName] = useState('');
   const [userEmail, setUserEmail] = useState('');
 
-  // ─── DELETE MODAL STATE ──────────────────────────────────────────────
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteModalConfig, setDeleteModalConfig] = useState(null);
 
+  // Track when the last status update occurred to prevent overwrites.
+  const lastStatusUpdateTime = useRef(0);
+
   useEffect(() => {
-    console.log('🔥🔥🔥 useEffect is RUNNING! employerId:', employerId);
-
     const fetchAllData = async () => {
-      console.log('🔥 fetchAllData called with employerId:', employerId);
-
-      // ─── 1. Set email from Firebase Auth user (reliable) ──────────
       if (user && user.email) {
-        console.log('✅ User email from Firebase Auth:', user.email);
         setUserEmail(user.email);
       } else {
-        console.warn('⚠️ No user email from Firebase Auth, using fallback.');
         setUserEmail('employer@company.com');
       }
 
       if (!employerId) {
-        console.log('⚠️ No employerId, setting loading false and returning.');
         setLoading(false);
         return;
       }
 
       try {
-        // ─── 2. Fetch company name from employer_profiles ────────────
         const profileRef = doc(db, 'employer_profiles', employerId);
         const profileSnap = await getDoc(profileRef);
         if (profileSnap.exists()) {
           const data = profileSnap.data();
-          console.log('✅ Company Name from Firestore:', data.companyName);
           setCompanyName(data.companyName || '');
-        } else {
-          console.warn('⚠️ employer_profiles document missing for employerId:', employerId);
-          // Fallback: try to get company name from first job posting (if any)
-          // or just leave empty.
         }
 
-        // ─── 3. Fetch jobs and applicants ─────────────────────────────
         const jobs = await getEmployerJobs(employerId);
         setMyJobs(jobs);
 
         let allApplicants = [];
-        for (const job of jobs) {
-          const apps = await getJobApplicants(job.id);
-          allApplicants = [...allApplicants, ...apps.map(a => ({ ...a, jobId: job.id }))];
+        // Only fetch applicants if we don't have a recent status update (within 3 seconds).
+        const shouldFetchApplicants = Date.now() - lastStatusUpdateTime.current > 3000;
+        if (shouldFetchApplicants) {
+          for (const job of jobs) {
+            const apps = await getJobApplicants(job.id);
+            allApplicants = [...allApplicants, ...apps.map(a => ({ ...a, jobId: job.id }))];
+          }
+          setApplicants(allApplicants);
+        } else {
+          // Use existing applicants from state.
+          allApplicants = applicants;
         }
-        setApplicants(allApplicants);
 
-        // ─── 4. Build activity log ────────────────────────────────────
         const buildActivities = (jobs, apps) => {
           const activities = [];
           jobs.forEach(job => {
@@ -149,12 +133,13 @@ export default function EmployerDashboard() {
         const activities = buildActivities(jobs, allApplicants);
         setRealActivities(activities);
       } catch (err) {
-        console.error('❌ Error fetching employer data:', err);
+        console.error('Error fetching employer data:', err);
       } finally {
         setLoading(false);
       }
     };
     fetchAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employerId, refreshKey, user]);
 
   useEffect(() => {
@@ -179,9 +164,12 @@ export default function EmployerDashboard() {
   const handleStatusChange = async (appId, newStatus) => {
     try {
       await updateApplicationStatus(appId, newStatus);
+      // Update local state immediately.
       setApplicants(prev => prev.map(app =>
         app.id === appId ? { ...app, status: newStatus } : app
       ));
+      // Record the time of this status update.
+      lastStatusUpdateTime.current = Date.now();
     } catch (err) {
       console.error('Error updating status:', err);
     }
@@ -190,6 +178,8 @@ export default function EmployerDashboard() {
   const handleModalSave = async (appId, newStatus) => {
     await handleStatusChange(appId, newStatus);
     setReviewApplicant(null);
+    // Do NOT update refreshKey here – it would trigger a re-fetch
+    // that might overwrite the local state with stale data.
   };
 
   const handleAction = (msg) => alert(`Action triggered: ${msg}`);
@@ -220,10 +210,8 @@ export default function EmployerDashboard() {
     setActiveTab(notification.action?.targetTab || 'notifications');
   };
 
-  // ─── IMPROVED LOGOUT ──────────────────────────────────────────────────
   const handleLogout = async () => {
     try {
-      // 1. Sign out from Firebase
       await signOut(auth);
       localStorage.clear();
       sessionStorage.clear();
@@ -235,7 +223,6 @@ export default function EmployerDashboard() {
       window.location.replace('/employer-access?mode=login');
     } catch (err) {
       console.error('Logout error:', err);
-      // Fallback: force reload anyway
       window.location.replace('/employer-access?mode=login');
     }
   };
@@ -357,7 +344,6 @@ export default function EmployerDashboard() {
             jobs={myJobs}
             atsFilter={atsFilter}
             onFilterChange={setAtsFilter}
-            onStatusChange={handleStatusChange}
             onReview={setReviewApplicant}
           />
         );
@@ -374,14 +360,13 @@ export default function EmployerDashboard() {
             onDeleteJob={confirmDeleteJob}
           />
         );
-      default: // dashboard or job detail
+      default:
         if (selectedJob) {
           return (
             <JobDetailView
               job={selectedJob}
               applicants={applicants}
               onBack={() => setSelectedJob(null)}
-              onStatusChange={handleStatusChange}
               onReview={setReviewApplicant}
               onEdit={() => {
                 setEditingJob(selectedJob);

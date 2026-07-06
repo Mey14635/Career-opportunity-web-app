@@ -148,13 +148,12 @@ const getInitials = (name) => {
   return `${words[0][0]}${words[1][0]}`.toUpperCase();
 };
 
+// ─── FIX: Return lowercase status to match badge expectations ──────────
 const formatApplicantStatus = (status) => {
-  const normalizedStatus = String(status || 'Pending').trim().toLowerCase();
-
-  if (normalizedStatus === 'shortlisted') return 'Shortlisted';
-  if (normalizedStatus === 'rejected' || normalizedStatus === 'declined') return 'Rejected';
-
-  return 'Pending';
+  const normalizedStatus = String(status || 'submitted').trim().toLowerCase();
+  if (normalizedStatus === 'shortlisted') return 'shortlisted';
+  if (normalizedStatus === 'rejected') return 'rejected';
+  return 'submitted';
 };
 
 const buildApplicationDocs = (applicationData) => {
