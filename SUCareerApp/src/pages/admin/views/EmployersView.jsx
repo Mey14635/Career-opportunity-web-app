@@ -4,11 +4,9 @@ import { Eye, X, Building2, Mail, User, Calendar, Globe, Phone, Users, Award } f
 import StatusBadge from '../../../components/shared/StatusBadge';
 import { NAVY } from '../constants';
 
-// ─── EMPLOYER DETAIL MODAL ──────────────────────────────────────────
 function EmployerDetailModal({ employer, onClose }) {
   if (!employer) return null;
 
-  // Helper: Format date
   const formatDate = (dateValue) => {
     if (!dateValue) return 'N/A';
     if (typeof dateValue.toDate === 'function') {
@@ -25,12 +23,10 @@ function EmployerDetailModal({ employer, onClose }) {
     });
   };
 
-  // Helper: Display value or "Not specified"
   const displayValue = (value) => {
     return value && value.trim() ? value : 'Not specified';
   };
 
-  // Helper: Format company size
   const formatCompanySize = (size) => {
     if (!size) return 'Not specified';
     const sizeMap = {
@@ -89,20 +85,30 @@ function EmployerDetailModal({ employer, onClose }) {
           <X size={18} color="#64748b" />
         </button>
 
-        {/* Company Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-          <div style={{
-            width: 56,
-            height: 56,
-            borderRadius: '12px',
-            backgroundColor: '#f1f5f9',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid #e2e8f0',
-            flexShrink: 0,
-          }}>
-            <Building2 size={28} color={NAVY} />
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              backgroundColor: '#eff6ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid #bfdbfe',
+              overflow: 'hidden',
+              flexShrink: 0,
+            }}
+          >
+            {employer.companyLogoUrl ? (
+              <img
+                src={employer.companyLogoUrl}
+                alt={`${employer.companyName} logo`}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <Building2 size={28} color="#3b82f6" />
+            )}
           </div>
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: '0 0 4px 0', fontSize: 20, fontWeight: 800, color: NAVY }}>
@@ -114,9 +120,7 @@ function EmployerDetailModal({ employer, onClose }) {
           </div>
         </div>
 
-        {/* Employer Details - Two column layout */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-          {/* Company Info */}
           <div style={{ gridColumn: 'span 2', marginBottom: 4 }}>
             <h4 style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px 0' }}>
               Company Information
@@ -183,7 +187,6 @@ function EmployerDetailModal({ employer, onClose }) {
           </div>
         </div>
 
-        {/* Contact Details */}
         <div style={{ marginBottom: 16 }}>
           <h4 style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px 0' }}>
             Contact Details
@@ -239,7 +242,6 @@ function EmployerDetailModal({ employer, onClose }) {
           </div>
         </div>
 
-        {/* Close button */}
         <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={onClose}
@@ -265,7 +267,6 @@ function EmployerDetailModal({ employer, onClose }) {
   );
 }
 
-// ─── MAIN COMPONENT ──────────────────────────────────────────────────
 export default function EmployersView({ employersData, triggerModal, focusedEmployerId }) {
   const [activeTab, setActiveTab] = useState('all');
   const [manualTabSelected, setManualTabSelected] = useState(false);
@@ -297,7 +298,6 @@ export default function EmployersView({ employersData, triggerModal, focusedEmpl
         <p style={{ margin: 0, fontSize: 14, color: '#64748b' }}>Vet and manage corporate partner accounts and access privileges.</p>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24, background: 'white', padding: 6, borderRadius: 12, width: 'fit-content', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
         {tabs.map(tab => (
           <button
@@ -318,26 +318,52 @@ export default function EmployersView({ employersData, triggerModal, focusedEmpl
         ))}
       </div>
 
-      {/* Table */}
       <div style={{ background: 'white', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-              {['COMPANY NAME', 'INDUSTRY', 'CONTACT PERSON', 'PARTNERSHIP STATUS', 'ACTIONS'].map((h) => (
-                <th key={h} style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>{h}</th>
-              ))}
+              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>LOGO</th>
+              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>COMPANY NAME</th>
+              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>INDUSTRY</th>
+              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>CONTACT PERSON</th>
+              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>PARTNERSHIP STATUS</th>
+              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>ACTIONS</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((emp) => (
               <tr key={emp.id} style={{ borderBottom: '1px solid #f1f5f9', background: emp.id === focusedEmployerId ? '#fffbeb' : 'transparent' }}>
+                <td style={{ padding: '20px 24px' }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      backgroundColor: '#eff6ff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid #bfdbfe',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {emp.companyLogoUrl ? (
+                      <img
+                        src={emp.companyLogoUrl}
+                        alt={`${emp.companyName} logo`}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <Building2 size={20} color="#3b82f6" />
+                    )}
+                  </div>
+                </td>
                 <td style={{ padding: '20px 24px', fontSize: 14, fontWeight: 700, color: NAVY }}>{emp.companyName}</td>
                 <td style={{ padding: '20px 24px', fontSize: 14, color: '#64748b' }}>{emp.industry}</td>
                 <td style={{ padding: '20px 24px', fontSize: 14, color: '#475569' }}>{emp.contactPerson}</td>
                 <td style={{ padding: '20px 24px' }}><StatusBadge status={emp.verificationStatus} /></td>
                 <td style={{ padding: '20px 24px' }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    {/* ─── VIEW BUTTON ─── */}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
                     <button
                       onClick={() => setSelectedEmployer(emp)}
                       style={{
@@ -352,6 +378,7 @@ export default function EmployersView({ employersData, triggerModal, focusedEmpl
                         fontSize: 13,
                         fontWeight: 600,
                         cursor: 'pointer',
+                        whiteSpace: 'nowrap',
                         transition: 'background-color 0.2s',
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
@@ -360,11 +387,21 @@ export default function EmployersView({ employersData, triggerModal, focusedEmpl
                       <Eye size={14} /> View
                     </button>
 
-                    {/* ─── STATUS ACTIONS ─── */}
                     {emp.verificationStatus === 'approved' && (
                       <button
                         onClick={() => triggerModal('Suspend Partner', `Are you sure you want to suspend ${emp.companyName}?`, 'danger', { view: 'employer', id: emp.id, type: 'revoke' })}
-                        style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                        style={{
+                          padding: '6px 16px',
+                          borderRadius: 6,
+                          border: '1px solid #ef4444',
+                          background: 'transparent',
+                          color: '#ef4444',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'background-color 0.2s',
+                        }}
                       >
                         Suspend
                       </button>
@@ -372,7 +409,18 @@ export default function EmployersView({ employersData, triggerModal, focusedEmpl
                     {emp.verificationStatus === 'pending' && (
                       <button
                         onClick={() => triggerModal('Activate Partner', `Approve ${emp.companyName}?`, 'primary', { view: 'employer', id: emp.id, type: 'approve' })}
-                        style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: NAVY, color: '#ffffff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                        style={{
+                          padding: '6px 16px',
+                          borderRadius: 6,
+                          border: 'none',
+                          background: NAVY,
+                          color: '#ffffff',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'background-color 0.2s',
+                        }}
                       >
                         Activate Partner
                       </button>
@@ -385,13 +433,12 @@ export default function EmployersView({ employersData, triggerModal, focusedEmpl
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan="5" style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>No employers found in this view.</td></tr>
+              <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>No employers found in this view.</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* ─── EMPLOYER DETAIL MODAL ─── */}
       {selectedEmployer && (
         <EmployerDetailModal
           employer={selectedEmployer}

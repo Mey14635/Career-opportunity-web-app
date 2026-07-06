@@ -1,11 +1,16 @@
-import { ArrowLeft, Edit2, Calendar, File, Download } from 'lucide-react';
+import { ArrowLeft, Edit2, Calendar, File, Download, Users } from 'lucide-react';
 import { NAVY } from '../constants';
 import JobApplicantsWidget from '../../../components/employer/JobApplicantsWidget';
 
-export default function JobDetailView({ job, applicants, onBack, onStatusChange, onReview, onEdit }) {
+export default function JobDetailView({ job, applicants, onBack, onReview, onEdit }) {
   const jobApps = applicants.filter(app => app.jobId === job.id);
+  const widgetKey = jobApps.map(app => `${app.id}-${app.status}`).join(',');
 
-  // Format date for display
+  // Count shortlisted applicants (these fill the positions)
+  const shortlistedCount = jobApps.filter(app => app.status?.toLowerCase() === 'shortlisted').length;
+  const totalPositions = job.positions || 0;
+  const isFullyFilled = totalPositions > 0 && shortlistedCount >= totalPositions;
+
   const formatDate = (dateValue) => {
     if (!dateValue) return 'Not specified';
     if (typeof dateValue.toDate === 'function') {
@@ -22,21 +27,24 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
     });
   };
 
-  // ─── DEADLINE DISPLAY LOGIC ──────────────────────────────────────────────
-  const getDeadlineDisplay = () => {
-    if (!job.deadline) return 'No deadline specified';
-    const days = job.daysLeft;
-    if (days === null || days === undefined) return 'No deadline specified';
-    if (days === 0) return 'Deadline has passed';
-    if (days < 0) return 'Deadline has passed';
-    return `Closes in ${days} day${days > 1 ? 's' : ''}`;
+  const getDaysLeft = () => {
+    if (!job.deadline) return null;
+    const deadline = typeof job.deadline.toDate === 'function' ? job.deadline.toDate() : new Date(job.deadline);
+    const now = new Date();
+    const diff = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+    return diff;
   };
 
-  /**
-   * Smart parser for requirements/responsibilities/documents.
-   * - Splits by: period + space (". ") or newline ("\n")
-   * - Keeps commas inside sentences intact
-   */
+  const daysLeft = job.daysLeft !== undefined && job.daysLeft !== null ? job.daysLeft : getDaysLeft();
+
+  const getDeadlineDisplay = () => {
+    if (!job.deadline) return '';
+    if (daysLeft === null || daysLeft === undefined) return '';
+    if (daysLeft === 0) return 'Deadline has passed';
+    if (daysLeft < 0) return 'Deadline has passed';
+    return `Closes in ${daysLeft} day${daysLeft > 1 ? 's' : ''}`;
+  };
+
   const parseList = (value) => {
     if (!value) return [];
     if (Array.isArray(value)) {
@@ -58,12 +66,11 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
   const documentsList = parseList(job.requiredDocument || job.documentsRequired);
   const hasPdf = job.jobDescriptionPdfUrl && job.jobDescriptionPdfUrl.trim() !== '';
 
-  // Check if job is urgent (deadline <= 2 days)
-  const isDeadlineUrgent = job.daysLeft !== null && job.daysLeft !== undefined && job.daysLeft <= 2 && job.daysLeft > 0;
+  const isDeadlineUrgent = daysLeft !== null && daysLeft !== undefined && daysLeft <= 2 && daysLeft > 0;
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-      {/* ─── BACK BUTTON ────────────────────────────────────────────────── */}
+      {/* Back Button */}
       <button
         onClick={onBack}
         style={{
@@ -83,7 +90,7 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
         <ArrowLeft size={14} /> Back to Dashboard
       </button>
 
-      {/* ─── JOB HEADER ────────────────────────────────────────────────── */}
+      {/* Job Header */}
       <div
         style={{
           display: 'flex',
@@ -147,7 +154,45 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
         </div>
       </div>
 
-      {/* ─── JOB DETAILS CARD ──────────────────────────────────────────── */}
+      {/* Positions Filled Indicator */}
+      {totalPositions > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 16px',
+            borderRadius: '8px',
+            marginBottom: 20,
+            background: isFullyFilled ? '#f1f5f9' : '#f0fdf4',
+            border: isFullyFilled ? '1px solid #e2e8f0' : '1px solid #bbf7d0',
+          }}
+        >
+          <Users size={16} color={isFullyFilled ? '#64748b' : '#16a34a'} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: isFullyFilled ? '#64748b' : '#166534' }}>
+            {isFullyFilled
+              ? `All ${totalPositions} position${totalPositions > 1 ? 's' : ''} filled`
+              : `${shortlistedCount} of ${totalPositions} position${totalPositions > 1 ? 's' : ''} filled`}
+          </span>
+          {isFullyFilled && (
+            <span
+              style={{
+                marginLeft: 'auto',
+                padding: '2px 12px',
+                borderRadius: '12px',
+                fontSize: 11,
+                fontWeight: 700,
+                background: '#e2e8f0',
+                color: '#64748b',
+              }}
+            >
+              Filled
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Job Details Card */}
       <div
         style={{
           backgroundColor: '#ffffff',
@@ -158,7 +203,6 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
           boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
         }}
       >
-        {/* About the Role */}
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>About the Role</h3>
           <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 14, margin: 0 }}>
@@ -166,7 +210,6 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
           </p>
         </div>
 
-        {/* Responsibilities */}
         {responsibilitiesList.length > 0 && (
           <div style={{ marginBottom: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Responsibilities</h3>
@@ -178,7 +221,6 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
           </div>
         )}
 
-        {/* Requirements */}
         {requirementsList.length > 0 && (
           <div style={{ marginBottom: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Requirements</h3>
@@ -190,11 +232,9 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
           </div>
         )}
 
-        {/* Role Details - Conditional Start Date */}
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 12 }}>Role Details</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
-            {/* Start Date – only shown if present and not 'Not specified' */}
             {job.startDate && job.startDate !== 'Not specified' && (
               <div>
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
@@ -213,7 +253,7 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
               <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
                 Open Positions
               </p>
-              <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.positions || 'Not specified'}</p>
+              <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{totalPositions}</p>
             </div>
             <div>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
@@ -224,7 +264,6 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
           </div>
         </div>
 
-        {/* Required Documents */}
         {documentsList.length > 0 && (
           <div style={{ marginBottom: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Documents Required</h3>
@@ -236,7 +275,6 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
           </div>
         )}
 
-        {/* PDF Download */}
         {hasPdf && (
           <div style={{ marginBottom: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Job Description PDF</h3>
@@ -269,9 +307,17 @@ export default function JobDetailView({ job, applicants, onBack, onStatusChange,
         )}
       </div>
 
-      {/* ─── APPLICANTS TABLE ──────────────────────────────────────────── */}
-      <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-        <JobApplicantsWidget applicants={jobApps} onStatusChange={onStatusChange} onReview={onReview} />
+      {/* Applicants Table */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          overflow: 'hidden',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+        }}
+      >
+        <JobApplicantsWidget key={widgetKey} applicants={jobApps} onReview={onReview} />
       </div>
     </div>
   );

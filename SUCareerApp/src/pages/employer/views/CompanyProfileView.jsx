@@ -3,7 +3,8 @@ import { Building2, Upload, Info, Globe, Mail, Phone, Users, ExternalLink, X, Lo
 import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { NAVY, GOLD, inputStyle, labelStyle } from '../constants';
-import { uploadApplicationDocument } from '../../../services/cloudinaryUpload.js';
+import { uploadLogo } from '../../../services/cloudinaryUpload.js';
+import Modal from '../../../components/shared/Modal';
 
 export default function CompanyProfileView({ employerId, onViewPublic }) {
   const [loading, setLoading] = useState(true);
@@ -23,7 +24,9 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
     overview: '',
   });
 
-  // ─── FETCH PROFILE ──────────────────────────────────────────────────────
+  // ─── REMOVE LOGO CONFIRMATION MODAL ────────────────────────────────
+  const [removeLogoModalOpen, setRemoveLogoModalOpen] = useState(false);
+
   useEffect(() => {
     const fetchProfile = async () => {
       if (!employerId) {
@@ -56,62 +59,50 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
     fetchProfile();
   }, [employerId]);
 
-  // ─── HANDLE LOGO UPLOAD ──────────────────────────────────────────────
   const handleLogoUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      alert('❌ Please upload a valid image (JPEG, PNG, SVG, or WebP).');
+      alert('Please upload a valid image (JPEG, PNG, SVG, or WebP).');
       return;
     }
 
-    // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      alert('❌ Logo must be 2MB or smaller.');
+      alert('Logo must be 2MB or smaller.');
       return;
     }
 
     setUploadingLogo(true);
 
     try {
-      // Upload to Cloudinary using the existing service
-      // Note: uploadApplicationDocument might need to be updated to accept images
-      // If it only accepts PDFs, we'll create a separate upload function
-      const result = await uploadApplicationDocument(file);
+      const result = await uploadLogo(file);
       
-      // Update profile state with new URL
       setProfile(prev => ({
         ...prev,
         companyLogoUrl: result.url,
       }));
 
-      // Save to Firestore immediately
       const docRef = doc(db, 'employer_profiles', employerId);
       await updateDoc(docRef, {
         companyLogoUrl: result.url,
         updatedAt: Timestamp.now(),
       });
 
-      alert('✅ Logo uploaded successfully!');
+      alert('Logo uploaded successfully.');
     } catch (err) {
       console.error('Error uploading logo:', err);
-      alert('❌ Error uploading logo: ' + err.message);
+      alert('Error uploading logo: ' + err.message);
     } finally {
       setUploadingLogo(false);
-      // Reset the file input so the same file can be re-uploaded
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   };
 
-  // ─── HANDLE REMOVE LOGO ──────────────────────────────────────────────
   const handleRemoveLogo = async () => {
-    if (!window.confirm('Remove the logo from your profile?')) return;
-
     try {
       const docRef = doc(db, 'employer_profiles', employerId);
       await updateDoc(docRef, {
@@ -119,14 +110,14 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
         updatedAt: Timestamp.now(),
       });
       setProfile(prev => ({ ...prev, companyLogoUrl: '' }));
-      alert('✅ Logo removed successfully.');
+      alert('Logo removed successfully.');
     } catch (err) {
       console.error('Error removing logo:', err);
-      alert('❌ Error removing logo: ' + err.message);
+      alert('Error removing logo: ' + err.message);
     }
+    setRemoveLogoModalOpen(false);
   };
 
-  // ─── HANDLE SAVE ──────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!employerId) return;
     setSaving(true);
@@ -143,21 +134,19 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
         overview: profile.overview,
         updatedAt: Timestamp.now(),
       });
-      alert('✅ Profile updated successfully!');
+      alert('Profile updated successfully.');
     } catch (err) {
       console.error('Error saving profile:', err);
-      alert('❌ Error saving profile: ' + err.message);
+      alert('Error saving profile: ' + err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  // ─── LOADING ──────────────────────────────────────────────────────────
   if (loading) {
     return <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading profile...</div>;
   }
 
-  // ─── RENDER ──────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -200,7 +189,6 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 4 }}>Corporate Logo</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              {/* Hidden file input */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -240,7 +228,7 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
 
               {profile.companyLogoUrl && (
                 <button
-                  onClick={handleRemoveLogo}
+                  onClick={() => setRemoveLogoModalOpen(true)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -372,7 +360,18 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
         </div>
       </div>
 
-      {/* ─── ADD SPINNER KEYFRAMES ───────────────────────────────────── */}
+      {/* ─── CONFIRMATION MODAL FOR REMOVE LOGO ──────────────────────── */}
+      <Modal
+        isOpen={removeLogoModalOpen}
+        config={{
+          title: 'Remove Logo',
+          message: 'Are you sure you want to remove the company logo from your profile? This action can be undone by uploading a new logo.',
+          type: 'danger',
+        }}
+        onClose={() => setRemoveLogoModalOpen(false)}
+        onConfirm={handleRemoveLogo}
+      />
+
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }

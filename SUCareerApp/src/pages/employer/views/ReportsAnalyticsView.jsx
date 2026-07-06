@@ -4,18 +4,21 @@ import { Download } from 'lucide-react';
 import { db } from '../../../config/firebase';
 import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { NAVY, GOLD } from '../constants';
+import { generateRecruitmentReport } from '../../../utils/pdfExport';
 
 export default function ReportsAnalyticsView({ employerId }) {
   const [loading, setLoading] = useState(true);
   const [opportunities, setOpportunities] = useState([]);
-  const [funnelData, setFunnelData] = useState({ 
-    views: 0, 
-    applications: 0, 
+  const [funnelData, setFunnelData] = useState({
+    views: 0,
+    applications: 0,
     submissions: 0,
     shortlisted: 0,
     rejected: 0
   });
   const [demographics, setDemographics] = useState([]);
+  const [companyName, setCompanyName] = useState('');
+  const [companyLogoUrl, setCompanyLogoUrl] = useState('');
 
   useEffect(() => {
     async function fetchData() {
@@ -25,7 +28,16 @@ export default function ReportsAnalyticsView({ employerId }) {
       }
 
       try {
-        // Only fetch jobs with status 'open' or 'approved' (published jobs)
+        // Fetch employer profile
+        const profileRef = doc(db, 'employer_profiles', employerId);
+        const profileSnap = await getDoc(profileRef);
+        if (profileSnap.exists()) {
+          const data = profileSnap.data();
+          setCompanyName(data.companyName || '');
+          setCompanyLogoUrl(data.companyLogoUrl || '');
+        }
+
+        // Fetch opportunities
         const oppsQuery = query(
           collection(db, 'opportunities'),
           where('employerID', '==', employerId),
@@ -39,6 +51,32 @@ export default function ReportsAnalyticsView({ employerId }) {
         let shortlistedCount = 0;
         let rejectedCount = 0;
 
+        // Fetch applications for all opportunities
+        let allApps = [];
+        if (opps.length > 0) {
+          const oppIds = opps.map((o) => o.id);
+          const appsQuery = query(
+            collection(db, 'applications'),
+            where('opportunityId', 'in', oppIds)
+          );
+          const appsSnapshot = await getDocs(appsQuery);
+          allApps = appsSnapshot.docs.map((d) => d.data());
+        }
+
+        // Count shortlisted per job - robust mapping
+        const shortlistedPerJob = {};
+        allApps.forEach(app => {
+          if (app.status === 'shortlisted') {
+            // Try both possible field names and ensure string matching
+            const jobId = app.opportunityId || app.opportunityID;
+            if (jobId) {
+              const key = String(jobId);
+              shortlistedPerJob[key] = (shortlistedPerJob[key] || 0) + 1;
+            }
+          }
+        });
+
+        // Build opportunities with metrics
         const oppsWithMetrics = opps.map((opp) => {
           const views = opp.metrics?.views || 0;
           const apps = opp.metrics?.applications || 0;
@@ -48,6 +86,7 @@ export default function ReportsAnalyticsView({ employerId }) {
             ...opp,
             views,
             applications: apps,
+            shortlistedCount: shortlistedPerJob[String(opp.id)] || 0,
             conversionRate: views > 0 ? (apps / views) * 100 : 0,
           };
         });
@@ -55,44 +94,32 @@ export default function ReportsAnalyticsView({ employerId }) {
         const sortedOpps = oppsWithMetrics.sort((a, b) => b.conversionRate - a.conversionRate);
         setOpportunities(sortedOpps);
 
-        // ─── FETCH APPLICATIONS FOR STATUS BREAKDOWN ──────────────────
-        if (opps.length > 0) {
-          const oppIds = opps.map((o) => o.id);
-          const appsQuery = query(
-            collection(db, 'applications'),
-            where('opportunityId', 'in', oppIds)
-          );
-          const appsSnapshot = await getDocs(appsQuery);
-          const allApps = appsSnapshot.docs.map((d) => d.data());
-          
-          // Count by status
-          shortlistedCount = allApps.filter(a => a.status === 'shortlisted').length;
-          rejectedCount = allApps.filter(a => a.status === 'rejected').length;
+        // Aggregate funnel data
+        shortlistedCount = allApps.filter(a => a.status === 'shortlisted').length;
+        rejectedCount = allApps.filter(a => a.status === 'rejected').length;
 
-          // ─── ACADEMIC DEMOGRAPHICS ──────────────────────────────────
-          const studentIds = [...new Set(allApps.map((a) => a.studentId))];
-          const courseCounts = {};
-          for (const studentId of studentIds) {
-            const studentRef = doc(db, 'student_profiles', studentId);
-            const studentSnap = await getDoc(studentRef);
-            if (studentSnap.exists()) {
-              const course = studentSnap.data().course || 'Unknown';
-              courseCounts[course] = (courseCounts[course] || 0) + 1;
-            }
+        // Academic demographics
+        const studentIds = [...new Set(allApps.map((a) => a.studentId))];
+        const courseCounts = {};
+        for (const studentId of studentIds) {
+          const studentRef = doc(db, 'student_profiles', studentId);
+          const studentSnap = await getDoc(studentRef);
+          if (studentSnap.exists()) {
+            const course = studentSnap.data().course || 'Unknown';
+            courseCounts[course] = (courseCounts[course] || 0) + 1;
           }
-          const totalStudents = studentIds.length;
-          const demog = Object.entries(courseCounts).map(([course, count]) => ({
-            course,
-            count,
-            percentage: totalStudents > 0 ? (count / totalStudents) * 100 : 0,
-          }));
-          setDemographics(demog);
         }
+        const totalStudents = studentIds.length;
+        const demog = Object.entries(courseCounts).map(([course, count]) => ({
+          course,
+          count,
+          percentage: totalStudents > 0 ? (count / totalStudents) * 100 : 0,
+        }));
+        setDemographics(demog);
 
-        // ─── SET FUNNEL DATA ──────────────────────────────────────────
-        setFunnelData({ 
-          views: totalViews, 
-          applications: totalApplications, 
+        setFunnelData({
+          views: totalViews,
+          applications: totalApplications,
           submissions: totalApplications,
           shortlisted: shortlistedCount,
           rejected: rejectedCount
@@ -107,23 +134,16 @@ export default function ReportsAnalyticsView({ employerId }) {
     fetchData();
   }, [employerId]);
 
-  const handleExport = () => {
+  const handleExportPDF = () => {
     if (opportunities.length === 0) return;
-    const headers = ['Job Title', 'Views', 'Applications', 'Conversion Rate (%)'];
-    const rows = opportunities.map((opp) => [
-      opp.title,
-      opp.views,
-      opp.applications,
-      opp.conversionRate.toFixed(1),
-    ]);
-    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `employer_metrics_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    generateRecruitmentReport({
+      companyName,
+      logoUrl: companyLogoUrl,
+      opportunities,
+      funnelData,
+      demographics,
+    });
   };
 
   if (loading) {
@@ -141,39 +161,38 @@ export default function ReportsAnalyticsView({ employerId }) {
     );
   }
 
-  // ─── HELPER: Check if funnel has any data ────────────────────────────
   const hasFunnelData = funnelData.views > 0 || funnelData.applications > 0 || funnelData.submissions > 0;
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      {/* ─── HEADER ────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: '0 0 4px 0', fontSize: 24, fontWeight: 800, color: NAVY }}>Reports & Analytics</h1>
           <p style={{ margin: 0, fontSize: 14, color: '#64748b' }}>Performance indices across the current recruitment cycle.</p>
         </div>
         <button
-          onClick={handleExport}
+          onClick={handleExportPDF}
           disabled={opportunities.length === 0}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 6,
             padding: '8px 16px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
+            backgroundColor: GOLD,
+            color: NAVY,
+            border: 'none',
             borderRadius: '6px',
-            color: opportunities.length === 0 ? '#94a3b8' : '#475569',
             fontSize: 13,
-            fontWeight: 600,
+            fontWeight: 700,
             cursor: opportunities.length === 0 ? 'not-allowed' : 'pointer',
+            opacity: opportunities.length === 0 ? 0.6 : 1,
           }}
         >
-          <Download size={16} /> Export Metrics Sheet
+          <Download size={16} /> Export PDF Report
         </button>
       </div>
 
-      {/* ─── TOP PERFORMING LISTINGS ──────────────────────────────────── */}
+      {/* Top Performing Listings */}
       <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: NAVY }}>Top Performing Listings</h3>
@@ -184,11 +203,12 @@ export default function ReportsAnalyticsView({ employerId }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                <th style={{ padding: '12px 20px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Rank</th>
-                <th style={{ padding: '12px 20px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Job Title</th>
-                <th style={{ padding: '12px 20px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Views</th>
-                <th style={{ padding: '12px 20px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Applications</th>
-                <th style={{ padding: '12px 20px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Conversion Rate</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: 40 }}>Rank</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: 120 }}>Job Title</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: 60 }}>Views</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: 100 }}>Applications</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: 100 }}>Shortlisted</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: 100 }}>Conversion Rate</th>
               </tr>
             </thead>
             <tbody>
@@ -196,7 +216,7 @@ export default function ReportsAnalyticsView({ employerId }) {
                 const rank = index + 1;
                 return (
                   <tr key={opp.id} style={{ borderBottom: index < opportunities.length - 1 ? '1px solid #f1f5f9' : 'none', background: rank === 1 ? '#fffbeb' : '#ffffff' }}>
-                    <td style={{ padding: '12px 20px' }}>
+                    <td style={{ padding: '12px 16px' }}>
                       <div style={{
                         width: 28,
                         height: 28,
@@ -212,13 +232,14 @@ export default function ReportsAnalyticsView({ employerId }) {
                         {rank}
                       </div>
                     </td>
-                    <td style={{ padding: '12px 20px' }}>
+                    <td style={{ padding: '12px 16px' }}>
                       <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 14 }}>{opp.title}</div>
                       {rank === 1 && <div style={{ fontSize: 11, color: GOLD, fontWeight: 600, marginTop: 2 }}>Top performer</div>}
                     </td>
-                    <td style={{ padding: '12px 20px', color: '#475569', fontSize: 14 }}>{opp.views}</td>
-                    <td style={{ padding: '12px 20px', color: '#475569', fontSize: 14 }}>{opp.applications}</td>
-                    <td style={{ padding: '12px 20px', color: '#16a34a', fontSize: 14, fontWeight: 700 }}>{opp.conversionRate.toFixed(1)}%</td>
+                    <td style={{ padding: '12px 16px', color: '#475569', fontSize: 14 }}>{opp.views}</td>
+                    <td style={{ padding: '12px 16px', color: '#475569', fontSize: 14 }}>{opp.applications}</td>
+                    <td style={{ padding: '12px 16px', color: '#16a34a', fontSize: 14, fontWeight: 600 }}>{opp.shortlistedCount}</td>
+                    <td style={{ padding: '12px 16px', color: '#16a34a', fontSize: 14, fontWeight: 700 }}>{opp.conversionRate.toFixed(1)}%</td>
                   </tr>
                 );
               })}
@@ -227,10 +248,8 @@ export default function ReportsAnalyticsView({ employerId }) {
         )}
       </div>
 
-      {/* ─── FUNNEL & DEMOGRAPHICS ────────────────────────────────────── */}
+      {/* Funnel & Demographics */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-
-        {/* ─── APPLICANT FUNNEL ───────────────────────────────────────── */}
         <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: NAVY }}>Applicant Funnel</h3>
@@ -269,7 +288,6 @@ export default function ReportsAnalyticsView({ employerId }) {
           </div>
         </div>
 
-        {/* ─── ACADEMIC DEMOGRAPHICS ──────────────────────────────────── */}
         <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: NAVY }}>Academic Demographics</h3>
@@ -290,7 +308,6 @@ export default function ReportsAnalyticsView({ employerId }) {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
