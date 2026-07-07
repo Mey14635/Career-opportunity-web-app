@@ -19,7 +19,7 @@ export default function StudentDashboard() {
       <Route
         path="/profile"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["student"]}>
             <Profile />
           </ProtectedRoute>
         }
