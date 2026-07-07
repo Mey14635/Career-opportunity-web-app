@@ -3,7 +3,7 @@ import { File, Download } from "lucide-react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { submitApplication } from "../../../services/applicationService";
 import { toggleSavedOpportunityForUser } from "../../../utils/saveOpportunity";
-import { incrementViews, incrementApplications } from "../../../services/metricsService";
+import { incrementViews } from "../../../services/metricsService";
 import "./JobDetailsModal.css";
 
 const defaultDocument = {
@@ -75,7 +75,8 @@ function JobDetailsModal({
     return null;
   }
 
-  const isDeadlineUrgent = opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
+  const isExpired = opportunity.daysLeft !== null && opportunity.daysLeft !== undefined && opportunity.daysLeft <= 0;
+  const isDeadlineUrgent = !isExpired && opportunity.daysLeft !== null && opportunity.daysLeft <= 2;
   const requiredDocuments = opportunity.documentsRequired || [];
   
   const applicationDocuments = (requiredDocuments.length > 0 ? requiredDocuments : [defaultDocument])
@@ -123,8 +124,8 @@ function JobDetailsModal({
     try {
       const nextSaved = await toggleSavedOpportunityForUser(user.uid, opportunity.id, saved);
       onSaved?.(opportunity.id, nextSaved);
-    } catch (err) {
-      console.error("Failed to update saved opportunity:", err);
+    } catch {
+      return;
     }
   }
 
@@ -133,6 +134,11 @@ function JobDetailsModal({
 
     if (!user) {
       setApplicationStatus({ type: "error", message: "Please sign in before applying." });
+      return;
+    }
+
+    if (isExpired) {
+      setApplicationStatus({ type: "error", message: "Applications are closed for this opportunity." });
       return;
     }
 
@@ -153,13 +159,10 @@ function JobDetailsModal({
         documentFiles,
       });
 
-      await incrementApplications(opportunity.id);
-
       onApplied?.(opportunity.id);
       closeApplicationForm();
       setDocumentFiles({});
     } catch (err) {
-      console.error("Failed to submit application:", err);
       setApplicationStatus({
         type: "error",
         message: err.message || "Could not submit your application.",
@@ -197,17 +200,17 @@ function JobDetailsModal({
           <div className={`job-modal-actions ${hideSaveButton ? "apply-only" : ""}`}>
             {/* ─── Apply Button ──────────────────────────────────────── */}
             <button
-              className={`job-apply-btn ${applied ? "applied" : ""}`}
+              className={`job-apply-btn ${applied ? "applied" : ""} ${isExpired ? "closed" : ""}`}
               type="button"
-              disabled={applied || isFullyFilled}
+              disabled={applied || isFullyFilled || isExpired}
               onClick={() => {
-                if (!applied && !isFullyFilled) {
+                if (!applied && !isFullyFilled && !isExpired) {
                   setShowApplyForm(true);
                 }
               }}
-              title={isFullyFilled ? "All positions have been filled" : ""}
+              title={isExpired ? "Applications are closed for this opportunity" : isFullyFilled ? "All positions have been filled" : ""}
             >
-              {applied ? "Applied" : isFullyFilled ? "Positions Filled" : "Apply Now"}
+              {applied ? "Applied" : isExpired ? "Applications Closed" : isFullyFilled ? "Positions Filled" : "Apply Now"}
             </button>
             {!hideSaveButton && (
               <button
@@ -221,7 +224,24 @@ function JobDetailsModal({
             )}
           </div>
 
-          {isFullyFilled && !applied && (
+          {isExpired && !applied && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: '8px 16px',
+                backgroundColor: '#f1f5f9',
+                borderRadius: '6px',
+                color: '#64748b',
+                fontSize: 13,
+                fontWeight: 600,
+                textAlign: 'center',
+              }}
+            >
+              Applications closed on {opportunity.deadline || 'the deadline date'}.
+            </div>
+          )}
+
+          {isFullyFilled && !applied && !isExpired && (
             <div
               style={{
                 marginTop: 8,
@@ -238,9 +258,9 @@ function JobDetailsModal({
             </div>
           )}
 
-          <div className={`job-deadline ${isDeadlineUrgent ? "urgent" : ""}`}>
+          <div className={`job-deadline ${isDeadlineUrgent ? "urgent" : ""} ${isExpired ? "closed" : ""}`}>
             <span aria-hidden="true">i</span>
-            Application Deadline: {opportunity.deadline}
+            {isExpired ? "Applications Closed" : "Application Deadline"}: {opportunity.deadline}
           </div>
 
           <div className="job-modal-content">

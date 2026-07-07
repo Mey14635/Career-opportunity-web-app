@@ -68,10 +68,9 @@ function Navbar() {
         const firstName = profileData.firstName || fallbackName;
 
         setAvatarInitial(firstName.trim().charAt(0).toUpperCase());
-      } catch (err) {
-        console.error("Failed to load avatar initial:", err);
+      } catch {
         setAvatarInitial(fallbackName.trim().charAt(0).toUpperCase());
-      }
+    }
     }
 
     loadAvatarInitial();
@@ -85,9 +84,7 @@ function Navbar() {
     return subscribeToUserNotifications(
       user.uid,
       setNotifications,
-      (err) => {
-        console.error("Failed to load notifications:", err);
-      }
+      () => {}
     );
   }, [user]);
 
@@ -108,8 +105,8 @@ function Navbar() {
     try {
       await signOut(auth);
       navigate("/student-dashboard/login", { replace: true });
-    } catch (err) {
-      console.error("Logout failed:", err);
+    } catch {
+      return;
     }
   }
 

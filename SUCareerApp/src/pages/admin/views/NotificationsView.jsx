@@ -41,22 +41,22 @@ export default function NotificationsView({ notificationsData = [], employersDat
   const markAllAsRead = async () => {
     try {
       await markAllNotificationsAsRead(notificationsData);
-    } catch (err) {
-      console.error('Failed to mark notifications as read:', err);
+    } catch {
+      return;
     }
   };
   const handleDelete = async (id) => {
     try {
       await deleteNotification(id);
-    } catch (err) {
-      console.error('Failed to delete notification:', err);
+    } catch {
+      return;
     }
   };
   const handleMarkRead = async (id) => {
     try {
       await markNotificationAsRead(id);
-    } catch (err) {
-      console.error('Failed to mark notification as read:', err);
+    } catch {
+      return;
     }
   };
 

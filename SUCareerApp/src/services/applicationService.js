@@ -1,8 +1,8 @@
-import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { uploadApplicationDocument } from "./cloudinaryUpload";
 import { createEmployerApplicationNotification } from "./notificationService";
-import { incrementApplications } from "./metricsService";  // ← ADDED
+import { incrementApplications } from "./metricsService";
 
 export async function hasStudentApplied(studentId, opportunityId) {
   const applicationQuery = query(
@@ -73,11 +73,36 @@ function normalizeUrl(value = "") {
   }
 }
 
+function isDeadlineClosed(value) {
+  if (!value) {
+    return false;
+  }
+
+  const deadline = typeof value.toDate === "function" ? value.toDate() : new Date(value);
+
+  if (Number.isNaN(deadline.getTime())) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  deadline.setHours(0, 0, 0, 0);
+
+  return deadline <= today;
+}
+
 export async function submitApplication({ studentId, opportunityId, requiredDocuments = [], documentFiles = {} }) {
   const alreadyApplied = await hasStudentApplied(studentId, opportunityId);
 
   if (alreadyApplied) {
     throw new Error("You have already applied for this opportunity.");
+  }
+
+  const opportunitySnap = await getDoc(doc(db, "opportunities", opportunityId));
+  const opportunityData = opportunitySnap.exists() ? opportunitySnap.data() : {};
+
+  if (isDeadlineClosed(opportunityData.deadline)) {
+    throw new Error("Applications are closed for this opportunity.");
   }
 
   const documents = [];
@@ -139,11 +164,8 @@ export async function submitApplication({ studentId, opportunityId, requiredDocu
   createEmployerApplicationNotification(applicationRef.id, {
     ...applicationPayload,
     applicationId: applicationRef.id,
-  }).catch((notificationError) => {
-    console.error("Application notification failed:", notificationError);
-  });
+  }).catch(() => {});
 
-  // ─── INCREMENT APPLICATIONS METRIC ──────────────────────────────────
   await incrementApplications(opportunityId);
 
   return {

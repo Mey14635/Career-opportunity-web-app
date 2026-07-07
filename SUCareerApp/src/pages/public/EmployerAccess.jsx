@@ -108,9 +108,8 @@ export default function EmployerAccess() {
             ...employerData,
             id: currentUser.uid,
             uid: currentUser.uid,
-          }).catch((notificationError) => {
+          }).catch(() => {
             notifiedVerifiedEmployersRef.current.delete(currentUser.uid);
-            console.error('Employer verification notification failed:', notificationError);
           });
         }
       }
@@ -239,7 +238,6 @@ export default function EmployerAccess() {
       setIsSubmitted(true);
       setWaitingForApproval(true);
     } catch (err) {
-      console.error(err);
       if (err.code === 'auth/email-already-in-use') {
         setError('This email is already registered. Please sign in or use a different company email.');
       } else if (err.code === 'auth/weak-password') {
@@ -295,7 +293,6 @@ export default function EmployerAccess() {
       await refreshAuthStatus();
       navigate('/employer-dashboard', { replace: true });
     } catch (err) {
-      console.error(err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') {
         setError('Invalid email address or password combination.');
       } else {

@@ -90,7 +90,6 @@ const SignUp = () => {
       // FIXED: Added full path
       navigate("/student-dashboard/verify-email", { replace: true });
     } catch (err) {
-      console.error(err);
       if (err.code === "auth/email-already-in-use") {
         try {
           const existingCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
@@ -107,10 +106,9 @@ const SignUp = () => {
           
           // FIXED: Added full path
           navigate("/student-dashboard/verify-email", { replace: true });
-        } catch (signInErr) {
-          console.error(signInErr);
+        } catch {
           setError("This email is already registered. Please log in or reset your password.");
-        }
+    }
       } else if (err.code === "auth/operation-not-allowed") {
         setError("Email/password signup is not enabled in Firebase Authentication.");
       } else if (err.code === "auth/too-many-requests") {

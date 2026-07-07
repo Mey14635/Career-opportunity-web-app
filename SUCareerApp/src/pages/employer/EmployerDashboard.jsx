@@ -52,6 +52,7 @@ export default function EmployerDashboard() {
 
   const [companyName, setCompanyName] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [dashboardMessage, setDashboardMessage] = useState(null);
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteModalConfig, setDeleteModalConfig] = useState(null);
@@ -132,8 +133,8 @@ export default function EmployerDashboard() {
 
         const activities = buildActivities(jobs, allApplicants);
         setRealActivities(activities);
-      } catch (err) {
-        console.error('Error fetching employer data:', err);
+      } catch {
+        setDashboardMessage({ type: 'error', text: 'Could not load all employer dashboard data right now.' });
       } finally {
         setLoading(false);
       }
@@ -150,7 +151,7 @@ export default function EmployerDashboard() {
     return subscribeToUserNotifications(
       employerId,
       setNotifications,
-      (err) => console.error('Failed to load employer notifications:', err)
+      () => setDashboardMessage({ type: 'error', text: 'Could not load notifications right now.' })
     );
   }, [employerId]);
 
@@ -170,8 +171,8 @@ export default function EmployerDashboard() {
       ));
       // Record the time of this status update.
       lastStatusUpdateTime.current = Date.now();
-    } catch (err) {
-      console.error('Error updating status:', err);
+    } catch {
+      setDashboardMessage({ type: 'error', text: 'Could not update the applicant status. Please try again.' });
     }
   };
 
@@ -182,15 +183,15 @@ export default function EmployerDashboard() {
     // that might overwrite the local state with stale data.
   };
 
-  const handleAction = (msg) => alert(`Action triggered: ${msg}`);
+  const handleAction = (msg) => setDashboardMessage({ type: 'info', text: msg });
 
   const handleNotificationAction = async (notification) => {
     try {
       if (!notification.read && !notification.isRead) {
         await markNotificationAsRead(notification.id);
       }
-    } catch (err) {
-      console.error('Failed to mark notification as read:', err);
+    } catch {
+      setDashboardMessage({ type: 'error', text: 'Could not mark the notification as read.' });
     }
 
     if (notification.type === 'student_application' || notification.action?.targetTab === 'ats') {
@@ -221,8 +222,7 @@ export default function EmployerDashboard() {
           .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
       window.location.replace('/employer-access?mode=login');
-    } catch (err) {
-      console.error('Logout error:', err);
+    } catch {
       window.location.replace('/employer-access?mode=login');
     }
   };
@@ -236,7 +236,7 @@ export default function EmployerDashboard() {
     if (employerId) {
       window.open(`/company/${employerId}`, '_blank');
     } else {
-      alert('Employer ID not available.');
+      setDashboardMessage({ type: 'error', text: 'Employer profile is not available yet.' });
     }
   };
 
@@ -255,10 +255,9 @@ export default function EmployerDashboard() {
     try {
       await deleteDoc(doc(db, 'opportunities', deleteModalConfig.jobId));
       setRefreshKey(prev => prev + 1);
-      alert('Job deleted successfully.');
-    } catch (err) {
-      console.error('Error deleting job:', err);
-      alert('Failed to delete job. Please try again.');
+      setDashboardMessage({ type: 'success', text: 'Job deleted successfully.' });
+    } catch {
+      setDashboardMessage({ type: 'error', text: 'Failed to delete the job. Please try again.' });
     }
     setDeleteModalOpen(false);
     setDeleteModalConfig(null);
@@ -423,6 +422,20 @@ export default function EmployerDashboard() {
           userEmail={userEmail || 'employer@company.com'}
         />
         <main style={{ flex: 1, overflowY: 'auto', padding: '40px', backgroundColor: BG_GRAY }}>
+          {dashboardMessage && (
+            <div style={{
+              marginBottom: 16,
+              padding: '12px 14px',
+              background: dashboardMessage.type === 'error' ? '#fef2f2' : dashboardMessage.type === 'success' ? '#f0fdf4' : '#eff6ff',
+              border: `1px solid ${dashboardMessage.type === 'error' ? '#fecaca' : dashboardMessage.type === 'success' ? '#bbf7d0' : '#bfdbfe'}`,
+              borderRadius: 8,
+              color: dashboardMessage.type === 'error' ? '#b91c1c' : dashboardMessage.type === 'success' ? '#166534' : '#1d4ed8',
+              fontSize: 13,
+              fontWeight: 700,
+            }}>
+              {dashboardMessage.text}
+            </div>
+          )}
           {renderView()}
         </main>
       </div>

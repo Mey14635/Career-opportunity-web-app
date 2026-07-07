@@ -64,8 +64,8 @@ export default function TopBar({
 
     try {
       await deleteNotification(notificationId);
-    } catch (err) {
-      console.error('Failed to delete notification:', err);
+    } catch {
+      return;
     }
   };
 

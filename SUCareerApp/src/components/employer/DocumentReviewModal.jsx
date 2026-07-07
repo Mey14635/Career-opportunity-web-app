@@ -112,6 +112,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
   const [tempStatus, setTempStatus] = useState(applicant.status || 'submitted');
   const [isSaving, setIsSaving] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
+  const [statusMessage, setStatusMessage] = useState(null);
 
   // Get documents from applicant object (handles different data structures)
   const docs = applicant.docs || applicant.documents || applicant.requiredDocuments || [];
@@ -124,6 +125,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
 
   // ─── HANDLE STATUS CHANGE WITH CONFIRMATION ──────────────────────────
   const handleStatusChange = (newStatus) => {
+    setStatusMessage(null);
     // Only show confirmation for shortlist and reject
     if (newStatus === 'shortlisted' || newStatus === 'rejected') {
       const configs = {
@@ -156,12 +158,12 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
   // ─── HANDLE SAVE ──────────────────────────────────────────────────────
   const handleSave = async () => {
     setIsSaving(true);
+    setStatusMessage(null);
     try {
       await onSave(applicant.id, tempStatus);
       onClose();
-    } catch (err) {
-      console.error('Error saving status:', err);
-      alert('Failed to update status. Please try again.');
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Failed to update the application status. Please try again.' });
     } finally {
       setIsSaving(false);
     }
@@ -288,6 +290,20 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
 
           {/* ─── DOCUMENTS ────────────────────────────────────────────────── */}
           <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+            {statusMessage && (
+              <div style={{
+                padding: '10px 12px',
+                marginBottom: 12,
+                background: statusMessage.type === 'error' ? '#fef2f2' : '#f0fdf4',
+                border: `1px solid ${statusMessage.type === 'error' ? '#fecaca' : '#bbf7d0'}`,
+                borderRadius: 8,
+                color: statusMessage.type === 'error' ? '#b91c1c' : '#166534',
+                fontSize: 13,
+                fontWeight: 700,
+              }}>
+                {statusMessage.text}
+              </div>
+            )}
             <h4
               style={{
                 margin: '0 0 12px 0',
@@ -358,7 +374,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
                       if (url && url !== '#') {
                         window.open(url, '_blank', 'noopener,noreferrer');
                       } else {
-                        alert('No download link available for this document.');
+                        setStatusMessage({ type: 'error', text: 'No download link is available for this document.' });
                       }
                     }}
                     style={{

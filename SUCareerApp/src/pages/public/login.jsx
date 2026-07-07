@@ -76,7 +76,6 @@ export default function LoginPage() {
       await refreshAuthStatus();
       navigate('/admin-dashboard', { replace: true });
     } catch (err) {
-      console.error(err);
       if (err.code === 'auth/weak-password') {
         setError('Use a stronger password with at least 6 characters.');
       } else {

@@ -1,8 +1,7 @@
 // src/pages/admin/views/RejectedJobsView.jsx
 import { useState } from 'react';
-import { Eye, RotateCcw } from 'lucide-react';
+import { Eye, FileText, RotateCcw, X } from 'lucide-react';
 import { NAVY } from '../constants';
-import JobDetailModal from '../../../components/shared/JobDetailModal';
 
 
 // ─── JOB DETAIL MODAL ──────────────────────────────────────────

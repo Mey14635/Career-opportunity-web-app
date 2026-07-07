@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Eye } from 'lucide-react';
+import { Eye, FileText, X } from 'lucide-react';
 import { NAVY } from '../constants';
-import JobDetailModal from '../../../components/shared/JobDetailModal';
 
 // ─── JOB DETAIL MODAL (moved outside component) ──────────────────────────
 function JobDetailModal({ job, onClose }) {

@@ -44,10 +44,9 @@ export default function CompanyPublicView() {
         });
         const jobsData = [...jobsById.values()];
         setJobs(jobsData);
-      } catch (err) {
-        console.error('Error fetching company data:', err);
+      } catch {
         setError('Failed to load company profile');
-      } finally {
+    } finally {
         setLoading(false);
       }
     };

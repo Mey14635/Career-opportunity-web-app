@@ -113,6 +113,15 @@
   background: #ecfdf3;
 }
 
+.job-apply-btn.closed,
+.job-apply-btn.closed:disabled,
+.job-apply-btn.closed:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #475569;
+  cursor: default;
+}
+
 .job-save-btn {
   border: 1px solid var(--su-border);
   background: var(--su-panel);
@@ -156,6 +165,12 @@
 .job-deadline.urgent {
   color: #c62828;
   font-weight: 800;
+}
+
+.job-deadline.closed {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #475569;
 }
 
 .job-modal-content {

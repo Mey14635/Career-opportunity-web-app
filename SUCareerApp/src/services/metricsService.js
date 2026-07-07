@@ -10,9 +10,9 @@ export const incrementViews = async (opportunityId) => {
     await updateDoc(jobRef, {
       'metrics.views': increment(1)
     });
-  } catch (error) {
-    console.error('Error incrementing views:', error);
-  }
+  } catch {
+      return;
+    }
 };
 
 // Increments the application count for a specific job opportunity
@@ -23,7 +23,7 @@ export const incrementApplications = async (opportunityId) => {
     await updateDoc(jobRef, {
       'metrics.applications': increment(1)
     });
-  } catch (error) {
-    console.error('Error incrementing applications:', error);
-  }
+  } catch {
+      return;
+    }
 };

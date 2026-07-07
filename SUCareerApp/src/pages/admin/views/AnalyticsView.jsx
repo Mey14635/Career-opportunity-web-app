@@ -151,9 +151,9 @@ export default function AnalyticsView() {
 
         setEmployerPerformance(performanceData);
 
-      } catch (err) {
-        console.error('Error fetching analytics data:', err);
-      } finally {
+      } catch {
+      return;
+    } finally {
         setLoading(false);
       }
     }

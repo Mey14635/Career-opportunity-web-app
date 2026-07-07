@@ -81,9 +81,9 @@ export default function AdminDashboard({ onLogout }) {
         employersData
           .filter((employer) => employer.verificationStatus === 'pending')
           .map((employer) => createAdminEmployerVerificationNotification(employer))
-      ).catch((err) => console.error('Failed to backfill employer approval notifications:', err));
-    } catch (err) {
-      console.error('Error fetching data:', err);
+      ).catch(() => {});
+    } catch {
+      return;
     } finally {
       setLoading(false);
     }
@@ -102,7 +102,7 @@ export default function AdminDashboard({ onLogout }) {
     return subscribeToUserNotifications(
       user.uid,
       setNotifications,
-      (err) => console.error('Failed to load admin notifications:', err)
+      () => {}
     );
   }, [user?.uid]);
 
@@ -111,8 +111,8 @@ export default function AdminDashboard({ onLogout }) {
       if (!notification.read && !notification.isRead) {
         await markNotificationAsRead(notification.id);
       }
-    } catch (err) {
-      console.error('Failed to mark notification as read:', err);
+    } catch {
+      return;
     }
 
     const targetTab =
@@ -145,9 +145,9 @@ export default function AdminDashboard({ onLogout }) {
         try {
           const jobSnap = await getDoc(doc(db, 'opportunities', entityId));
           selectedJob = jobSnap.exists() ? { id: jobSnap.id, ...jobSnap.data() } : null;
-        } catch (err) {
-          console.error('Failed to load notification job review:', err);
-        }
+        } catch {
+      return;
+    }
       }
 
       if (selectedJob) {
@@ -202,9 +202,7 @@ export default function AdminDashboard({ onLogout }) {
         createEmployerJobEditsRequestedNotification(modalConfig.id, {
           ...jobData,
           editRequestReason: modalConfig.editRequestReason,
-        }).catch((notificationError) => {
-          console.error('Job edits requested notification failed:', notificationError);
-        });
+        }).catch(() => {});
         const pendingJobs = await getOpportunities('pending');
         setJobQueue(pendingJobs);
       } else if (modalConfig.type === 'unrequest_edits') {

@@ -135,10 +135,9 @@ function Applications() {
         );
 
         setApplications(nextApplications);
-      } catch (err) {
-        console.error("Failed to load applications:", err);
+      } catch {
         setApplicationsError("Could not load your applications right now.");
-      } finally {
+    } finally {
         setLoadingApplications(false);
       }
     }
