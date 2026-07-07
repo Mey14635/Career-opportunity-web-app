@@ -1,3 +1,4 @@
+// src/services/notificationService.js
 import {
   collection,
   deleteDoc,
@@ -24,7 +25,7 @@ const NOTIFICATION_CONFIG = {
     title: "Job posting review",
     iconKey: "briefcase",
     actionLabel: "Review",
-    targetTab: "job-reviews",
+    targetTab: "opportunity-listings",   // fixed
   },
   student_application: {
     title: "New student application",
@@ -47,8 +48,14 @@ const NOTIFICATION_CONFIG = {
   job_edits_requested: {
     title: "Job posting needs edits",
     iconKey: "briefcase",
+    actionLabel: "Review",          // ← added
+    targetTab: "my-jobs",           // ← changed
+  },
+  job_rejected: {
+    title: "Job posting rejected",
+    iconKey: "xCircle",
     actionLabel: "",
-    targetTab: "notifications",
+    targetTab: "my-jobs",
   },
   deadline_48h: {
     title: "Application deadline approaching",
@@ -499,6 +506,27 @@ export async function createEmployerJobEditsRequestedNotification(jobId, jobData
     targetId: jobId,
     targetType: "job",
   }));
+}
+
+// ─── NEW: Employer Job Rejected Notification ─────────────────────────────
+export async function createEmployerJobRejectedNotification(jobId, jobData = {}) {
+  const employerId = jobData.employerID || jobData.employerId;
+  const jobTitle = getOpportunityTitle(jobData);
+  const rejectionReason = String(jobData.rejectionReason || "").trim();
+  const reasonText = rejectionReason ? ` Reason: ${rejectionReason}` : " No reason provided.";
+
+  if (!jobId || !employerId) {
+    return;
+  }
+
+  await createNotificationIfMissing({
+    uid: employerId,
+    type: "job_rejected",
+    notificationId: `${employerId}_job_rejected_${jobId}`,
+    message: `"${jobTitle}" has been rejected by the admin.${reasonText}`,
+    targetId: jobId,
+    targetType: "job",
+  });
 }
 
 function buildDeadlineNotificationId(uid, opportunityId) {

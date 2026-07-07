@@ -1,3 +1,4 @@
+// src/pages/employer/EmployerDashboard.jsx
 import { useState, useEffect, useRef } from 'react';
 import { FileText, Users } from 'lucide-react';
 import { signOut } from 'firebase/auth';
@@ -185,6 +186,7 @@ export default function EmployerDashboard() {
 
   const handleAction = (msg) => setDashboardMessage({ type: 'info', text: msg });
 
+  // ─── HANDLE NOTIFICATION ACTION ─────────────────────────────────────────
   const handleNotificationAction = async (notification) => {
     try {
       if (!notification.read && !notification.isRead) {
@@ -192,6 +194,34 @@ export default function EmployerDashboard() {
       }
     } catch {
       setDashboardMessage({ type: 'error', text: 'Could not mark the notification as read.' });
+    }
+
+    // ─── NEW: Handle job edits requested ──────────────────────────────
+    if (notification.type === 'job_edits_requested') {
+      const jobId = notification.targetId || notification.metadata?.jobId;
+      if (jobId) {
+        // Try to find the job in the current list
+        let job = myJobs.find(j => j.id === jobId);
+        if (!job) {
+          // Fetch from Firestore if not in state
+          try {
+            const jobSnap = await getDoc(doc(db, 'opportunities', jobId));
+            if (jobSnap.exists()) {
+              job = { id: jobSnap.id, ...jobSnap.data() };
+            }
+          } catch {
+            // fallback
+          }
+        }
+        if (job) {
+          setEditingJob(job);
+          setActiveTab('edit-job');
+          return;
+        }
+      }
+      // If job not found, go to my jobs
+      setActiveTab('my-jobs');
+      return;
     }
 
     if (notification.type === 'student_application' || notification.action?.targetTab === 'ats') {

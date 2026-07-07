@@ -1,6 +1,64 @@
+// src/pages/employer/views/JobDetailView.jsx
 import { ArrowLeft, Edit2, Calendar, File, Download, Users } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { NAVY } from '../constants';
 import JobApplicantsWidget from '../../../components/employer/JobApplicantsWidget';
+
+// ─── RENDER CONTENT ──────────────────────────────────────────────────────
+function renderContent(content) {
+  if (!content) return null;
+
+  // If it's an array, join with newlines
+  if (Array.isArray(content)) {
+    content = content.join('\n');
+  }
+
+  const str = String(content).trim();
+  if (!str) return null;
+
+  // Check for HTML tags
+  const isHtmlContent = /<[^>]+>/i.test(str);
+
+  if (isHtmlContent) {
+    let cleaned = str;
+    // Clean up common issues
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/<li>\s*<p>/g, '<li>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/li>/g, '</li>');
+    cleaned = cleaned.replace(/<ul>\s*<p>/g, '<ul>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ul>/g, '</ul>');
+    cleaned = cleaned.replace(/<ol>\s*<p>/g, '<ol>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ol>/g, '</ol>');
+    cleaned = cleaned.replace(/<p>\s*\.\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/\n\s*\n/g, '\n');
+
+    const sanitized = DOMPurify.sanitize(cleaned, {
+      ADD_ATTR: ['target'],
+      ADD_TAGS: ['iframe'],
+    });
+
+    return <div className="rich-content" dangerouslySetInnerHTML={{ __html: sanitized }} />;
+  }
+
+  // Plain text: split by periods/newlines into bullet list if multiple items
+  const items = str
+    .split(/(?:\.\s+|\n)/)
+    .map(item => item.trim())
+    .filter(item => item && item.length > 0);
+  if (items.length > 1) {
+    return (
+      <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
+        {items.map((item, idx) => (
+          <li key={idx}>{item}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  // Single sentence – render as paragraph
+  return <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 14, margin: 0 }}>{str}</p>;
+}
 
 export default function JobDetailView({ job, applicants, onBack, onReview, onEdit }) {
   const jobApps = applicants.filter(app => app.jobId === job.id);
@@ -45,6 +103,7 @@ export default function JobDetailView({ job, applicants, onBack, onReview, onEdi
     return `Closes in ${daysLeft} day${daysLeft > 1 ? 's' : ''}`;
   };
 
+  // ─── parseList: removes format suffix, just returns the label ─────────
   const parseList = (value) => {
     if (!value) return [];
     if (Array.isArray(value)) {
@@ -52,26 +111,24 @@ export default function JobDetailView({ job, applicants, onBack, onReview, onEdi
         .filter(Boolean)
         .map(item => {
           if (typeof item === 'string') return item;
-          const label = item.label || item.name || 'Document';
-          return item.format && item.format !== 'any'
-            ? `${label} (${item.formatLabel || item.format})`
-            : label;
+          return item.label || item.name || 'Document';
         })
         .filter(item => item && item.trim() !== '');
     }
     if (typeof value === 'string') {
-      const items = value
-        .split(/(?:\.\s+|\n)/)
-        .map(item => item.trim())
-        .filter(item => item && item.length > 0);
-      if (items.length > 1) return items;
+      // For plain text, we'll rely on renderContent to handle formatting.
+      // Return the string as‑is, because renderContent will split it.
       return [value.trim()];
     }
     return [];
   };
 
-  const requirementsList = parseList(job.requirement || job.requirements);
-  const responsibilitiesList = parseList(job.responsibilities);
+  // ─── Use parseList only for plain text; for HTML we render directly ──
+  // We'll pass the raw content to renderContent later, so we keep raw strings.
+  const rawDescription = job.description || 'No description provided.';
+  const rawResponsibilities = job.responsibilities || null;
+  const rawRequirements = job.requirement || job.requirements || null;
+
   const documentsList = parseList(job.requiredDocuments || job.documentsRequired || job.requiredDocument);
   const hasPdf = job.jobDescriptionPdfUrl && job.jobDescriptionPdfUrl.trim() !== '';
 
@@ -212,32 +269,25 @@ export default function JobDetailView({ job, applicants, onBack, onReview, onEdi
           boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
         }}
       >
+        {/* About the Role */}
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>About the Role</h3>
-          <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 14, margin: 0 }}>
-            {job.description || 'No description provided.'}
-          </p>
+          {renderContent(rawDescription) || <p style={{ color: '#94a3b8', fontSize: 14 }}>No description provided.</p>}
         </div>
 
-        {responsibilitiesList.length > 0 && (
+        {/* Responsibilities */}
+        {rawResponsibilities && (
           <div style={{ marginBottom: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Responsibilities</h3>
-            <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
-              {responsibilitiesList.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
+            {renderContent(rawResponsibilities) || <p style={{ color: '#94a3b8', fontSize: 14 }}>No responsibilities listed.</p>}
           </div>
         )}
 
-        {requirementsList.length > 0 && (
+        {/* Requirements */}
+        {rawRequirements && (
           <div style={{ marginBottom: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Requirements</h3>
-            <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
-              {requirementsList.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
+            {renderContent(rawRequirements) || <p style={{ color: '#94a3b8', fontSize: 14 }}>No requirements listed.</p>}
           </div>
         )}
 

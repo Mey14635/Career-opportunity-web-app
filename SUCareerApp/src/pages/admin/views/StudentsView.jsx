@@ -1,26 +1,43 @@
-import { useState } from 'react';
+// src/pages/admin/views/StudentsView.jsx
+import { useState, useMemo } from 'react';
 import { Search, X, Mail, Phone, ExternalLink } from 'lucide-react';
 import StatusBadge from '../../../components/shared/StatusBadge';
 import { NAVY, GOLD } from '../constants';
 
-export default function StudentsView({ studentsData }) {
-  const [searchTerm, setSearchTerm] = useState('');
+export default function StudentsView({ studentsData, searchQuery = '' }) {
+  const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
 
-  const filteredStudents = studentsData.filter((s) => {
-    const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
-    const search = searchTerm.toLowerCase().trim();
-    return fullName.includes(search) || (s.studentId && s.studentId.toLowerCase().includes(search));
-  });
+  // ─── COMBINED FILTER: uses both global searchQuery and local searchTerm ──
+  const filteredStudents = useMemo(() => {
+    const search = (searchQuery || '') + ' ' + (localSearchTerm || '');
+    const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
+    if (terms.length === 0) return studentsData;
+
+    return studentsData.filter((s) => {
+      const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+      const studentId = (s.studentId || '').toLowerCase();
+      const course = (s.course || '').toLowerCase();
+      const email = (s.email || s.personalEmail || '').toLowerCase();
+
+      // match all terms (AND logic)
+      return terms.every(term =>
+        fullName.includes(term) ||
+        studentId.includes(term) ||
+        course.includes(term) ||
+        email.includes(term)
+      );
+    });
+  }, [studentsData, searchQuery, localSearchTerm]);
 
   const openModal = (student) => setSelectedStudent(student);
   const closeModal = () => setSelectedStudent(null);
 
-  // Determine status badge
   const getStudentStatus = (student) => {
     if (student.profileCompleted === true) return 'Complete';
     if (student.profileCompleted === false) return 'Incomplete';
-    return student.verificationStatus || 'Complete'; // fallback
+    return student.verificationStatus || 'Complete';
   };
 
   return (
@@ -30,13 +47,14 @@ export default function StudentsView({ studentsData }) {
           <h1 style={{ margin: '0 0 8px 0', fontSize: 24, fontWeight: 800, color: NAVY }}>Students</h1>
           <p style={{ margin: 0, fontSize: 14, color: '#64748b' }}>Manage and inspect registered student accounts and profiles.</p>
         </div>
+        {/* ─── LOCAL SEARCH INPUT ───────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#ffffff', padding: '10px 16px', borderRadius: 8, width: 300, border: '1px solid #e2e8f0' }}>
           <Search size={16} color="#9CA3AF" />
           <input
             type="text"
             placeholder="Search by name of student"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={localSearchTerm}
+            onChange={(e) => setLocalSearchTerm(e.target.value)}
             style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 13, width: '100%', color: '#1e293b' }}
           />
         </div>
@@ -138,7 +156,6 @@ export default function StudentsView({ studentsData }) {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px' }}>
-              {/* Show Student ID only if present */}
               {selectedStudent.studentId && (
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Student ID</label>
@@ -148,7 +165,6 @@ export default function StudentsView({ studentsData }) {
                 </div>
               )}
 
-              {/* Show Year only if present */}
               {selectedStudent.yearOfStudy && (
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Academic Year</label>
@@ -158,7 +174,6 @@ export default function StudentsView({ studentsData }) {
                 </div>
               )}
 
-              {/* Email – always show (fallback) */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Email</label>
                 <p style={{ margin: '4px 0 0 0', fontSize: 14, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -167,7 +182,6 @@ export default function StudentsView({ studentsData }) {
                 </p>
               </div>
 
-              {/* Show Phone only if present */}
               {selectedStudent.phone && (
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Phone</label>

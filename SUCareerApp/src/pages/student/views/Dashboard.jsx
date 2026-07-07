@@ -308,8 +308,12 @@ function Dashboard() {
       <main className="main-content">
         <div className="section-heading">
           <div>
-            <h1>Recommended for You</h1>
-            <p>{filtered.length} opportunities matching your profile</p>
+            {/* ─── UPDATED HEADING ────────────────────────────────────── */}
+            <h1>Discover Opportunities</h1>
+            <p>
+              {filtered.length} opportunities available
+              {studentInterests.length > 0 && " — opportunities matching your interests are shown first."}
+            </p>
           </div>
           <label className="expired-toggle">
             <input
@@ -336,7 +340,7 @@ function Dashboard() {
                 opportunity={opp}
                 title={opp.title}
                 company={opp.company}
-                employerId={opp.employerId}   // ← FIXED: now uses correct field name
+                employerId={opp.employerId}
                 location={opp.location}
                 description={opp.description}
                 type={opp.type}

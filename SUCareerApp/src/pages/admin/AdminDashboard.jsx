@@ -12,6 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   createAdminEmployerVerificationNotification,
   createEmployerJobEditsRequestedNotification,
+  createEmployerJobRejectedNotification,
   markNotificationAsRead,
   subscribeToUserNotifications,
 } from '../../services/notificationService';
@@ -34,12 +35,20 @@ import {
   updateOpportunityStatus,
 } from '../../services/firestoreService';
 
+// Helper: Check if a job is expired
+function isJobExpired(job) {
+  if (!job.deadline) return false;
+  const deadline = typeof job.deadline.toDate === 'function' ? job.deadline.toDate() : new Date(job.deadline);
+  return deadline < new Date();
+}
+
 export default function AdminDashboard({ onLogout }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
 
+  // ─── DATA STATE ──────────────────────────────────────────────────────────
   const [stats, setStats] = useState({ totalStudents: 0, activeEmployers: 0, pendingApprovals: 0, totalJobs: 0 });
   const [students, setStudents] = useState([]);
   const [employers, setEmployers] = useState([]);
@@ -47,11 +56,17 @@ export default function AdminDashboard({ onLogout }) {
   const [activeJobs, setActiveJobs] = useState([]);
   const [rejectedJobs, setRejectedJobs] = useState([]);
   const [notifications, setNotifications] = useState([]);
+
+  // ─── SEARCH STATE ────────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // ─── NOTIFICATION FOCUS ──────────────────────────────────────────────────
   const [focusedEmployerId, setFocusedEmployerId] = useState('');
   const [notificationFocusKey, setNotificationFocusKey] = useState(0);
   const [notificationJobReview, setNotificationJobReview] = useState(null);
   const [notificationEmployerReview, setNotificationEmployerReview] = useState(null);
 
+  // ─── MODAL STATE ─────────────────────────────────────────────────────────
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState(null);
 
@@ -146,8 +161,8 @@ export default function AdminDashboard({ onLogout }) {
           const jobSnap = await getDoc(doc(db, 'opportunities', entityId));
           selectedJob = jobSnap.exists() ? { id: jobSnap.id, ...jobSnap.data() } : null;
         } catch {
-      return;
-    }
+          return;
+        }
       }
 
       if (selectedJob) {
@@ -214,13 +229,24 @@ export default function AdminDashboard({ onLogout }) {
         const pendingJobs = await getOpportunities('pending');
         setJobQueue(pendingJobs);
       } else if (modalConfig.type === 'reject') {
+        const rejectReason = modalConfig.rejectReason || '';
+        const jobSnap = await getDoc(jobRef);
+        const jobData = jobSnap.exists() ? jobSnap.data() : modalConfig.job || {};
+
         await updateOpportunityStatus(modalConfig.id, 'rejected');
         await updateDoc(jobRef, {
           editRequestReason: deleteField(),
           isActive: false,
           pendingReason: null,
+          rejectionReason: rejectReason,
           updatedAt: new Date()
         });
+
+        createEmployerJobRejectedNotification(modalConfig.id, {
+          ...jobData,
+          rejectionReason: rejectReason,
+        }).catch(() => {});
+
         const updatedQueue = jobQueue.filter(j => j.id !== modalConfig.id);
         setJobQueue(updatedQueue);
         const rejectedJobsData = await getOpportunities('rejected');
@@ -272,6 +298,10 @@ export default function AdminDashboard({ onLogout }) {
     }
   };
 
+  // Compute all expired jobs (both active and pending)
+  const allJobs = [...jobQueue, ...activeJobs, ...rejectedJobs];
+  const expiredJobs = allJobs.filter(job => isJobExpired(job));
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'Inter, system-ui, sans-serif', backgroundColor: BG_GRAY }}>
@@ -290,20 +320,24 @@ export default function AdminDashboard({ onLogout }) {
           notifications={notifications}
           setActiveTab={setActiveTab}
           onNotificationAction={handleNotificationAction}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
         />
         <main style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
           {activeTab === 'dashboard' && <DashboardView statsData={stats}
             recentPendingJobs={jobQueue} 
             pendingEmployers={employers.filter(emp => emp.verificationStatus === 'pending')}/>}
-          {activeTab === 'students' && <StudentsView studentsData={students} />}
-          {activeTab === 'employer-approvals' && <EmployersView key={`employers-${notificationFocusKey}`} employersData={employers} triggerModal={triggerModal} focusedEmployerId={focusedEmployerId} />}
+          {activeTab === 'students' && <StudentsView studentsData={students} searchQuery={searchQuery} />}
+          {activeTab === 'employer-approvals' && <EmployersView key={`employers-${notificationFocusKey}`} employersData={employers} triggerModal={triggerModal} focusedEmployerId={focusedEmployerId} searchQuery={searchQuery} />}
           {activeTab === 'opportunity-listings' && (
             <OpportunityListView
               pendingJobs={jobQueue}
               activeJobs={activeJobs}
               rejectedJobs={rejectedJobs}
+              expiredJobs={expiredJobs}
               triggerModal={triggerModal}
               onRefresh={fetchAllData}
+              searchQuery={searchQuery}
             />
           )}
           {activeTab === 'analytics' && <AnalyticsView />}

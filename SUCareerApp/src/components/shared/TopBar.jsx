@@ -20,6 +20,8 @@ export default function TopBar({
   // ─── SEARCH BAR (optional) ──────────────────────────────────────────
   showSearch = true,
   searchPlaceholder = 'Search employers, students, listings...',
+  searchValue = '',           // ← NEW
+  onSearchChange = null,      // ← NEW
 
   // ─── USER INFO (dynamic) ────────────────────────────────────────────
   userInitials = 'CA',
@@ -92,6 +94,8 @@ export default function TopBar({
             <input
               type="text"
               placeholder={searchPlaceholder}
+              value={searchValue}                        // ← CONTROLLED
+              onChange={(e) => onSearchChange && onSearchChange(e.target.value)}  // ← HANDLER
               style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 13, width: '100%', color: '#1e293b' }}
             />
           </div>

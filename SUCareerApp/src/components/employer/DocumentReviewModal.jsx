@@ -1,9 +1,9 @@
 // src/components/employer/DocumentReviewModal.jsx
 import { useState } from 'react';
-import { X, File, FileText, FileImage, FileArchive, Download, Mail, Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Info } from 'lucide-react';
+import { X, File, FileText, FileImage, FileArchive, Download, Mail, Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Info, AlertTriangle, Lock } from 'lucide-react';
 import { NAVY } from '../../pages/employer/constants';
 
-// ─── HELPER: Get file icon based on file type ──────────────────────────
+// Helper: Get file icon based on file type
 function getFileIcon(filename) {
   if (!filename) return <File size={16} />;
   const ext = filename.split('.').pop()?.toLowerCase() || '';
@@ -14,7 +14,7 @@ function getFileIcon(filename) {
   return <File size={16} color="#64748b" />;
 }
 
-// ─── HELPER: Format file size ──────────────────────────────────────────
+// Helper: Format file size
 function formatFileSize(bytes) {
   if (!bytes || bytes === 0) return '';
   const kb = bytes / 1024;
@@ -23,7 +23,7 @@ function formatFileSize(bytes) {
   return `${mb.toFixed(1)} MB`;
 }
 
-// ─── HELPER: Format date ──────────────────────────────────────────────
+// Helper: Format date
 function formatDate(dateValue) {
   if (!dateValue) return 'N/A';
   if (typeof dateValue.toDate === 'function') {
@@ -40,9 +40,16 @@ function formatDate(dateValue) {
   });
 }
 
-// ─── CONFIRMATION MODAL ──────────────────────────────────────────────────
-function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirmLabel, confirmColor }) {
+// Confirmation Modal with Permanent Action Checkbox
+function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirmLabel, confirmColor, isPermanent = false }) {
+  const [confirmed, setConfirmed] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleConfirm = () => {
+    if (isPermanent && !confirmed) return;
+    onConfirm();
+  };
 
   return (
     <div
@@ -61,7 +68,7 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirm
       <div
         style={{
           backgroundColor: '#ffffff',
-          maxWidth: '420px',
+          maxWidth: '440px',
           width: '100%',
           borderRadius: '12px',
           padding: '24px',
@@ -69,9 +76,40 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirm
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 700, color: NAVY }}>{title}</h3>
-        <p style={{ margin: '0 0 20px 0', fontSize: 14, color: '#475569', lineHeight: 1.6 }}>{message}</p>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          {isPermanent && <AlertTriangle size={20} color="#dc2626" />}
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: NAVY }}>{title}</h3>
+        </div>
+        <p style={{ margin: '0 0 12px 0', fontSize: 14, color: '#475569', lineHeight: 1.6 }}>{message}</p>
+
+        {isPermanent && (
+          <>
+            <div
+              style={{
+                padding: '10px 12px',
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '6px',
+                marginBottom: 12,
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 12, color: '#dc2626', fontWeight: 700 }}>
+                ⚠️ This action is PERMANENT and cannot be undone.
+              </p>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#475569', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+                style={{ width: 16, height: 16, cursor: 'pointer' }}
+              />
+              I understand this action is permanent and cannot be undone.
+            </label>
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 16 }}>
           <button
             onClick={onClose}
             style={{
@@ -88,17 +126,19 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirm
             Cancel
           </button>
           <button
-            onClick={onConfirm}
+            onClick={handleConfirm}
             style={{
               padding: '8px 20px',
               borderRadius: '6px',
               border: 'none',
-              background: confirmColor || NAVY,
+              background: isPermanent && !confirmed ? '#94a3b8' : (confirmColor || NAVY),
               color: '#ffffff',
               fontSize: 13,
               fontWeight: 700,
-              cursor: 'pointer',
+              cursor: isPermanent && !confirmed ? 'not-allowed' : 'pointer',
+              opacity: isPermanent && !confirmed ? 0.6 : 1,
             }}
+            disabled={isPermanent && !confirmed}
           >
             {confirmLabel || 'Confirm'}
           </button>
@@ -114,7 +154,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
   const [confirmation, setConfirmation] = useState(null);
   const [statusMessage, setStatusMessage] = useState(null);
 
-  // Get documents from applicant object (handles different data structures)
+  // Get documents from applicant object
   const docs = applicant.docs || applicant.documents || applicant.requiredDocuments || [];
 
   // Get applicant details
@@ -123,8 +163,15 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
   const applicantCourse = applicant.course || applicant.studyField || 'Course not specified';
   const appliedDate = applicant.appliedAt || applicant.appliedDate || applicant.createdAt || null;
 
-  // ─── HANDLE STATUS CHANGE WITH CONFIRMATION ──────────────────────────
+  // Check if the original status is final
+  const originalStatus = applicant.status || 'submitted';
+  const isFinalStatus = ['shortlisted', 'rejected'].includes(originalStatus);
+
+  // Handle status change with confirmation
   const handleStatusChange = (newStatus) => {
+    // If already final, do nothing
+    if (isFinalStatus) return;
+
     setStatusMessage(null);
     // Only show confirmation for shortlist and reject
     if (newStatus === 'shortlisted' || newStatus === 'rejected') {
@@ -134,12 +181,14 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
           message: `Are you sure you want to shortlist ${applicantName}? They will be notified of their progress.`,
           confirmLabel: 'Yes, Shortlist',
           confirmColor: '#16a34a',
+          isPermanent: true,
         },
         rejected: {
           title: 'Confirm Rejection',
           message: `Are you sure you want to reject ${applicantName}? They will be notified and their application will be closed.`,
           confirmLabel: 'Yes, Reject',
           confirmColor: '#dc2626',
+          isPermanent: true,
         },
       };
       const config = configs[newStatus];
@@ -155,21 +204,36 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
     }
   };
 
-  // ─── HANDLE SAVE ──────────────────────────────────────────────────────
+  // Handle Save
   const handleSave = async () => {
+    // If status is final, we should not allow saving (but button is disabled anyway)
+    if (isFinalStatus) return;
+
     setIsSaving(true);
     setStatusMessage(null);
+
     try {
       await onSave(applicant.id, tempStatus);
+
+      // Send email notification based on status
+      if (tempStatus === 'shortlisted' || tempStatus === 'rejected') {
+        console.log(`📧 Email notification triggered for ${applicantName}: ${tempStatus}`);
+        // TODO: Call email service here
+        // await sendStatusUpdateEmail(applicantEmail, applicantName, tempStatus, jobTitle);
+      }
+
       onClose();
     } catch {
-      setStatusMessage({ type: 'error', text: 'Failed to update the application status. Please try again.' });
+      setStatusMessage({
+        type: 'error',
+        text: 'Failed to update the application status. Please try again.',
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
-  // ─── STATUS BADGE ─────────────────────────────────────────────────────
+  // Get status badge
   const getStatusBadge = (status) => {
     const styles = {
       submitted: { bg: '#fef3c7', color: '#d97706', label: 'Submitted', icon: Clock },
@@ -194,6 +258,9 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
       </span>
     );
   };
+
+  // Determine if the current status is final (for display)
+  // Note: we use isFinalStatus based on the original status.
 
   return (
     <>
@@ -223,7 +290,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
             maxHeight: '90vh',
           }}
         >
-          {/* ─── HEADER ───────────────────────────────────────────────────── */}
+          {/* Header */}
           <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -252,6 +319,11 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
                     <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{applicantCourse}</span>
                     <span style={{ color: '#cbd5e1' }}>•</span>
                     <span style={{ fontSize: 12, color: '#94a3b8' }}>{getStatusBadge(tempStatus)}</span>
+                    {isFinalStatus && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#dc2626', fontWeight: 700 }}>
+                        <Lock size={12} /> Final
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -273,7 +345,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
               </button>
             </div>
 
-            {/* ─── APPLICANT INFO ────────────────────────────────────────── */}
+            {/* Applicant Info */}
             <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Mail size={14} color="#94a3b8" />
@@ -288,7 +360,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
             </div>
           </div>
 
-          {/* ─── DOCUMENTS ────────────────────────────────────────────────── */}
+          {/* Documents */}
           <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
             {statusMessage && (
               <div style={{
@@ -401,7 +473,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
             </div>
           </div>
 
-          {/* ─── FOOTER ───────────────────────────────────────────────────── */}
+          {/* Footer */}
           <div
             style={{
               padding: '16px 24px',
@@ -412,65 +484,86 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
               backgroundColor: '#f8fafc',
             }}
           >
-            {/* ─── STATUS ACTIONS ────────────────────────────────────────── */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => handleStatusChange('shortlisted')}
-                  style={{
-                    padding: '6px 16px',
-                    borderRadius: '6px',
-                    border: tempStatus === 'shortlisted' ? '2px solid #16a34a' : '1px solid #e2e8f0',
-                    background: tempStatus === 'shortlisted' ? '#dcfce7' : 'white',
-                    color: tempStatus === 'shortlisted' ? '#16a34a' : '#64748b',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  ✅ Shortlist
-                </button>
-                <button
-                  onClick={() => handleStatusChange('rejected')}
-                  style={{
-                    padding: '6px 16px',
-                    borderRadius: '6px',
-                    border: tempStatus === 'rejected' ? '2px solid #dc2626' : '1px solid #e2e8f0',
-                    background: tempStatus === 'rejected' ? '#fee2e2' : 'white',
-                    color: tempStatus === 'rejected' ? '#dc2626' : '#64748b',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  ❌ Reject
-                </button>
-              </div>
-
-              {/* ─── SAVE BUTTON ────────────────────────────────────────── */}
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
+            {isFinalStatus ? (
+              // ─── LOCKED STATE ──────────────────────────────────────────
+              <div
                 style={{
-                  padding: '8px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 12px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
                   borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: NAVY,
-                  color: '#ffffff',
+                  color: '#dc2626',
                   fontSize: 13,
-                  fontWeight: 700,
-                  cursor: isSaving ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 4px 12px rgba(27, 58, 107, 0.2)',
-                  opacity: isSaving ? 0.6 : 1,
+                  fontWeight: 600,
                 }}
               >
-                {isSaving ? 'Saving...' : 'Save & Close'}
-              </button>
-            </div>
+                <Lock size={16} />
+                <span>This decision is <strong>FINAL</strong> and cannot be changed. You may only view the documents.</span>
+              </div>
+            ) : (
+              // ─── ACTION BUTTONS ────────────────────────────────────────
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => handleStatusChange('shortlisted')}
+                    style={{
+                      padding: '6px 16px',
+                      borderRadius: '6px',
+                      border: tempStatus === 'shortlisted' ? '2px solid #16a34a' : '1px solid #e2e8f0',
+                      background: tempStatus === 'shortlisted' ? '#dcfce7' : 'white',
+                      color: tempStatus === 'shortlisted' ? '#16a34a' : '#64748b',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    ✅ Shortlist
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange('rejected')}
+                    style={{
+                      padding: '6px 16px',
+                      borderRadius: '6px',
+                      border: tempStatus === 'rejected' ? '2px solid #dc2626' : '1px solid #e2e8f0',
+                      background: tempStatus === 'rejected' ? '#fee2e2' : 'white',
+                      color: tempStatus === 'rejected' ? '#dc2626' : '#64748b',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    ❌ Reject
+                  </button>
+                </div>
 
-            {/* ─── COMMUNICATION NOTE ────────────────────────────────────── */}
+                {/* Save Button */}
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || tempStatus === originalStatus}
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: (isSaving || tempStatus === originalStatus) ? '#94a3b8' : NAVY,
+                    color: '#ffffff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: (isSaving || tempStatus === originalStatus) ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 12px rgba(27, 58, 107, 0.2)',
+                    opacity: (isSaving || tempStatus === originalStatus) ? 0.6 : 1,
+                  }}
+                >
+                  {isSaving ? 'Saving...' : (tempStatus === originalStatus ? 'No Changes' : 'Save & Close')}
+                </button>
+              </div>
+            )}
+
+            {/* Communication Note */}
             <div
               style={{
                 display: 'flex',
@@ -485,14 +578,18 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
             >
               <Info size={14} color="#94a3b8" />
               <span>
-                Further communication with candidates will be conducted via email outside this platform.
+                {isFinalStatus
+                  ? `This application has been ${originalStatus}. The decision is final.`
+                  : (tempStatus === 'shortlisted' || tempStatus === 'rejected')
+                    ? `⚠️ ${tempStatus === 'shortlisted' ? 'Shortlisting' : 'Rejecting'} ${applicantName} will send an email notification.`
+                    : 'Further communication with candidates will be conducted via email outside this platform.'}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ─── CONFIRMATION MODAL ─────────────────────────────────────────── */}
+      {/* Confirmation Modal */}
       {confirmation && (
         <ConfirmationModal
           isOpen={true}
@@ -504,6 +601,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
           message={confirmation.message}
           confirmLabel={confirmation.confirmLabel}
           confirmColor={confirmation.confirmColor}
+          isPermanent={confirmation.isPermanent}
         />
       )}
     </>

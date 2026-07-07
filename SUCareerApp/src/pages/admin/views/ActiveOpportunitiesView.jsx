@@ -3,7 +3,7 @@ import { Eye, FileText, X } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { NAVY } from '../constants';
 
-// ─── SAME parseList AS EMPLOYER VIEW ─────────────────────────────────────
+// ─── Helper: Parse text into list items, extracting just the label ─────
 function parseList(value) {
   if (!value) return [];
   if (Array.isArray(value)) {
@@ -11,10 +11,8 @@ function parseList(value) {
       .filter(Boolean)
       .map(item => {
         if (typeof item === 'string') return item;
-        const label = item.label || item.name || 'Document';
-        return item.format && item.format !== 'any'
-          ? `${label} (${item.formatLabel || item.format})`
-          : label;
+        // ✅ Just return the label – no format suffix
+        return item.label || item.name || 'Document';
       })
       .filter(item => item && item.trim() !== '');
   }
@@ -29,7 +27,7 @@ function parseList(value) {
   return [];
 }
 
-// ─── RENDER DESCRIPTION AS PLAIN PARAGRAPH (NO BULLETS) ────────────────
+// ─── Helper: Render description as plain paragraph (no bullets) ────────
 function renderDescription(content) {
   if (!content) return null;
 
@@ -40,7 +38,6 @@ function renderDescription(content) {
   const str = String(content).trim();
   if (!str) return null;
 
-  // Check for HTML tags
   const isHtmlContent = /<[^>]+>/i.test(str);
   if (isHtmlContent) {
     let cleaned = str;
@@ -63,7 +60,6 @@ function renderDescription(content) {
     return <div className="rich-content" dangerouslySetInnerHTML={{ __html: sanitized }} />;
   }
 
-  // Description is always a single paragraph – no bullet points
   return <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 14, margin: 0 }}>{str}</p>;
 }
 

@@ -267,7 +267,12 @@ function EmployerDetailModal({ employer, onClose }) {
   );
 }
 
-export default function EmployersView({ employersData, triggerModal, focusedEmployerId }) {
+export default function EmployersView({
+  employersData,
+  triggerModal,
+  focusedEmployerId,
+  searchQuery = '',   // ← new prop
+}) {
   const [activeTab, setActiveTab] = useState('all');
   const [manualTabSelected, setManualTabSelected] = useState(false);
   const [selectedEmployer, setSelectedEmployer] = useState(null);
@@ -285,11 +290,32 @@ export default function EmployersView({ employersData, triggerModal, focusedEmpl
 
   const effectiveTab = focusedEmployer?.verificationStatus === 'pending' && !manualTabSelected ? 'pending' : activeTab;
 
-  const filtered = effectiveTab === 'pending'
-    ? employersData.filter(emp => emp.verificationStatus === 'pending')
-    : effectiveTab === 'revoked'
-      ? employersData.filter(emp => emp.verificationStatus === 'rejected')
-      : employersData;
+  // ─── FILTER BY TAB ──────────────────────────────────────────────────────
+  const tabFiltered = useMemo(() => {
+    if (effectiveTab === 'pending') {
+      return employersData.filter(emp => emp.verificationStatus === 'pending');
+    }
+    if (effectiveTab === 'revoked') {
+      return employersData.filter(emp => emp.verificationStatus === 'rejected');
+    }
+    return employersData;
+  }, [employersData, effectiveTab]);
+
+  // ─── FILTER BY SEARCH QUERY ────────────────────────────────────────────
+  const filteredEmployers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return tabFiltered;
+
+    return tabFiltered.filter(emp =>
+      emp.companyName?.toLowerCase().includes(query) ||
+      emp.industry?.toLowerCase().includes(query) ||
+      emp.contactPerson?.toLowerCase().includes(query) ||
+      emp.email?.toLowerCase().includes(query) ||
+      emp.contactEmail?.toLowerCase().includes(query) ||
+      emp.phone?.toLowerCase().includes(query) ||
+      emp.website?.toLowerCase().includes(query)
+    );
+  }, [tabFiltered, searchQuery]);
 
   return (
     <div style={{ maxWidth: '1200px' }}>
@@ -331,7 +357,7 @@ export default function EmployersView({ employersData, triggerModal, focusedEmpl
             </tr>
           </thead>
           <tbody>
-            {filtered.map((emp) => (
+            {filteredEmployers.map((emp) => (
               <tr key={emp.id} style={{ borderBottom: '1px solid #f1f5f9', background: emp.id === focusedEmployerId ? '#fffbeb' : 'transparent' }}>
                 <td style={{ padding: '20px 24px' }}>
                   <div
@@ -432,7 +458,7 @@ export default function EmployersView({ employersData, triggerModal, focusedEmpl
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {filteredEmployers.length === 0 && (
               <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>No employers found in this view.</td></tr>
             )}
           </tbody>

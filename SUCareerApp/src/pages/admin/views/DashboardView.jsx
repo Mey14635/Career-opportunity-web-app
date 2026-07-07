@@ -15,7 +15,7 @@ export default function DashboardView({ statsData, recentPendingJobs, pendingEmp
   const stats = [
     { label: 'Total Students', count: statsData.totalStudents, change: 'Active on platform', urgent: false, icon: Users },
     { label: 'Active Employers', count: statsData.activeEmployers, change: 'Corporate Partners', urgent: false, icon: Building2 },
-    { label: 'Pending Approvals', count: statsData.pendingApprovals, change: 'Requires review', urgent: true, icon: AlertTriangle },
+    { label: 'Employers Pending Approvals', count: statsData.pendingApprovals, change: 'Requires review', urgent: true, icon: AlertTriangle },
     { label: 'Jobs Reviewed', count: statsData.totalJobs, change: 'Past 30 days', urgent: false, icon: FileText },
   ];
 

@@ -1,11 +1,53 @@
+// src/pages/student/views/Favorites.jsx
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
+import DOMPurify from "dompurify";
 import JobDetailsModal from "../../../components/student/JobDetailsModal/JobDetailsModal";
 import { db } from "../../../config/firebase";
 import { useAuth } from "../../../contexts/AuthContext";
 import { isStudentVisibleOpportunity, mapOpportunityDoc } from "../../../utils/opportunityMapper";
 import "./Favorites.css";
+
+// Helper: render description safely (HTML or plain text)
+function renderDescription(content) {
+  if (!content) return null;
+
+  if (Array.isArray(content)) {
+    content = content.join('\n');
+  }
+
+  const str = String(content).trim();
+  if (!str) return null;
+
+  // Check for HTML tags
+  const isHtmlContent = /<[^>]+>/i.test(str);
+
+  if (isHtmlContent) {
+    let cleaned = str;
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/<li>\s*<p>/g, '<li>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/li>/g, '</li>');
+    cleaned = cleaned.replace(/<ul>\s*<p>/g, '<ul>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ul>/g, '</ul>');
+    cleaned = cleaned.replace(/<ol>\s*<p>/g, '<ol>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ol>/g, '</ol>');
+    cleaned = cleaned.replace(/<p>\s*\.\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/\n\s*\n/g, '\n');
+
+    const sanitized = DOMPurify.sanitize(cleaned, {
+      ADD_ATTR: ['target'],
+      ADD_TAGS: ['iframe'],
+    });
+
+    return <div className="favorite-description rich-content" dangerouslySetInnerHTML={{ __html: sanitized }} />;
+  }
+
+  // Plain text: truncate for card preview
+  const truncated = str.length > 120 ? str.substring(0, 120) + '...' : str;
+  return <p className="favorite-description plain">{truncated}</p>;
+}
 
 function formatDaysLeft(daysLeft) {
   if (daysLeft === null || daysLeft === undefined) {
@@ -65,7 +107,7 @@ function Favorites() {
         setSavedOpportunities(nextSavedOpportunities);
       } catch {
         setSavedError("Could not load your saved opportunities right now.");
-    } finally {
+      } finally {
         setLoadingSaved(false);
       }
     }
@@ -95,8 +137,8 @@ function Favorites() {
 
         setAppliedOpportunityIds(ids);
       } catch {
-      return;
-    }
+        return;
+      }
     }
 
     loadAppliedOpportunities();
@@ -170,7 +212,9 @@ function Favorites() {
                   <p className="favorite-company">
                     {opp.company} | {opp.location}
                   </p>
-                  <p className="favorite-description">{opp.description}</p>
+
+                  {/* Render description safely */}
+                  {renderDescription(opp.description)}
 
                   <div className="favorite-footer">
                     <span className="favorite-badge">{opp.type}</span>
