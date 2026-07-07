@@ -6,6 +6,7 @@ import { NAVY, GOLD, inputStyle, labelStyle } from '../constants';
 import DocCheckbox from '../../../components/employer/DocCheckbox';
 import { uploadApplicationDocument } from '../../../services/cloudinaryUpload.js';
 import Modal from '../../../components/shared/Modal';
+import RichTextEditor from '../../../components/shared/RichTextEditor';
 
 const standardDocumentOptions = [
   { key: 'cv', label: 'CV / Resume' },
@@ -408,24 +409,39 @@ export default function PostJobView({ employerId, companyName, editingJob = null
             </div>
           </div>
 
+          {/* ─── JOB DESCRIPTION (Rich Text) ────────────────────────────── */}
           <div style={{ marginBottom: '20px' }}>
             <label style={labelStyle}>Job Description *</label>
-            <textarea name="description" value={formData.description} onChange={handleChange} rows="5" placeholder="Describe the role, responsibilities, and any additional details..." style={{...inputStyle, resize: 'vertical'}} required />
+            <RichTextEditor
+              value={formData.description}
+              onChange={(html) => setFormData(prev => ({ ...prev, description: html }))}
+              placeholder="Describe the role, responsibilities, and any additional details..."
+            />
           </div>
 
+          {/* ─── RESPONSIBILITIES (Rich Text) ───────────────────────────── */}
           <div style={{ marginBottom: '20px' }}>
             <label style={labelStyle}>Responsibilities *</label>
-            <textarea name="responsibilities" value={formData.responsibilities} onChange={handleChange} rows="4" placeholder="List the responsibilities of the role. Separate each point with a period." style={{...inputStyle, resize: 'vertical'}} required />
+            <RichTextEditor
+              value={formData.responsibilities}
+              onChange={(html) => setFormData(prev => ({ ...prev, responsibilities: html }))}
+              placeholder="List the responsibilities (use bullet points or numbering)"
+            />
             <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
-              Separate each responsibility with a period (.) for bullet point display.
+              Use the editor toolbar to format as bullet or numbered lists.
             </p>
           </div>
 
-          <div>
+          {/* ─── REQUIREMENTS (Rich Text) ────────────────────────────────── */}
+          <div style={{ marginBottom: '20px' }}>
             <label style={labelStyle}>Requirements / Qualifications *</label>
-            <textarea name="requirement" value={formData.requirement} onChange={handleChange} rows="3" placeholder="e.g. Bachelor's degree, specific skills, experience..." style={{...inputStyle, resize: 'vertical'}} required />
+            <RichTextEditor
+              value={formData.requirement}
+              onChange={(html) => setFormData(prev => ({ ...prev, requirement: html }))}
+              placeholder="List the qualifications (use bullet points)"
+            />
             <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
-              Separate each requirement with a period (.) for bullet point display.
+              Use the editor toolbar to format as bullet or numbered lists.
             </p>
           </div>
         </div>

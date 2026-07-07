@@ -1,6 +1,7 @@
 // src/pages/admin/views/JobReviewsView.jsx
 import { useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { NAVY, GOLD, BG_GRAY } from '../constants';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
@@ -38,42 +39,81 @@ function formatDocumentLabel(document) {
     : label;
 }
 
-// Helper: Get requirements as an array of bullet points (split by period)
-function getRequirementsList(job = {}) {
-  let rawText;
-
-  if (Array.isArray(job.requirements) && job.requirements.length > 0) {
-    rawText = job.requirements.join('. ');
-  } else if (typeof job.requirement === 'string' && job.requirement.trim()) {
-    rawText = job.requirement;
-  } else {
-    return [];
+// ─── SAME parseList AS EMPLOYER VIEW ─────────────────────────────────────
+// Splits on periods with whitespace OR newlines, then returns array of non‑empty items.
+function parseList(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .filter(Boolean)
+      .map(item => {
+        if (typeof item === 'string') return item;
+        const label = item.label || item.name || 'Document';
+        return item.format && item.format !== 'any'
+          ? `${label} (${item.formatLabel || item.format})`
+          : label;
+      })
+      .filter(item => item && item.trim() !== '');
   }
-
-  return rawText
-    .split('.')
-    .map(s => s.trim())
-    .filter(s => s.length > 0)
-    .map(s => s + '.');
+  if (typeof value === 'string') {
+    const items = value
+      .split(/(?:\.\s+|\n)/)
+      .map(item => item.trim())
+      .filter(item => item && item.length > 0);
+    if (items.length > 1) return items;
+    return [value.trim()];
+  }
+  return [];
 }
 
-// ─── NEW: Get responsibilities as bullet points ────────────────────────
-function getResponsibilitiesList(job = {}) {
-  let rawText;
+// ─── RENDER CONTENT: detects HTML, else uses parseList ──────────────────
+function renderContent(content) {
+  if (!content) return null;
 
-  if (Array.isArray(job.responsibilities) && job.responsibilities.length > 0) {
-    rawText = job.responsibilities.join('. ');
-  } else if (typeof job.responsibilities === 'string' && job.responsibilities.trim()) {
-    rawText = job.responsibilities;
-  } else {
-    return [];
+  // If it's an array, join with newlines for parsing
+  if (Array.isArray(content)) {
+    content = content.join('\n');
   }
 
-  return rawText
-    .split('.')
-    .map(s => s.trim())
-    .filter(s => s.length > 0)
-    .map(s => s + '.');
+  const str = String(content).trim();
+  if (!str) return null;
+
+  // Check for HTML tags
+  const isHtmlContent = /<[^>]+>/i.test(str);
+  if (isHtmlContent) {
+    let cleaned = str;
+    // Clean up empty tags and nested paragraphs
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/<li>\s*<p>/g, '<li>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/li>/g, '</li>');
+    cleaned = cleaned.replace(/<ul>\s*<p>/g, '<ul>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ul>/g, '</ul>');
+    cleaned = cleaned.replace(/<ol>\s*<p>/g, '<ol>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ol>/g, '</ol>');
+    cleaned = cleaned.replace(/<p>\s*\.\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/\n\s*\n/g, '\n');
+
+    const sanitized = DOMPurify.sanitize(cleaned, {
+      ADD_ATTR: ['target'],
+      ADD_TAGS: ['iframe'],
+    });
+
+    return <div className="rich-content" dangerouslySetInnerHTML={{ __html: sanitized }} />;
+  }
+
+  // Plain text: use parseList to get bullet points
+  const items = parseList(str);
+  if (items.length === 0) return <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>{str}</p>;
+  if (items.length === 1) return <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>{items[0]}</p>;
+
+  return (
+    <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 15, lineHeight: 1.8 }}>
+      {items.map((item, idx) => (
+        <li key={idx}>{item}</li>
+      ))}
+    </ul>
+  );
 }
 
 // Helper: Sort queue data by createdAt descending (newest first)
@@ -94,14 +134,11 @@ function isReturnedForEdits(job) {
 
 export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelection, onRefresh }) {
   const docs = getRequiredDocuments(selectedJob);
-  const reqs = getRequirementsList(selectedJob);
-  const resp = getResponsibilitiesList(selectedJob); // ← NEW
   const returnedForEdits = isReturnedForEdits(selectedJob);
   const [editReasonOpen, setEditReasonOpen] = useState(false);
   const [editReason, setEditReason] = useState(selectedJob.editRequestReason || '');
   const [editReasonError, setEditReasonError] = useState('');
 
-  // ─── WRAPPER FOR TRIGGER MODAL ─────────────────────────────────────
   const handleModalAction = (title, message, type, actionData) => {
     const wrappedActionData = {
       ...actionData,
@@ -167,29 +204,34 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 40 }}>
           <div>
-            <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Job Description</h3>
-            <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>
-              {selectedJob.description || 'No description provided.'}
-            </p>
+            {/* ─── ABOUT / DESCRIPTION ───────────────────────────────────── */}
+            <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>
+              {selectedJob.about ? 'About the Role' : 'Description'}
+            </h3>
+            {(() => {
+              const content = selectedJob.about || selectedJob.description;
+              return content ? renderContent(content) : (
+                <p style={{ color: '#94a3b8', fontSize: 15, marginBottom: 24 }}>No description provided.</p>
+              );
+            })()}
 
-            {/* ─── NEW: Responsibilities ──────────────────────────────── */}
-            <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Responsibilities</h3>
-            {resp.length > 0 ? (
-              <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 15, lineHeight: 1.8, marginBottom: 24 }}>
-                {resp.map((item, idx) => <li key={idx}>{item}</li>)}
-              </ul>
-            ) : (
-              <p style={{ color: '#94a3b8', fontSize: 15, marginBottom: 24 }}>No specific responsibilities listed.</p>
-            )}
+            {/* ─── RESPONSIBILITIES ───────────────────────────────────── */}
+            <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12, marginTop: 24 }}>Responsibilities</h3>
+            {(() => {
+              const content = selectedJob.responsibilities;
+              return content ? renderContent(content) : (
+                <p style={{ color: '#94a3b8', fontSize: 15, marginBottom: 24 }}>No specific responsibilities listed.</p>
+              );
+            })()}
 
+            {/* ─── REQUIREMENTS ───────────────────────────────────────── */}
             <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Requirements</h3>
-            {reqs.length > 0 ? (
-              <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 15, lineHeight: 1.8 }}>
-                {reqs.map((req, idx) => <li key={idx}>{req}</li>)}
-              </ul>
-            ) : (
-              <p style={{ color: '#94a3b8', fontSize: 15 }}>No specific requirements listed.</p>
-            )}
+            {(() => {
+              const content = selectedJob.requirement || selectedJob.requirements;
+              return content ? renderContent(content) : (
+                <p style={{ color: '#94a3b8', fontSize: 15 }}>No specific requirements listed.</p>
+              );
+            })()}
           </div>
 
           <div>
@@ -334,13 +376,11 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
 
   const selectedJob = selectedJobOverride || (focusedJobId !== dismissedFocusedJobId ? focusedJob : null);
 
-  // ─── HANDLE JOB SELECTION ──────────────────────────────────────────
   const handleSelectJob = (job) => {
     setSelectedJobOverride(job);
     setDismissedFocusedJobId('');
   };
 
-  // ─── CLEAR SELECTION ───────────────────────────────────────────────
   const clearSelection = () => {
     setSelectedJobOverride(null);
   };
@@ -360,7 +400,6 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
     );
   }
 
-  // ─── LIST VIEW ──────────────────────────────────────────────────────
   const sortedQueue = sortByCreatedDescending(queueData);
 
   return (

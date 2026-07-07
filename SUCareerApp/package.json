@@ -10,6 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tiptap/extension-placeholder": "^3.27.3",
+    "@tiptap/react": "^3.27.3",
+    "@tiptap/starter-kit": "^3.27.3",
+    "dompurify": "^3.4.11",
     "firebase": "^12.14.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

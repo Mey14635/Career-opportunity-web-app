@@ -4,6 +4,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { submitApplication } from "../../../services/applicationService";
 import { toggleSavedOpportunityForUser } from "../../../utils/saveOpportunity";
 import { incrementViews } from "../../../services/metricsService";
+import DOMPurify from "dompurify";
 import "./JobDetailsModal.css";
 
 const defaultDocument = {
@@ -49,6 +50,84 @@ function getAcceptValue(format) {
   return ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 }
 
+// ─── SINGLE, ROBUST CONTENT RENDERER ────────────────────────────────────
+
+/**
+ * Renders content safely – handles HTML (rich text) and plain text.
+ * - If content is HTML: sanitizes and renders with dangerouslySetInnerHTML.
+ * - If content is plain text: splits by '.' and renders as a bullet list.
+ * - If content is a single sentence with no period, renders as a paragraph.
+ */
+function renderContent(content) {
+  if (!content) return null;
+
+  // If it's an array, join with newlines
+  if (Array.isArray(content)) {
+    content = content.join('\n');
+  }
+
+  // Ensure it's a string
+  const str = String(content).trim();
+  if (!str) return null;
+
+  // Check if it looks like HTML (contains a tag)
+  const isHtmlContent = /<\/?(p|ul|ol|li|h[2-3]|b|strong|i|em|u|br|div|span|blockquote|table|tr|td|a)[^>]*>/i.test(str);
+
+  if (isHtmlContent) {
+    // Clean up and sanitize
+    let cleaned = str;
+    // Remove empty <p> tags
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    // Remove <p> inside <li>
+    cleaned = cleaned.replace(/<li>\s*<p>/g, '<li>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/li>/g, '</li>');
+    // Remove <p> inside <ul> / <ol>
+    cleaned = cleaned.replace(/<ul>\s*<p>/g, '<ul>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ul>/g, '</ul>');
+    cleaned = cleaned.replace(/<ol>\s*<p>/g, '<ol>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ol>/g, '</ol>');
+    // Remove empty <p> with just a dot
+    cleaned = cleaned.replace(/<p>\s*\.\s*<\/p>/g, '');
+    // Remove extra blank lines
+    cleaned = cleaned.replace(/\n\s*\n/g, '\n');
+
+    const sanitized = DOMPurify.sanitize(cleaned, {
+      ADD_ATTR: ['target'],
+      ADD_TAGS: ['iframe'],
+    });
+
+    return <div className="rich-content" dangerouslySetInnerHTML={{ __html: sanitized }} />;
+  }
+
+  // Plain text: split by periods, but only if there is more than one period
+  const hasMultiplePeriods = (str.match(/\./g) || []).length > 1;
+  if (hasMultiplePeriods) {
+    const items = str
+      .split('.')
+      .map(item => item.trim())
+      .filter(item => item.length > 0);
+    if (items.length > 0) {
+      return (
+        <ul>
+          {items.map((item, idx) => (
+            <li key={idx}>{item}</li>
+          ))}
+        </ul>
+      );
+    }
+  }
+
+  // Single sentence or no periods: render as a paragraph
+  return <p>{str}</p>;
+}
+
+// ─── HELPER: Safely display any value (string, array, etc.) ──────────────
+function safeDisplay(value) {
+  if (value === null || value === undefined) return null;
+  if (Array.isArray(value)) return value.join(", ");
+  return value;
+}
+
 function JobDetailsModal({
   opportunity,
   saved = false,
@@ -84,7 +163,6 @@ function JobDetailsModal({
 
   const hasPdf = opportunity.jobDescriptionPdfUrl && opportunity.jobDescriptionPdfUrl.trim() !== "";
 
-  // Determine if all positions are filled
   const totalPositions = opportunity.positions || 0;
   const isFullyFilled = totalPositions > 0 && shortlistedCount >= totalPositions;
 
@@ -184,7 +262,7 @@ function JobDetailsModal({
         >
           <header className="job-modal-header">
             <div className="job-company-mark" aria-hidden="true">
-              {opportunity.company.charAt(0)}
+              {opportunity.company?.charAt(0) || 'C'}
             </div>
             <div>
               <h2 id="job-modal-title">{opportunity.title}</h2>
@@ -198,7 +276,6 @@ function JobDetailsModal({
           </header>
 
           <div className={`job-modal-actions ${hideSaveButton ? "apply-only" : ""}`}>
-            {/* ─── Apply Button ──────────────────────────────────────── */}
             <button
               className={`job-apply-btn ${applied ? "applied" : ""} ${isExpired ? "closed" : ""}`}
               type="button"
@@ -264,47 +341,39 @@ function JobDetailsModal({
           </div>
 
           <div className="job-modal-content">
+            {/* ─── ABOUT THE ROLE ───────────────────────────────────────── */}
             <section>
               <h3>About the Role</h3>
-              <p>{opportunity.about}</p>
+              {renderContent(opportunity.about) || <p>No description provided.</p>}
             </section>
 
+            {/* ─── RESPONSIBILITIES ─────────────────────────────────────── */}
             <section>
               <h3>Responsibilities</h3>
-              {opportunity.responsibilities?.length > 0 ? (
-                <ul>
-                  {opportunity.responsibilities.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p>No responsibilities listed yet.</p>
-              )}
+              {renderContent(opportunity.responsibilities) || <p>No responsibilities listed yet.</p>}
             </section>
 
+            {/* ─── REQUIREMENTS ─────────────────────────────────────────── */}
             <section>
               <h3>Requirements</h3>
-              {opportunity.requirements.length > 0 ? (
-                <ul>
-                  {opportunity.requirements.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p>No requirements listed yet.</p>
-              )}
+              {renderContent(opportunity.requirements) || <p>No requirements listed yet.</p>}
             </section>
 
+            {/* ─── ROLE DETAILS ─────────────────────────────────────────── */}
             <section>
               <h3>Role Details</h3>
               <ul>
                 {opportunity.startDate && opportunity.startDate !== 'Not specified' && (
-                  <li>Start date: {opportunity.startDate}</li>
+                  <li>Start date: {safeDisplay(opportunity.startDate)}</li>
                 )}
-                {opportunity.department && <li>Department: {opportunity.department}</li>}
-                <li>Duration: {opportunity.duration}</li>
-                <li>Open positions: {opportunity.positions}</li>
-                {opportunity.stipend && <li>Stipend / Salary: {opportunity.stipend}</li>}
+                {opportunity.department && (
+                  <li>Department: {safeDisplay(opportunity.department)}</li>
+                )}
+                <li>Duration: {safeDisplay(opportunity.duration)}</li>
+                <li>Open positions: {safeDisplay(opportunity.positions)}</li>
+                {opportunity.stipend && (
+                  <li>Stipend / Salary: {safeDisplay(opportunity.stipend)}</li>
+                )}
               </ul>
             </section>
 

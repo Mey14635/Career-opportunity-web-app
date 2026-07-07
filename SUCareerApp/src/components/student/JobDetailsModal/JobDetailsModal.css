@@ -350,3 +350,51 @@
     padding: 12px;
   }
 }
+
+/*  Rich Content Styling  */
+.rich-content ul,
+.rich-content ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.rich-content li {
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+
+.rich-content p {
+  margin: 0 0 12px 0;
+  line-height: 1.6;
+}
+
+.rich-content h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 16px 0 8px;
+  color: #1B3A6B;
+}
+
+.rich-content h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 14px 0 6px;
+  color: #1B3A6B;
+}
+
+.rich-content strong,
+.rich-content b {
+  font-weight: 700;
+}
+
+.rich-content em,
+.rich-content i {
+  font-style: italic;
+}
+
+.rich-content ul ul,
+.rich-content ol ol,
+.rich-content ul ol,
+.rich-content ol ul {
+  margin: 4px 0;
+}
