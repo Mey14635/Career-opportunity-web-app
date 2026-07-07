@@ -9,7 +9,12 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     const isEmployerPortal = location.pathname.startsWith("/employer-dashboard");
     const loginPath = isStudentPortal ? "/student-dashboard/login" : isEmployerPortal ? "/employer-access" : "/login";
     const verifyEmailPath = "/student-dashboard/verify-email";
-    const profilePath = isStudentPortal ? "/student-dashboard/profile" : "/profile";
+    const profilePath = "/student-dashboard/profile";
+    const roleHomePath = {
+        admin: "/admin-dashboard",
+        employer: "/employer-dashboard",
+        student: hasProfile ? "/student-dashboard/dashboard" : profilePath,
+    };
 
     if (loading) {
         return <div className="auth-status">Loading secure page...</div>;
@@ -30,14 +35,14 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
         return <Navigate to={loginPath} replace state={{ authError: "Please verify your email before signing in to the employer portal." }} />;
     }
 
-    // 2. Logged in but trying to access a role-restricted route (like /dashboard)
+    // 2. Logged in but trying to access a role-restricted route
     if (allowedRoles.length > 0) {
         if (!allowedRoles.includes(role)) {
-            return <Navigate to={loginPath} replace />;
+            return <Navigate to={roleHomePath[role] || loginPath} replace />;
         }
         
         // If they are a student but haven't set up their profile, force them to onboarding
-        if (role === "student" && !hasProfile) {
+        if (role === "student" && !hasProfile && location.pathname !== profilePath) {
             return <Navigate to={profilePath} replace />;
         }
 

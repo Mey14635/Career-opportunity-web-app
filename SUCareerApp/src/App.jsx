@@ -42,8 +42,22 @@ function App() {
         <Route path="/help-center" element={<HelpCenter />} />
 
         {/* ─── PROTECTED ROUTES ────────────────────────────────────────────── */}
-        <Route path="/admin-dashboard" element={<AdminDashboard onLogout={handleLogout} />} />
-        <Route path="/employer-dashboard" element={<EmployerDashboard onLogout={handleLogout} />} />
+        <Route
+          path="/admin-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminDashboard onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/employer-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['employer']}>
+              <EmployerDashboard onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/student-dashboard/*" element={<StudentDashboard />} />
 
         {/* ─── COMPANY PROFILE (all authenticated roles) ───────────────────── */}
