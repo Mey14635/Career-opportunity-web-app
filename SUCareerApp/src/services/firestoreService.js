@@ -62,9 +62,7 @@ export const updateOpportunityStatus = async (opportunityId, status) => {
   });
 
   if (status === 'open') {
-    createEmployerJobApprovedNotification(opportunityId, opportunityData).catch((notificationError) => {
-      console.error('Job approval notification failed:', notificationError);
-    });
+    createEmployerJobApprovedNotification(opportunityId, opportunityData).catch(() => {});
   }
 };
 
@@ -100,26 +98,26 @@ export const getEmployerJobs = async (employerId) => {
 
 // ─── CREATE JOB ────────────────────────────────────────────────────────
 export const createJob = async (jobData) => {
-  try {
-    const ref = doc(collection(db, 'opportunities'));
-    await setDoc(ref, {
-      ...jobData,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
-    createAdminJobReviewNotification(ref.id, jobData).catch((notificationError) => {
-      console.error('Job review notification failed:', notificationError);
-    });
-    return ref.id;
-  } catch (error) {
-    console.error('createJob error:', error);
-    throw error;
-  }
+  const ref = doc(collection(db, 'opportunities'));
+  await setDoc(ref, {
+    ...jobData,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  });
+  createAdminJobReviewNotification(ref.id, jobData).catch(() => {});
+  return ref.id;
 };
 
 export const updateJob = async (jobId, jobData) => {
   const ref = doc(db, 'opportunities', jobId);
-  await updateDoc(ref, { ...jobData, editRequestReason: deleteField(), updatedAt: Timestamp.now() });
+  await updateDoc(ref, {
+    ...jobData,
+    additionalDocs: deleteField(),
+    documentsRequired: deleteField(),
+    editRequestReason: deleteField(),
+    requiredDocument: deleteField(),
+    updatedAt: Timestamp.now(),
+  });
 };
 
 // ─── APPLICATIONS ─────────────────────────────────────────────────────────
@@ -240,9 +238,7 @@ export const updateApplicationStatus = async (applicationId, status) => {
 
   await updateDoc(ref, { status });
 
-  createStudentApplicationStatusNotification(applicationId, applicationData, status).catch((notificationError) => {
-    console.error('Application status notification failed:', notificationError);
-  });
+  createStudentApplicationStatusNotification(applicationId, applicationData, status).catch(() => {});
 };
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────

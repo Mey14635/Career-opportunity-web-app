@@ -56,9 +56,7 @@ function Notifications() {
       (nextNotifications) => {
         setNotifications(nextNotifications);
       },
-      (err) => {
-        console.error("Failed to load notifications:", err);
-      }
+      () => {}
     );
   }, [user]);
 
@@ -83,9 +81,9 @@ function Notifications() {
         ];
 
         setAppliedOpportunityIds(ids);
-      } catch (err) {
-        console.error("Failed to load applied opportunities:", err);
-      }
+      } catch {
+      return;
+    }
     }
 
     loadAppliedOpportunities();
@@ -100,8 +98,8 @@ function Notifications() {
   async function handleMarkRead(notificationId) {
     try {
       await markNotificationAsRead(notificationId);
-    } catch (err) {
-      console.error("Failed to mark notification as read:", err);
+    } catch {
+      return;
     }
   }
 
@@ -120,16 +118,16 @@ function Notifications() {
       if (opportunitySnap) {
         setSelectedOpportunity(mapOpportunityDoc(opportunitySnap));
       }
-    } catch (err) {
-      console.error("Failed to open opportunity from notification:", err);
+    } catch {
+      return;
     }
   }
 
   async function handleDelete(notificationId) {
     try {
       await deleteNotification(notificationId);
-    } catch (err) {
-      console.error("Failed to delete notification:", err);
+    } catch {
+      return;
     }
   }
 

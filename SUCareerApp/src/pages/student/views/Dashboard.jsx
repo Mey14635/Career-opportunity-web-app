@@ -73,6 +73,10 @@ function buildFilterOptions(defaultOptions, opportunities, fieldName, config = {
 
 const categoryBlocklist = ["general", ...defaultJobTypes.map(singularizeFilterValue)];
 
+function isExpiredOpportunity(opportunity) {
+  return opportunity.daysLeft !== null && opportunity.daysLeft !== undefined && opportunity.daysLeft <= 0;
+}
+
 function Dashboard() {
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [selectedIndustries, setSelectedIndustries] = useState([]);
@@ -87,6 +91,7 @@ function Dashboard() {
   const { user } = useAuth();
   const searchText = (searchParams.get("search") || "").trim().toLowerCase();
   const opportunityIdFromUrl = searchParams.get("opportunity");
+  const showExpiredJobs = searchParams.get("showExpired") === "true";
   const jobTypes = buildFilterOptions(defaultJobTypes, opportunities, "type");
   const categories = buildFilterOptions(defaultCategories, opportunities, "industry", {
     blocklist: categoryBlocklist,
@@ -105,10 +110,9 @@ function Dashboard() {
           .map(mapOpportunityDoc);
 
         setOpportunities(visibleOpportunities);
-      } catch (err) {
-        console.error("Failed to load opportunities:", err);
+      } catch {
         setOpportunitiesError("Could not load opportunities right now.");
-      } finally {
+    } finally {
         setLoadingOpportunities(false);
       }
     }
@@ -127,10 +131,9 @@ function Dashboard() {
         const profileSnap = await getDoc(doc(db, "student_profiles", user.uid));
         const profileData = profileSnap.exists() ? profileSnap.data() : {};
         setStudentInterests(Array.isArray(profileData.interests) ? profileData.interests : []);
-      } catch (err) {
-        console.error("Failed to load student interests:", err);
+      } catch {
         setStudentInterests([]);
-      }
+    }
     }
 
     loadStudentInterests();
@@ -158,9 +161,9 @@ function Dashboard() {
         ];
 
         setSavedOpportunityIds(ids);
-      } catch (err) {
-        console.error("Failed to load saved opportunities:", err);
-      }
+      } catch {
+      return;
+    }
     }
 
     loadSavedOpportunities();
@@ -187,9 +190,9 @@ function Dashboard() {
         ];
 
         setAppliedOpportunityIds(ids);
-      } catch (err) {
-        console.error("Failed to load applied opportunities:", err);
-      }
+      } catch {
+      return;
+    }
     }
 
     loadAppliedOpportunities();
@@ -208,6 +211,18 @@ function Dashboard() {
     } else {
       setList([...list, normalizedValue]);
     }
+  }
+
+  function handleShowExpiredChange(event) {
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (event.target.checked) {
+      nextParams.set("showExpired", "true");
+    } else {
+      nextParams.delete("showExpired");
+    }
+
+    setSearchParams(nextParams);
   }
 
   const normalizedStudentInterests = studentInterests.map(normalizeCategoryValue);
@@ -230,7 +245,9 @@ function Dashboard() {
       selectedIndustries.length === 0 ||
       selectedIndustries.map(normalizeCategoryValue).includes(opportunityCategory);
 
-    return matchesSearch && matchesType && matchesIndustry;
+    const matchesDeadline = showExpiredJobs || !isExpiredOpportunity(opp);
+
+    return matchesSearch && matchesType && matchesIndustry && matchesDeadline;
   }).sort((a, b) => {
     const aMatchesInterest = normalizedStudentInterests.includes(normalizeCategoryValue(a.industry));
     const bMatchesInterest = normalizedStudentInterests.includes(normalizeCategoryValue(b.industry));
@@ -243,7 +260,7 @@ function Dashboard() {
   });
 
   const linkedOpportunity = opportunityIdFromUrl
-    ? opportunities.find((opp) => opp.id === opportunityIdFromUrl)
+    ? opportunities.find((opp) => opp.id === opportunityIdFromUrl && (showExpiredJobs || !isExpiredOpportunity(opp)))
     : null;
   const activeOpportunity = selectedOpportunity || linkedOpportunity || null;
 
@@ -290,8 +307,21 @@ function Dashboard() {
 
       <main className="main-content">
         <div className="section-heading">
-          <h1>Recommended for You</h1>
-          <p>{filtered.length} opportunities matching your profile</p>
+          <div>
+            <h1>Recommended for You</h1>
+            <p>{filtered.length} opportunities matching your profile</p>
+          </div>
+          <label className="expired-toggle">
+            <input
+              type="checkbox"
+              checked={showExpiredJobs}
+              onChange={handleShowExpiredChange}
+            />
+            <span className="expired-toggle-track" aria-hidden="true">
+              <span className="expired-toggle-thumb" />
+            </span>
+            <span>Show expired jobs</span>
+          </label>
         </div>
 
         <div className="cards-grid">
@@ -312,6 +342,7 @@ function Dashboard() {
                 type={opp.type}
                 daysLeft={opp.daysLeft}
                 deadline={opp.deadline}
+                expired={isExpiredOpportunity(opp)}
                 saved={savedOpportunityIds.includes(opp.id)}
                 applied={appliedOpportunityIds.includes(opp.id)}
                 onSaved={(opportunityId, nextSaved) =>

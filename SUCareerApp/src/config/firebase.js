@@ -23,9 +23,7 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 // Explicitly enforce local state persistence (survives tab/browser closures)
-setPersistence(auth, browserLocalPersistence).catch((error) => {
-  console.error("Firebase auth persistence error:", error);
-});
+setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 // Safe Analytics handling to avoid asynchronous export racing
 let analyticsInstance = null;
@@ -36,9 +34,7 @@ isSupported()
       analyticsInstance = getAnalytics(app);
     }
   })
-  .catch((err) => {
-    console.warn("Analytics not supported or blocked by browser:", err);
-  });
+  .catch(() => {});
 
 // A clean function your team can safely call anywhere without crashing the app
 export const logEventSafely = (eventName, eventParams = {}) => {

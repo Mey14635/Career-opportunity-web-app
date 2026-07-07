@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GraduationCap, Building2, Plus, Minus } from 'lucide-react';
+import welcomeHeroImage from '../../assets/welcome-career-hero.jpg';
 
 const NAVY = "#1B3A6B";
 const GOLD = "#C9A230";
@@ -19,7 +20,7 @@ export default function LandingPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, system-ui, sans-serif', backgroundColor: '#f8fafc' }}>
       
-      <header style={{ padding: '24px 64px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: NAVY }}>
+      <header style={{ padding: '24px 64px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 44, height: 44, background: GOLD, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ color: NAVY, fontWeight: 800, fontSize: 20 }}>SU</span>
@@ -29,7 +30,7 @@ export default function LandingPage() {
         <div style={{ display: 'flex', gap: 16 }}>
           <button
             onClick={() => navigate('/help-center')}
-            style={{ padding: '12px 24px', backgroundColor: 'transparent', color: '#ffffff', border: 'none', fontWeight: 600, fontSize: '15px', cursor: 'pointer' }}
+            style={{ padding: '12px 24px', backgroundColor: 'transparent', color: '#ffffff', border: 'none', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}
           >
             Help Center
           </button>
@@ -42,15 +43,29 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <section style={{ backgroundColor: NAVY, padding: '80px 24px 100px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section
+        style={{
+          minHeight: '560px',
+          backgroundImage: `linear-gradient(90deg, rgba(27, 58, 107, 0.88) 0%, rgba(27, 58, 107, 0.76) 42%, rgba(27, 58, 107, 0.28) 100%), url(${welcomeHeroImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center 42%',
+          padding: '126px clamp(24px, 6vw, 64px) 112px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
         <div style={{ maxWidth: '850px', position: 'relative', zIndex: 2 }}>
-          <h1 style={{ color: '#ffffff', fontSize: '56px', fontWeight: 800, margin: '0 0 24px 0', lineHeight: 1.1, letterSpacing: '-1px' }}>
+          <h1 style={{ color: '#ffffff', fontSize: '56px', fontWeight: 800, margin: '0 0 24px 0', lineHeight: 1.08, letterSpacing: '-1px' }}>
             Connecting Strathmore Excellence with Industry Leaders
           </h1>
-          <p style={{ color: '#cbd5e1', fontSize: '20px', margin: '0 auto 48px auto', lineHeight: 1.6, maxWidth: '650px' }}>
+          <p style={{ color: '#e2e8f0', fontSize: '20px', margin: '0 auto 40px auto', lineHeight: 1.6, maxWidth: '650px' }}>
             The centralized hub for empowering student careers and enabling top-tier corporate partnerships across the continent.
           </p>
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
             <button 
               onClick={() => navigate('/student-dashboard/signup')}
               style={{ padding: '16px 36px', backgroundColor: GOLD, color: NAVY, borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '16px', cursor: 'pointer' }}
@@ -59,7 +74,7 @@ export default function LandingPage() {
             </button>
             <button 
               onClick={() => navigate('/employer-access')}
-              style={{ padding: '16px 36px', backgroundColor: 'rgba(255,255,255,0.1)', color: '#ffffff', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', fontWeight: 600, fontSize: '16px', cursor: 'pointer' }}
+              style={{ padding: '16px 36px', backgroundColor: 'rgba(255,255,255,0.14)', color: '#ffffff', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.32)', fontWeight: 700, fontSize: '16px', cursor: 'pointer', boxShadow: '0 8px 20px rgba(15, 23, 42, 0.14)' }}
             >
               Partner With Us
             </button>
@@ -67,7 +82,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px 80px', marginTop: '-40px' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px 80px', marginTop: '-36px' }}>
         <section style={{ maxWidth: '1100px', width: '100%', display: 'flex', gap: '32px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '80px', position: 'relative', zIndex: 10 }}>
           <div style={{ flex: '1 1 400px', padding: '56px 48px', backgroundColor: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0', boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '50%', marginBottom: '24px' }}>

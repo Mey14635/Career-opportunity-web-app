@@ -66,8 +66,7 @@ const VerifyEmail = () => {
       }, 1500);
 
       return true;
-    } catch (err) {
-      console.error("Firestore write failure:", err);
+    } catch {
       setError("Authenticated successfully, but failed to initialize your database records. Please try logging in.");
       return false;
     }
@@ -86,10 +85,9 @@ const VerifyEmail = () => {
         await applyActionCode(auth, oobCode);
         setEmailConfirmed(true);
         setStatus("Email verified successfully! You can return to your original browser tab or log in.");
-      } catch (err) {
-        console.error(err);
+      } catch {
         setError("This verification link is invalid or has expired.");
-      }
+    }
     };
 
     applyEmailCode();
@@ -116,9 +114,9 @@ const VerifyEmail = () => {
             await createStudentRecords(user.uid, user.email, displayName);
             setSavingVerifiedUser(false);
           }
-        } catch (err) {
-          console.error("Error refreshing cloud token state:", err);
-        }
+        } catch {
+      return;
+    }
         return;
       }
 

@@ -48,7 +48,16 @@ export default function JobDetailView({ job, applicants, onBack, onReview, onEdi
   const parseList = (value) => {
     if (!value) return [];
     if (Array.isArray(value)) {
-      return value.filter(item => item && item.trim() !== '');
+      return value
+        .filter(Boolean)
+        .map(item => {
+          if (typeof item === 'string') return item;
+          const label = item.label || item.name || 'Document';
+          return item.format && item.format !== 'any'
+            ? `${label} (${item.formatLabel || item.format})`
+            : label;
+        })
+        .filter(item => item && item.trim() !== '');
     }
     if (typeof value === 'string') {
       const items = value
@@ -63,7 +72,7 @@ export default function JobDetailView({ job, applicants, onBack, onReview, onEdi
 
   const requirementsList = parseList(job.requirement || job.requirements);
   const responsibilitiesList = parseList(job.responsibilities);
-  const documentsList = parseList(job.requiredDocument || job.documentsRequired);
+  const documentsList = parseList(job.requiredDocuments || job.documentsRequired || job.requiredDocument);
   const hasPdf = job.jobDescriptionPdfUrl && job.jobDescriptionPdfUrl.trim() !== '';
 
   const isDeadlineUrgent = daysLeft !== null && daysLeft !== undefined && daysLeft <= 2 && daysLeft > 0;

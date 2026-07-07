@@ -63,10 +63,9 @@ function Favorites() {
           .filter(Boolean);
 
         setSavedOpportunities(nextSavedOpportunities);
-      } catch (err) {
-        console.error("Failed to load saved opportunities:", err);
+      } catch {
         setSavedError("Could not load your saved opportunities right now.");
-      } finally {
+    } finally {
         setLoadingSaved(false);
       }
     }
@@ -95,9 +94,9 @@ function Favorites() {
         ];
 
         setAppliedOpportunityIds(ids);
-      } catch (err) {
-        console.error("Failed to load applied opportunities:", err);
-      }
+      } catch {
+      return;
+    }
     }
 
     loadAppliedOpportunities();

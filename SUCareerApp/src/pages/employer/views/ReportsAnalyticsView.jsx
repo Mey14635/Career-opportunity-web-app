@@ -125,9 +125,9 @@ export default function ReportsAnalyticsView({ employerId }) {
           rejected: rejectedCount
         });
 
-      } catch (err) {
-        console.error('Error fetching report data:', err);
-      } finally {
+      } catch {
+      return;
+    } finally {
         setLoading(false);
       }
     }

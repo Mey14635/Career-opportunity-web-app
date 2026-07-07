@@ -16,6 +16,7 @@ const standardDocumentOptions = [
 export default function PostJobView({ employerId, companyName, editingJob = null, onCancel, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(null);
 
   // ─── FORM STATE ─────────────────────────────────────────────────────────
   const [formData, setFormData] = useState({
@@ -234,15 +235,11 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     ).join(', ') || 'None specified';
   };
 
-  // ─── BUILD ADDITIONAL DOCS STRING ──────────────────────────────────────
-  const buildAdditionalDocs = () => {
-    return customDocuments.map(d => d.name).join(', ');
-  };
-
   // ─── SUBMIT ──────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setStatusMessage(null);
 
     let pdfUrl = formData.jobDescriptionPdfUrl;
     let pdfFileName = formData.pdfFileName;
@@ -255,7 +252,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
         pdfFileName = result.originalFileName;
         setUploadingPdf(false);
       } catch (err) {
-        alert('❌ Error uploading PDF: ' + err.message);
+        setStatusMessage({ type: 'error', text: `Error uploading document: ${err.message}` });
         setSubmitting(false);
         setUploadingPdf(false);
         return;
@@ -279,10 +276,7 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       description: formData.description,
       requirement: formData.requirement,
       responsibilities: formData.responsibilities,
-      requiredDocument: buildRequiredDocsLabel(),
       requiredDocuments: docItems,
-      documentsRequired: docItems,
-      additionalDocs: buildAdditionalDocs(),
       jobDescriptionPdfUrl: pdfUrl,
       pdfFileName: pdfFileName,
       status: 'pending',
@@ -293,15 +287,14 @@ export default function PostJobView({ employerId, companyName, editingJob = null
     try {
       if (editingJob) {
         await updateJob(editingJob.id, jobData);
-        alert('✅ Job updated successfully! It will be reviewed by the admin again.');
+        setStatusMessage({ type: 'success', text: 'Job updated successfully. It will be reviewed by the admin again.' });
       } else {
         await createJob(jobData);
-        alert('✅ Job posted successfully! It will appear after admin approval.');
+        setStatusMessage({ type: 'success', text: 'Job posted successfully. It will appear after admin approval.' });
       }
-      onSuccess();
+      window.setTimeout(() => onSuccess(), 700);
     } catch (err) {
-      alert('❌ Error: ' + err.message);
-      console.error(err);
+      setStatusMessage({ type: 'error', text: `Error: ${err.message}` });
     } finally {
       setSubmitting(false);
       setUploadingPdf(false);
@@ -322,6 +315,21 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       {editingJob?.editRequestReason && (
         <div style={{ marginBottom: 20, padding: '14px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, color: '#92400e', fontSize: 13, lineHeight: 1.6 }}>
           <strong>Admin requested changes:</strong> {editingJob.editRequestReason}
+        </div>
+      )}
+
+      {statusMessage && (
+        <div style={{
+          marginBottom: 20,
+          padding: '12px 14px',
+          background: statusMessage.type === 'error' ? '#fef2f2' : '#f0fdf4',
+          border: `1px solid ${statusMessage.type === 'error' ? '#fecaca' : '#bbf7d0'}`,
+          borderRadius: 8,
+          color: statusMessage.type === 'error' ? '#b91c1c' : '#166534',
+          fontSize: 13,
+          fontWeight: 700,
+        }}>
+          {statusMessage.text}
         </div>
       )}
 

@@ -10,6 +10,7 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(null);
   const fileInputRef = useRef(null);
   
   const [profile, setProfile] = useState({
@@ -50,8 +51,8 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
             overview: data.overview || '',
           });
         }
-      } catch (err) {
-        console.error('Error fetching profile:', err);
+      } catch {
+        setStatusMessage({ type: 'error', text: 'Could not load the company profile right now.' });
       } finally {
         setLoading(false);
       }
@@ -65,16 +66,17 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Please upload a valid image (JPEG, PNG, SVG, or WebP).');
+      setStatusMessage({ type: 'error', text: 'Please upload a valid image: JPEG, PNG, SVG, or WebP.' });
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      alert('Logo must be 2MB or smaller.');
+      setStatusMessage({ type: 'error', text: 'Logo must be 2MB or smaller.' });
       return;
     }
 
     setUploadingLogo(true);
+    setStatusMessage(null);
 
     try {
       const result = await uploadLogo(file);
@@ -90,10 +92,9 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
         updatedAt: Timestamp.now(),
       });
 
-      alert('Logo uploaded successfully.');
+      setStatusMessage({ type: 'success', text: 'Logo uploaded successfully.' });
     } catch (err) {
-      console.error('Error uploading logo:', err);
-      alert('Error uploading logo: ' + err.message);
+      setStatusMessage({ type: 'error', text: `Error uploading logo: ${err.message}` });
     } finally {
       setUploadingLogo(false);
       if (fileInputRef.current) {
@@ -110,10 +111,9 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
         updatedAt: Timestamp.now(),
       });
       setProfile(prev => ({ ...prev, companyLogoUrl: '' }));
-      alert('Logo removed successfully.');
+      setStatusMessage({ type: 'success', text: 'Logo removed successfully.' });
     } catch (err) {
-      console.error('Error removing logo:', err);
-      alert('Error removing logo: ' + err.message);
+      setStatusMessage({ type: 'error', text: `Error removing logo: ${err.message}` });
     }
     setRemoveLogoModalOpen(false);
   };
@@ -121,6 +121,7 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
   const handleSave = async () => {
     if (!employerId) return;
     setSaving(true);
+    setStatusMessage(null);
     try {
       const docRef = doc(db, 'employer_profiles', employerId);
       await updateDoc(docRef, {
@@ -134,10 +135,9 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
         overview: profile.overview,
         updatedAt: Timestamp.now(),
       });
-      alert('Profile updated successfully.');
+      setStatusMessage({ type: 'success', text: 'Profile updated successfully.' });
     } catch (err) {
-      console.error('Error saving profile:', err);
-      alert('Error saving profile: ' + err.message);
+      setStatusMessage({ type: 'error', text: `Error saving profile: ${err.message}` });
     } finally {
       setSaving(false);
     }
@@ -158,6 +158,21 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
           <ExternalLink size={14} /> View Public Profile
         </button>
       </div>
+
+      {statusMessage && (
+        <div style={{
+          marginBottom: 16,
+          padding: '12px 14px',
+          background: statusMessage.type === 'error' ? '#fef2f2' : '#f0fdf4',
+          border: `1px solid ${statusMessage.type === 'error' ? '#fecaca' : '#bbf7d0'}`,
+          borderRadius: 8,
+          color: statusMessage.type === 'error' ? '#b91c1c' : '#166534',
+          fontSize: 13,
+          fontWeight: 700,
+        }}>
+          {statusMessage.text}
+        </div>
+      )}
 
       <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
         {/* ─── LOGO SECTION ────────────────────────────────────────────── */}

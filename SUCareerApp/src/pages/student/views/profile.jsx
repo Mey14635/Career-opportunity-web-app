@@ -62,10 +62,9 @@ const Profile = () => {
         });
 
         setSelectedInterests(profileData.interests || []);
-      } catch (err) {
-        console.error(err);
+      } catch {
         setError("Failed to load your profile details. Please refresh and try again.");
-      } finally {
+    } finally {
         setProfileLoading(false);
       }
     }
@@ -130,7 +129,6 @@ const Profile = () => {
       await refreshAuthStatus();
       setSuccess("Profile changes saved successfully.");
     } catch (err) {
-      console.error(err);
       setError("Failed to save profile changes: " + err.message);
     } finally {
       setLoading(false);
@@ -176,7 +174,6 @@ const Profile = () => {
         // FIXED: Added full path to ensure it stays within the student portal
         navigate("/student-dashboard/dashboard", { replace: true });
       } catch (err) {
-        console.error(err);
         setError("Failed to save profile configuration: " + err.message);
       } finally {
         setLoading(false);

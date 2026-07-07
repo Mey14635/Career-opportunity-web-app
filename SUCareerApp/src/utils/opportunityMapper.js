@@ -31,7 +31,7 @@ function calculateDaysLeft(value) {
   today.setHours(0, 0, 0, 0);
   date.setHours(0, 0, 0, 0);
 
-  return Math.max(0, Math.ceil((date - today) / (1000 * 60 * 60 * 24)));
+  return Math.ceil((date - today) / (1000 * 60 * 60 * 24));
 }
 
 function normalizeList(value) {

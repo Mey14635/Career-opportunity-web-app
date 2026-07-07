@@ -27,12 +27,11 @@ export const AuthProvider = ({ children }) => {
                 setHasProfile(false);
                 setVerificationStatus(null);
             }
-        } catch (err) {
-            console.error("Error fetching user role data:", err);
+        } catch {
             setRole(null);
             setHasProfile(false);
             setVerificationStatus(null);
-        } finally {
+    } finally {
             setLoading(false);
         }
     }, []);
@@ -56,11 +55,10 @@ export const AuthProvider = ({ children }) => {
             
             // 4. Force a full page reload to reset app state
             window.location.replace('/');
-        } catch (err) {
-            console.error("Logout error:", err);
+        } catch {
             // Fallback: force reload anyway
             window.location.replace('/');
-        }
+    }
     }, []);
 
     useEffect(() => {

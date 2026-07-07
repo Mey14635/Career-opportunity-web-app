@@ -69,7 +69,6 @@ const Login = () => {
         navigate("/student-dashboard/verify-email");
       }
     } catch (err) {
-      console.error(err);
       if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found") {
         setError("Invalid email address or password combination.");
       } else {
@@ -96,7 +95,6 @@ const Login = () => {
       await sendPasswordResetEmail(auth, trimmedEmail);
       setSuccess("Password reset email sent. Check your inbox for Firebase's reset link.");
     } catch (err) {
-      console.error(err);
       if (err.code === "auth/invalid-email") {
         setError("Enter a valid email address before requesting a password reset.");
       } else if (err.code === "auth/too-many-requests") {

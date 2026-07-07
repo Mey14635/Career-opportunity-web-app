@@ -15,13 +15,14 @@ function OpportunityCard({
   type,
   daysLeft,
   deadline,
+  expired = false,
   saved = false,
   applied = false,
   onSaved,
   onOpen,
 }) {
   const { user } = useAuth();
-  const isDeadlineUrgent = daysLeft !== null && daysLeft <= 2;
+  const isDeadlineUrgent = !expired && daysLeft !== null && daysLeft <= 2;
 
   function handleCardKeyDown(e) {
     if ((e.key === "Enter" || e.key === " ") && onOpen) {
@@ -40,14 +41,14 @@ function OpportunityCard({
     try {
       const nextSaved = await toggleSavedOpportunityForUser(user.uid, opportunity.id, saved);
       onSaved?.(opportunity.id, nextSaved);
-    } catch (err) {
-      console.error("Failed to update saved opportunity:", err);
+    } catch {
+      return;
     }
   }
 
   return (
     <article
-      className={`card ${applied ? "applied" : ""}`}
+      className={`card ${applied ? "applied" : ""} ${expired ? "expired" : ""}`}
       onClick={onOpen}
       onKeyDown={handleCardKeyDown}
       role="button"
@@ -56,6 +57,7 @@ function OpportunityCard({
       <div className="card-top">
         <h3 className="card-title">{title}</h3>
         <div className="card-actions">
+          {expired && <span className="closed-pill">Closed</span>}
           {applied && <span className="applied-pill">Applied</span>}
           <button
             className={`heart-btn ${saved ? "saved" : ""}`}
@@ -85,8 +87,8 @@ function OpportunityCard({
       {/* Bottom row: type badge + closing info */}
       <div className="card-footer">
         <span className="badge">{type}</span>
-        <span className={`closes ${isDeadlineUrgent ? "urgent" : ""}`}>
-          Deadline: {deadline || (daysLeft === null ? "Not set" : `${daysLeft} days`)}
+        <span className={`closes ${isDeadlineUrgent ? "urgent" : ""} ${expired ? "closed" : ""}`}>
+          {expired ? `Closed on: ${deadline || "Deadline passed"}` : `Deadline: ${deadline || (daysLeft === null ? "Not set" : `${daysLeft} days`)}`}
         </span>
       </div>
     </article>
