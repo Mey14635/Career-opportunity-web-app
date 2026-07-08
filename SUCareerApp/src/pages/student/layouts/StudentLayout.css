@@ -1,0 +1,16 @@
+.student-dashboard-shell {
+  --su-blue: #1B3A6B;
+  --su-blue-dark: #122a4f;
+  --su-blue-soft: #f1f5f9;
+  --su-gold: #C9A230;
+  --su-text: #1B3A6B;
+  --su-heading: #1e293b;
+  --su-muted: #64748b;
+  --su-border: #e2e8f0;
+  --su-field: #F5F6FA;
+  --su-page: #F5F6FA;
+  --su-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  --su-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.05);
+  min-height: 100vh;
+  background: #F5F6FA;
+}
