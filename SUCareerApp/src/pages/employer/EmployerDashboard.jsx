@@ -186,7 +186,6 @@ export default function EmployerDashboard() {
 
   const handleAction = (msg) => setDashboardMessage({ type: 'info', text: msg });
 
-  // ─── HANDLE NOTIFICATION ACTION ─────────────────────────────────────────
   const handleNotificationAction = async (notification) => {
     try {
       if (!notification.read && !notification.isRead) {
@@ -196,14 +195,11 @@ export default function EmployerDashboard() {
       setDashboardMessage({ type: 'error', text: 'Could not mark the notification as read.' });
     }
 
-    // ─── NEW: Handle job edits requested ──────────────────────────────
     if (notification.type === 'job_edits_requested') {
       const jobId = notification.targetId || notification.metadata?.jobId;
       if (jobId) {
-        // Try to find the job in the current list
         let job = myJobs.find(j => j.id === jobId);
         if (!job) {
-          // Fetch from Firestore if not in state
           try {
             const jobSnap = await getDoc(doc(db, 'opportunities', jobId));
             if (jobSnap.exists()) {
@@ -219,7 +215,6 @@ export default function EmployerDashboard() {
           return;
         }
       }
-      // If job not found, go to my jobs
       setActiveTab('my-jobs');
       return;
     }
@@ -299,17 +294,18 @@ export default function EmployerDashboard() {
     setActiveTab('my-jobs');
   };
 
+  // ─── BREADCRUMB – CLEAN ROUTING ─────────────────────────────────────────
   const getBreadcrumb = () => {
-    if (activeTab === 'post-role') return 'Dashboard > Post a Job';
-    if (activeTab === 'edit-job') return 'Dashboard > Edit Job';
-    if (selectedJob) return `Dashboard > ${selectedJob.title} > Applicant Pipeline`;
-    if (activeTab === 'ats') return 'Applicant Tracking System';
+    if (activeTab === 'post-role') return 'Post a Job';
+    if (activeTab === 'edit-job') return 'My Jobs > Edit Job';
+    if (selectedJob) return `My Jobs > ${selectedJob.title} > Applicant Pipeline`;
+    if (activeTab === 'ats') return 'Applicant Tracking';
     if (activeTab === 'profile') return 'Company Profile';
     if (activeTab === 'settings') return 'Account Settings';
     if (activeTab === 'analytics') return 'Reports & Analytics';
     if (activeTab === 'notifications') return 'Notifications';
-    if (activeTab === 'history') return 'Dashboard > Activity History';
-    if (activeTab === 'my-jobs') return 'Dashboard > My Jobs';
+    if (activeTab === 'history') return 'Activity History';
+    if (activeTab === 'my-jobs') return 'My Jobs';
     return 'Dashboard';
   };
 
@@ -416,6 +412,11 @@ export default function EmployerDashboard() {
                 setActiveTab('job-detail');
               }}
               onViewAllHistory={() => navigateTab('history')}
+              onViewAllJobs={() => {
+                setActiveTab('my-jobs');
+                setSelectedJob(null);
+                setEditingJob(null);
+              }}
             />
           );
         }

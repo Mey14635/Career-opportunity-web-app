@@ -1,3 +1,4 @@
+// src/pages/employer/views/DashboardView.jsx
 import { Users, FileText, PlusCircle, Clock, AlertCircle } from 'lucide-react';
 import { NAVY, GOLD } from '../constants';
 
@@ -6,7 +7,8 @@ export default function DashboardView({
   applicants,
   companyName,
   onPostJob,
-  onSelectJob
+  onSelectJob,
+  onViewAllJobs,   // ← NEW PROP
 }) {
   // Filter applicants by status (case-insensitive)
   const shortlistedCount = applicants.filter(a => 
@@ -163,7 +165,7 @@ export default function DashboardView({
             {activeJobs.length > 3 && (
               <div style={{ textAlign: 'center' }}>
                 <button
-                  onClick={() => onSelectJob({ viewAll: true })}
+                  onClick={() => onViewAllJobs && onViewAllJobs()}
                   style={{ background: 'none', border: 'none', color: NAVY, fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                 >
                   View all {activeJobs.length} active jobs →

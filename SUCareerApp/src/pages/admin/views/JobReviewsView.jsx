@@ -1,6 +1,6 @@
 // src/pages/admin/views/JobReviewsView.jsx
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Clock, AlertTriangle, Filter } from 'lucide-react';
+import { ArrowLeft, Clock, AlertTriangle, Filter, Info } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { NAVY, GOLD, BG_GRAY } from '../constants';
 
@@ -130,6 +130,30 @@ function isReturnedForEdits(job) {
   return job.pendingReason === 'unpublished' || job.pendingReason === 'edits_requested';
 }
 
+// ─── NEW: Helper to safely get timestamp ──────────────────────────────
+function getTimestamp(value) {
+  if (!value) return null;
+  if (typeof value.toDate === 'function') {
+    return value.toDate().getTime();
+  }
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (typeof value === 'number') {
+    return value;
+  }
+  return null;
+}
+
+// ─── NEW: Helper to check if job was edited after admin request ──────
+function isEditedAfterRequest(job) {
+  if (!job.editsRequestedAt) return false;
+  const requestedTime = getTimestamp(job.editsRequestedAt);
+  const updatedTime = getTimestamp(job.updatedAt);
+  if (requestedTime === null || updatedTime === null) return false;
+  return updatedTime > requestedTime;
+}
+
 // Sorting functions
 function sortByNewest(data) {
   return [...data].sort((a, b) => {
@@ -172,6 +196,7 @@ function sortByPriority(data) {
 export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelection, onRefresh }) {
   const docs = getRequiredDocuments(selectedJob);
   const returnedForEdits = isReturnedForEdits(selectedJob);
+  const editedAfterRequest = isEditedAfterRequest(selectedJob);
   const [editReasonOpen, setEditReasonOpen] = useState(false);
   const [editReason, setEditReason] = useState(selectedJob.editRequestReason || '');
   const [editReasonError, setEditReasonError] = useState('');
@@ -255,9 +280,23 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
         <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
-            {selectedJob.pendingReason === 'unpublished' && (
+            {returnedForEdits && (
               <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 12px', borderRadius: '20px', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
                 Returned for edits
+              </span>
+            )}
+            {editedAfterRequest && (
+              <span style={{
+                background: '#dbeafe',
+                color: '#1e3a8a',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: 13,
+                fontWeight: 700,
+                border: '1px solid #bfdbfe',
+                marginLeft: 4,
+              }}>
+                ✏️ Edited after admin request
               </span>
             )}
           </div>
@@ -539,8 +578,42 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
             {sortedQueue.length} pending job{sortedQueue.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10, width: '100%' }}>
+          {/* ─── COLORFUL EXPLANATION BADGE ─────────────────────────────── */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '8px 16px',
+              background: '#f0f4ff',
+              borderRadius: '8px',
+              border: '1px solid #dbeafe',
+              fontSize: 12,
+              color: '#475569',
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end',
+              width: '100%',
+            }}
+          >
+            <Info size={14} color="#3b82f6" style={{ flexShrink: 0 }} />
+            <span style={{ fontWeight: 600, color: '#1e293b' }}>How to use:</span>
+            <span style={{ color: '#64748b' }}>
+              <span style={{ color: '#dc2626', fontWeight: 600 }}>🔴 Red</span> = Waiting &gt;14 days (urgent review needed)
+            </span>
+            <span style={{ color: '#cbd5e1' }}>|</span>
+            <span style={{ color: '#64748b' }}>
+              <span style={{ color: '#d97706', fontWeight: 600 }}>🟠 Orange</span> = Approaching deadline (≤7 days left)
+            </span>
+            <span style={{ color: '#cbd5e1' }}>|</span>
+            <span style={{ color: '#64748b' }}>
+              <span style={{ color: '#1B3A6B', fontWeight: 600 }}>🔵 Blue</span> = Normal pending review
+            </span>
+          </div>
+
+          {/* ─── FILTER & SORT CONTROLS ────────────────────────────────── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end', width: '100%' }}>
             {/* Filters */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Filter size={16} color="#94a3b8" />
@@ -551,7 +624,7 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
                   padding: '4px 12px',
                   borderRadius: '6px',
                   border: filterMode === 'all' ? '2px solid #1B3A6B' : '1px solid #e2e8f0',
-                  background: filterMode === 'all' ? '#f1f5f9' : 'white',
+                  background: filterMode === 'all' ? '#eef3ff' : 'white',
                   color: filterMode === 'all' ? '#1B3A6B' : '#64748b',
                   fontSize: 12,
                   fontWeight: 600,
@@ -566,7 +639,7 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
                   padding: '4px 12px',
                   borderRadius: '6px',
                   border: filterMode === 'approaching' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
-                  background: filterMode === 'approaching' ? '#fef3c7' : 'white',
+                  background: filterMode === 'approaching' ? '#fffbeb' : 'white',
                   color: filterMode === 'approaching' ? '#d97706' : '#64748b',
                   fontSize: 12,
                   fontWeight: 600,
@@ -601,7 +674,7 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
                   padding: '4px 12px',
                   borderRadius: '6px',
                   border: sortMode === 'newest' ? '2px solid #1B3A6B' : '1px solid #e2e8f0',
-                  background: sortMode === 'newest' ? '#f1f5f9' : 'white',
+                  background: sortMode === 'newest' ? '#eef3ff' : 'white',
                   color: sortMode === 'newest' ? '#1B3A6B' : '#64748b',
                   fontSize: 12,
                   fontWeight: 600,
@@ -627,13 +700,6 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
               </button>
             </div>
           </div>
-          {/* ─── HELPER TEXT ────────────────────────────────────────────── */}
-          <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'right', maxWidth: '600px' }}>
-            <span>
-              <strong>Filter:</strong> All jobs – Approaching deadline (≤7 days) – Waiting more than 14 days &nbsp;|&nbsp;
-              <strong>Sort:</strong> Newest first – Priority (waiting {'>'}14 days and approaching deadline first)
-            </span>
-          </div>
         </div>
       </div>
 
@@ -648,6 +714,7 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
           {sortedQueue.map(job => {
             const docs = getRequiredDocuments(job);
             const returnedForEdits = isReturnedForEdits(job);
+            const editedAfterRequest = isEditedAfterRequest(job);
             const daysLeft = getDaysLeft(job);
             const daysWaiting = getDaysWaiting(job);
             const isApproaching = daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
@@ -702,6 +769,20 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
                         marginBottom: 4,
                       }}>
                         Returned for edits
+                      </span>
+                    )}
+                    {editedAfterRequest && (
+                      <span style={{
+                        background: '#dbeafe',
+                        color: '#1e3a8a',
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        border: '1px solid #bfdbfe',
+                        marginBottom: 4,
+                      }}>
+                        ✏️ Edited after admin request
                       </span>
                     )}
                     {isWaitingLong && (

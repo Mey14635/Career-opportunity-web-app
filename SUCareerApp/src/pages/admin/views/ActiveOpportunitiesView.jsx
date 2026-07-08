@@ -1,9 +1,10 @@
+// src/pages/admin/views/ActiveOpportunitiesView.jsx
 import { useState } from 'react';
 import { Eye, FileText, X } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { NAVY } from '../constants';
 
-// ─── Helper: Parse text into list items, extracting just the label ─────
+// ─── Helper: Parse text into list items (for documents) ────────────────
 function parseList(value) {
   if (!value) return [];
   if (Array.isArray(value)) {
@@ -11,7 +12,6 @@ function parseList(value) {
       .filter(Boolean)
       .map(item => {
         if (typeof item === 'string') return item;
-        // ✅ Just return the label – no format suffix
         return item.label || item.name || 'Document';
       })
       .filter(item => item && item.trim() !== '');
@@ -25,6 +25,57 @@ function parseList(value) {
     return [value.trim()];
   }
   return [];
+}
+
+// ─── Helper: Render content safely (HTML or plain text) ────────────────
+function renderContent(content) {
+  if (!content) return null;
+
+  if (Array.isArray(content)) {
+    content = content.join('\n');
+  }
+
+  const str = String(content).trim();
+  if (!str) return null;
+
+  const isHtmlContent = /<[^>]+>/i.test(str);
+  if (isHtmlContent) {
+    let cleaned = str;
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/<li>\s*<p>/g, '<li>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/li>/g, '</li>');
+    cleaned = cleaned.replace(/<ul>\s*<p>/g, '<ul>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ul>/g, '</ul>');
+    cleaned = cleaned.replace(/<ol>\s*<p>/g, '<ol>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ol>/g, '</ol>');
+    cleaned = cleaned.replace(/<p>\s*\.\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/\n\s*\n/g, '\n');
+
+    const sanitized = DOMPurify.sanitize(cleaned, {
+      ADD_ATTR: ['target'],
+      ADD_TAGS: ['iframe'],
+    });
+
+    return <div className="rich-content" dangerouslySetInnerHTML={{ __html: sanitized }} />;
+  }
+
+  // Plain text with periods → bullet list
+  const items = str
+    .split(/(?:\.\s+|\n)/)
+    .map(item => item.trim())
+    .filter(item => item && item.length > 0);
+  if (items.length > 1) {
+    return (
+      <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
+        {items.map((item, idx) => (
+          <li key={idx}>{item}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  return <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 14, margin: 0 }}>{str}</p>;
 }
 
 // ─── Helper: Render description as plain paragraph (no bullets) ────────
@@ -76,8 +127,6 @@ function JobDetailModal({ job, onClose }) {
   };
 
   const documentsList = parseList(job.requiredDocuments || job.documentsRequired || job.requiredDocument);
-  const requirementsList = parseList(job.requirement || job.requirements);
-  const responsibilitiesList = parseList(job.responsibilities);
   const hasPdf = job.jobDescriptionPdfUrl && job.jobDescriptionPdfUrl.trim() !== '';
 
   return (
@@ -144,33 +193,41 @@ function JobDetailModal({ job, onClose }) {
         </div>
 
         {/* ─── RESPONSIBILITIES ───────────────────────────────────────── */}
-        {responsibilitiesList.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Responsibilities</h3>
-            <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
-              {responsibilitiesList.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Responsibilities</h3>
+          {job.responsibilities ? renderContent(job.responsibilities) : (
+            <p style={{ color: '#94a3b8', fontSize: 14 }}>No specific responsibilities listed.</p>
+          )}
+        </div>
 
         {/* ─── REQUIREMENTS ───────────────────────────────────────────── */}
-        {requirementsList.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Requirements</h3>
-            <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
-              {requirementsList.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Requirements</h3>
+          {job.requirement || job.requirements ? renderContent(job.requirement || job.requirements) : (
+            <p style={{ color: '#94a3b8', fontSize: 14 }}>No specific requirements listed.</p>
+          )}
+        </div>
 
         {/* ─── ROLE DETAILS ───────────────────────────────────────────── */}
         <div style={{ marginBottom: 16 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 12 }}>Role Details</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
+            {job.startDate && job.startDate !== 'Not specified' && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
+                  Start Date
+                </p>
+                <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{formatDate(job.startDate)}</p>
+              </div>
+            )}
+            {job.department && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
+                  Department
+                </p>
+                <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.department}</p>
+              </div>
+            )}
             <div>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
                 Duration
@@ -189,6 +246,14 @@ function JobDetailModal({ job, onClose }) {
               </p>
               <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.jobType || job.type || 'Not specified'}</p>
             </div>
+            {job.stipend && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
+                  Stipend / Salary
+                </p>
+                <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.stipend}</p>
+              </div>
+            )}
             <div>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
                 Deadline

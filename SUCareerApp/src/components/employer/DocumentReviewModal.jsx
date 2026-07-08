@@ -1,6 +1,6 @@
 // src/components/employer/DocumentReviewModal.jsx
 import { useState } from 'react';
-import { X, File, FileText, FileImage, FileArchive, Download, Mail, Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Info, AlertTriangle, Lock } from 'lucide-react';
+import { X, File, FileText, FileImage, FileArchive, Download, Mail, Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Info, AlertTriangle, Lock, Send } from 'lucide-react';
 import { NAVY } from '../../pages/employer/constants';
 
 // Helper: Get file icon based on file type
@@ -259,8 +259,40 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
     );
   };
 
-  // Determine if the current status is final (for display)
-  // Note: we use isFinalStatus based on the original status.
+  // ─── DYNAMIC GUIDANCE TEXT ──────────────────────────────────────────────
+  const getFollowUpGuidance = () => {
+    if (tempStatus === 'shortlisted') {
+      return {
+        icon: '✅',
+        title: 'Shortlisted Candidate',
+        items: [
+          'Next steps in the recruitment process',
+          'Interview timeline and logistics',
+          'Any preparation materials or resources',
+        ],
+      };
+    }
+    if (tempStatus === 'rejected') {
+      return {
+        icon: '📝',
+        title: 'Rejected Candidate',
+        items: [
+          'Constructive feedback on their application',
+          'Encouragement to apply again in the future',
+          'Suggestions for improvement',
+        ],
+      };
+    }
+    return {
+      icon: '💡',
+      title: 'No action selected yet',
+      items: [
+        'Select "Shortlist" or "Reject" below to see custom follow-up guidance.',
+      ],
+    };
+  };
+
+  const guidance = getFollowUpGuidance();
 
   return (
     <>
@@ -290,7 +322,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
             maxHeight: '90vh',
           }}
         >
-          {/* Header */}
+          {/* ─── HEADER ───────────────────────────────────────────────────── */}
           <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -345,7 +377,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
               </button>
             </div>
 
-            {/* Applicant Info */}
+            {/* ─── APPLICANT INFO ────────────────────────────────────────── */}
             <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Mail size={14} color="#94a3b8" />
@@ -360,7 +392,48 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Documents */}
+          {/* ─── FOLLOW‑UP REMINDER CALLOUT (styled like analytics guide) ── */}
+          <div
+            style={{
+              margin: '16px 24px 0 24px',
+              padding: '16px 20px',
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <Send size={18} color="#16a34a" />
+              <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#166534' }}>
+                📩 Follow‑up Reminder
+              </h4>
+            </div>
+            <p style={{ margin: '0 0 8px 0', fontSize: 13, color: '#475569', lineHeight: 1.5 }}>
+              After you make a decision, we recommend sending a <strong>personal email</strong> to the candidate at{' '}
+              <span style={{ fontWeight: 600, color: NAVY }}>{applicantEmail}</span>.
+            </p>
+            <div
+              style={{
+                padding: '10px 14px',
+                backgroundColor: '#ffffff',
+                borderRadius: '6px',
+                border: '1px solid #e2e8f0',
+                marginTop: 6,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 16 }}>{guidance.icon}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{guidance.title}</span>
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: '#475569', lineHeight: 1.7 }}>
+                {guidance.items.map((item, idx) => (
+                  <li key={idx}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* ─── DOCUMENTS ────────────────────────────────────────────────── */}
           <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
             {statusMessage && (
               <div style={{
@@ -473,7 +546,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Footer */}
+          {/* ─── FOOTER ───────────────────────────────────────────────────── */}
           <div
             style={{
               padding: '16px 24px',
@@ -541,7 +614,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
                   </button>
                 </div>
 
-                {/* Save Button */}
+                {/* ─── SAVE BUTTON ────────────────────────────────────────── */}
                 <button
                   onClick={handleSave}
                   disabled={isSaving || tempStatus === originalStatus}
@@ -563,7 +636,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
               </div>
             )}
 
-            {/* Communication Note */}
+            {/* ─── COMMUNICATION NOTE ────────────────────────────────────── */}
             <div
               style={{
                 display: 'flex',
@@ -581,7 +654,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
                 {isFinalStatus
                   ? `This application has been ${originalStatus}. The decision is final.`
                   : (tempStatus === 'shortlisted' || tempStatus === 'rejected')
-                    ? `⚠️ ${tempStatus === 'shortlisted' ? 'Shortlisting' : 'Rejecting'} ${applicantName} will send an email notification.`
+                    ? `⚠️ ${tempStatus === 'shortlisted' ? 'Shortlisting' : 'Rejecting'} ${applicantName}. Please send a follow‑up email to ${applicantEmail} with ${tempStatus === 'shortlisted' ? 'next steps' : 'feedback and reasons'}.`
                     : 'Further communication with candidates will be conducted via email outside this platform.'}
               </span>
             </div>
@@ -589,7 +662,7 @@ export default function DocumentReviewModal({ applicant, onClose, onSave }) {
         </div>
       </div>
 
-      {/* Confirmation Modal */}
+      {/* ─── CONFIRMATION MODAL ─────────────────────────────────────────── */}
       {confirmation && (
         <ConfirmationModal
           isOpen={true}

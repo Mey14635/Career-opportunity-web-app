@@ -1,3 +1,4 @@
+// src/pages/employer/views/CompanyProfileView.jsx
 import { useState, useEffect, useRef } from 'react';
 import { Building2, Upload, Info, Globe, Mail, Phone, Users, ExternalLink, X, Loader2 } from 'lucide-react';
 import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
@@ -20,7 +21,8 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
     companyLogoUrl: '',
     website: '',
     phone: '',
-    email: '',
+    email: '',           // Primary email – read‑only
+    secondaryEmail: '',  // Secondary email – editable
     size: '500+ Employees',
     overview: '',
   });
@@ -47,6 +49,7 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
             website: data.website || '',
             phone: data.phone || '',
             email: data.email || '',
+            secondaryEmail: data.secondaryEmail || '',   // ← NEW
             size: data.size || '500+ Employees',
             overview: data.overview || '',
           });
@@ -131,6 +134,7 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
         website: profile.website,
         phone: profile.phone,
         email: profile.email,
+        secondaryEmail: profile.secondaryEmail,   // ← NEW
         size: profile.size,
         overview: profile.overview,
         updatedAt: Timestamp.now(),
@@ -269,6 +273,7 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
 
         {/* ─── FORM FIELDS ────────────────────────────────────────────── */}
         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* ─── COMPANY NAME – READ-ONLY ─────────────────────────────── */}
           <div>
             <label style={labelStyle}>COMPANY NAME</label>
             <div style={{ position: 'relative' }}>
@@ -276,9 +281,12 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
               <input
                 type="text"
                 value={profile.companyName}
-                onChange={(e) => setProfile({ ...profile, companyName: e.target.value })}
-                style={{...inputStyle, paddingLeft: 40}}
+                disabled
+                style={{...inputStyle, paddingLeft: 40, backgroundColor: '#f1f5f9', color: '#475569', cursor: 'not-allowed'}}
               />
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              Company name cannot be changed. Contact support for updates.
             </div>
           </div>
 
@@ -326,30 +334,51 @@ export default function CompanyProfileView({ employerId, onViewPublic }) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            <div>
-              <label style={labelStyle}>PRIMARY TALENT CONTACT EMAIL</label>
-              <div style={{ position: 'relative' }}>
-                <Mail size={14} color="#94a3b8" style={{ position: 'absolute', left: 14, top: 12 }} />
-                <input
-                  type="email"
-                  value={profile.email}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  style={{...inputStyle, paddingLeft: 40}}
-                />
-              </div>
+          {/* ─── PRIMARY EMAIL – READ-ONLY ────────────────────────────── */}
+          <div>
+            <label style={labelStyle}>PRIMARY TALENT CONTACT EMAIL</label>
+            <div style={{ position: 'relative' }}>
+              <Mail size={14} color="#94a3b8" style={{ position: 'absolute', left: 14, top: 12 }} />
+              <input
+                type="email"
+                value={profile.email}
+                disabled
+                style={{...inputStyle, paddingLeft: 40, backgroundColor: '#f1f5f9', color: '#475569', cursor: 'not-allowed'}}
+              />
             </div>
-            <div>
-              <label style={labelStyle}>OFFICIAL PHONE NUMBER</label>
-              <div style={{ position: 'relative' }}>
-                <Phone size={14} color="#94a3b8" style={{ position: 'absolute', left: 14, top: 12 }} />
-                <input
-                  type="tel"
-                  value={profile.phone}
-                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                  style={{...inputStyle, paddingLeft: 40}}
-                />
-              </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              Primary email cannot be changed. Contact support for updates.
+            </div>
+          </div>
+
+          {/* ─── SECONDARY EMAIL – EDITABLE ───────────────────────────── */}
+          <div>
+            <label style={labelStyle}>SECONDARY EMAIL <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>(Optional – for notifications)</span></label>
+            <div style={{ position: 'relative' }}>
+              <Mail size={14} color="#94a3b8" style={{ position: 'absolute', left: 14, top: 12 }} />
+              <input
+                type="email"
+                value={profile.secondaryEmail}
+                onChange={(e) => setProfile({ ...profile, secondaryEmail: e.target.value })}
+                placeholder="Enter secondary email address"
+                style={{...inputStyle, paddingLeft: 40}}
+              />
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              Secondary email will receive notifications if different from primary.
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>OFFICIAL PHONE NUMBER</label>
+            <div style={{ position: 'relative' }}>
+              <Phone size={14} color="#94a3b8" style={{ position: 'absolute', left: 14, top: 12 }} />
+              <input
+                type="tel"
+                value={profile.phone}
+                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                style={{...inputStyle, paddingLeft: 40}}
+              />
             </div>
           </div>
 

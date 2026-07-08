@@ -23,7 +23,7 @@ export default function TopBar({
   searchValue = '',           // ← NEW
   onSearchChange = null,      // ← NEW
 
-  // ─── USER INFO (dynamic) ────────────────────────────────────────────
+  // ─── USER INFO (dynamic) 
   userInitials = 'CA',
   userName = 'CDS Portal',
   userEmail = 'cds@strathmore.edu',

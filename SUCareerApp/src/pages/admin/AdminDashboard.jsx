@@ -48,7 +48,7 @@ export default function AdminDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
 
-  // ─── DATA STATE ──────────────────────────────────────────────────────────
+  // DATA STATE
   const [stats, setStats] = useState({ totalStudents: 0, activeEmployers: 0, pendingApprovals: 0, totalJobs: 0 });
   const [students, setStudents] = useState([]);
   const [employers, setEmployers] = useState([]);
@@ -57,16 +57,16 @@ export default function AdminDashboard({ onLogout }) {
   const [rejectedJobs, setRejectedJobs] = useState([]);
   const [notifications, setNotifications] = useState([]);
 
-  // ─── SEARCH STATE ────────────────────────────────────────────────────────
+  // SEARCH STATE
   const [searchQuery, setSearchQuery] = useState('');
 
-  // ─── NOTIFICATION FOCUS ──────────────────────────────────────────────────
+  // NOTIFICATION FOCUS
   const [focusedEmployerId, setFocusedEmployerId] = useState('');
   const [notificationFocusKey, setNotificationFocusKey] = useState(0);
   const [notificationJobReview, setNotificationJobReview] = useState(null);
   const [notificationEmployerReview, setNotificationEmployerReview] = useState(null);
 
-  // ─── MODAL STATE ─────────────────────────────────────────────────────────
+  // MODAL STATE
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState(null);
 
@@ -212,6 +212,7 @@ export default function AdminDashboard({ onLogout }) {
           editRequestReason: modalConfig.editRequestReason,
           isActive: false,
           pendingReason: 'edits_requested',
+          editsRequestedAt: new Date(),   // ← ADDED THIS
           updatedAt: new Date()
         });
         createEmployerJobEditsRequestedNotification(modalConfig.id, {

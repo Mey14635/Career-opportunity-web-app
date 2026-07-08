@@ -25,13 +25,12 @@ export default function OpportunityListView({
   const [activeTab, setActiveTab] = useState('pending');
 
   const tabs = [
-    { key: 'pending', label: 'Pending' },
-    { key: 'active', label: 'Active' },
-    { key: 'expired', label: 'Expired' },
-    { key: 'rejected', label: 'Rejected' },
+    { key: 'pending', label: 'Pending', color: '#f59e0b' },
+    { key: 'active', label: 'Active', color: '#16a34a' },
+    { key: 'expired', label: 'Expired', color: '#64748b' },
+    { key: 'rejected', label: 'Rejected', color: '#dc2626' },
   ];
 
-  // ─── FILTER JOBS BY SEARCH QUERY ──────────────────────────────────────
   const filterJobs = useCallback((jobs) => {
     if (!searchQuery) return jobs;
     const q = searchQuery.toLowerCase().trim();
@@ -46,7 +45,6 @@ export default function OpportunityListView({
     );
   }, [searchQuery]);
 
-  // ─── GET TAB COUNTS (UNFILTERED – TOTAL AVAILABLE) ────────────────────
   const getTabCount = (tabKey) => {
     switch (tabKey) {
       case 'pending':
@@ -65,7 +63,6 @@ export default function OpportunityListView({
     }
   };
 
-  // ─── PREPARE FILTERED DATA FOR EACH TAB ──────────────────────────────
   const filteredPending = useMemo(
     () => filterJobs(pendingJobs.filter(job => !isJobExpired(job))),
     [filterJobs, pendingJobs]
@@ -100,36 +97,74 @@ export default function OpportunityListView({
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+      {/* ─── REFINED TAB BAR ─────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 4,
+          marginBottom: 28,
+          background: '#f1f5f9',
+          padding: 4,
+          borderRadius: 12,
+          width: 'fit-content',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        }}
+      >
         {tabs.map((tab) => {
           const count = getTabCount(tab.key);
+          const isActive = activeTab === tab.key;
           return (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               style={{
-                padding: '8px 20px',
-                borderRadius: '8px',
+                padding: '8px 18px',
+                borderRadius: 8,
                 border: 'none',
-                background: activeTab === tab.key ? NAVY : 'transparent',
-                color: activeTab === tab.key ? 'white' : '#475569',
+                background: isActive ? '#ffffff' : 'transparent',
+                color: isActive ? NAVY : '#64748b',
                 fontSize: 14,
-                fontWeight: 600,
+                fontWeight: isActive ? 700 : 500,
                 cursor: 'pointer',
-                transition: 'all 0.2s',
+                transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
+                gap: 8,
+                boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                position: 'relative',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.5)';
+                  e.currentTarget.style.color = NAVY;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#64748b';
+                }
               }}
             >
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: tab.color,
+                  flexShrink: 0,
+                }}
+              />
               {tab.label}
               {count > 0 && (
                 <span
                   style={{
-                    background: activeTab === tab.key ? 'rgba(255,255,255,0.2)' : '#e2e8f0',
-                    color: activeTab === tab.key ? 'white' : '#94a3b8',
+                    background: isActive ? NAVY : '#e2e8f0',
+                    color: isActive ? '#ffffff' : '#94a3b8',
                     padding: '1px 8px',
-                    borderRadius: '12px',
+                    borderRadius: 12,
                     fontSize: 11,
                     fontWeight: 700,
                   }}
