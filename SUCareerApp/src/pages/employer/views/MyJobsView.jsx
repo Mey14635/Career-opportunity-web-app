@@ -1,3 +1,4 @@
+// src/pages/employer/views/MyJobsView.jsx
 import { useState } from 'react';
 import { Users, FileText, Edit2, Trash2, Eye } from 'lucide-react';
 import { NAVY } from '../constants';
@@ -16,9 +17,34 @@ export default function MyJobsView({ jobs, applicants, onSelectJob, onEditJob, o
     ? jobs
     : jobs.filter(j => j.status === statusFilter);
 
-  // Helper: Check if job was returned for edits
+  // ─── HELPER: Check if job was returned for edits ─────────────────────
   const isReturnedForEdits = (job) => {
     return job.pendingReason === 'unpublished' || job.pendingReason === 'edits_requested';
+  };
+
+  // ─── HELPER: Safely get timestamp from Firestore field ──────────────
+  const getTimestamp = (value) => {
+    if (!value) return null;
+    if (typeof value.toDate === 'function') {
+      return value.toDate().getTime();
+    }
+    if (value instanceof Date) {
+      return value.getTime();
+    }
+    if (typeof value === 'number') {
+      return value;
+    }
+    return null;
+  };
+
+  // ─── HELPER: Check if job was edited after admin requested edits ──────
+  const isEditedAfterRequest = (job) => {
+    // Only check if editsRequestedAt exists and updatedAt is later
+    if (!job.editsRequestedAt) return false;
+    const requestedTime = getTimestamp(job.editsRequestedAt);
+    const updatedTime = getTimestamp(job.updatedAt);
+    if (requestedTime === null || updatedTime === null) return false;
+    return updatedTime > requestedTime;
   };
 
   const getStatusBadge = (status) => {
@@ -91,6 +117,7 @@ export default function MyJobsView({ jobs, applicants, onSelectJob, onEditJob, o
           {filteredJobs.map(job => {
             const jobApplicants = applicants.filter(a => a.jobId === job.id);
             const returnedForEdits = isReturnedForEdits(job);
+            const editedAfterRequest = isEditedAfterRequest(job);
             return (
               <div
                 key={job.id}
@@ -126,6 +153,20 @@ export default function MyJobsView({ jobs, applicants, onSelectJob, onEditJob, o
                           fontWeight: 700,
                         }}>
                           Returned for edits
+                        </span>
+                      )}
+                      {/* ─── "Edited after admin request" badge ─── */}
+                      {editedAfterRequest && (
+                        <span style={{
+                          background: '#dbeafe',
+                          color: '#1e3a8a',
+                          padding: '2px 10px',
+                          borderRadius: '12px',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          border: '1px solid #bfdbfe',
+                        }}>
+                          ✏️ Edited after admin request
                         </span>
                       )}
                     </div>

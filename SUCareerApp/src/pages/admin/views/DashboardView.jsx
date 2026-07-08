@@ -11,11 +11,35 @@ function sortByCreatedDescending(data) {
   });
 }
 
+// ─── NEW: Helper to safely get timestamp ──────────────────────────────
+function getTimestamp(value) {
+  if (!value) return null;
+  if (typeof value.toDate === 'function') {
+    return value.toDate().getTime();
+  }
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (typeof value === 'number') {
+    return value;
+  }
+  return null;
+}
+
+// ─── NEW: Helper to check if job was edited after admin request ──────
+function isEditedAfterRequest(job) {
+  if (!job.editsRequestedAt) return false;
+  const requestedTime = getTimestamp(job.editsRequestedAt);
+  const updatedTime = getTimestamp(job.updatedAt);
+  if (requestedTime === null || updatedTime === null) return false;
+  return updatedTime > requestedTime;
+}
+
 export default function DashboardView({ statsData, recentPendingJobs, pendingEmployers }) {
   const stats = [
     { label: 'Total Students', count: statsData.totalStudents, change: 'Active on platform', urgent: false, icon: Users },
     { label: 'Active Employers', count: statsData.activeEmployers, change: 'Corporate Partners', urgent: false, icon: Building2 },
-    { label: 'Pending Approvals', count: statsData.pendingApprovals, change: 'Requires review', urgent: true, icon: AlertTriangle },
+    { label: 'Employers Pending Approvals', count: statsData.pendingApprovals, change: 'Requires review', urgent: true, icon: AlertTriangle },
     { label: 'Jobs Reviewed', count: statsData.totalJobs, change: 'Past 30 days', urgent: false, icon: FileText },
   ];
 
@@ -77,54 +101,74 @@ export default function DashboardView({ statsData, recentPendingJobs, pendingEmp
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {recentJobs.map((job, idx) => (
-                <div
-                  key={job.id}
-                  style={{
-                    padding: '14px 24px',
-                    borderBottom: idx < recentJobs.length - 1 ? '1px solid #f1f5f9' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-                    <div
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        backgroundColor: job.pendingReason === 'unpublished' ? '#d97706' : '#eab308',
-                        flexShrink: 0,
-                      }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: NAVY }}>{job.title}</div>
-                      <div style={{ fontSize: 13, color: '#64748b' }}>
-                        {job.companyName || job.employerId || 'Unknown company'}
-                        {job.pendingReason === 'unpublished' && (
-                          <span
-                            style={{
-                              marginLeft: 10,
-                              padding: '2px 8px',
-                              borderRadius: '12px',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              color: '#d97706',
-                              background: '#fef3c7',
-                            }}
-                          >
-                            Returned for edits
-                          </span>
-                        )}
+              {recentJobs.map((job, idx) => {
+                const returnedForEdits = job.pendingReason === 'unpublished' || job.pendingReason === 'edits_requested';
+                const editedAfterRequest = isEditedAfterRequest(job);
+                return (
+                  <div
+                    key={job.id}
+                    style={{
+                      padding: '14px 24px',
+                      borderBottom: idx < recentJobs.length - 1 ? '1px solid #f1f5f9' : 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <div
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: returnedForEdits ? '#d97706' : '#eab308',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: NAVY }}>{job.title}</div>
+                        <div style={{ fontSize: 13, color: '#64748b' }}>
+                          {job.companyName || job.employerId || 'Unknown company'}
+                          {returnedForEdits && (
+                            <span
+                              style={{
+                                marginLeft: 10,
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: '#d97706',
+                                background: '#fef3c7',
+                              }}
+                            >
+                              Returned for edits
+                            </span>
+                          )}
+                          {editedAfterRequest && (
+                            <span
+                              style={{
+                                marginLeft: 10,
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: '#1e3a8a',
+                                background: '#dbeafe',
+                                border: '1px solid #bfdbfe',
+                              }}
+                            >
+                              ✏️ Edited after admin request
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    <div style={{ fontSize: 13, color: '#94a3b8', whiteSpace: 'nowrap', marginLeft: 16 }}>
+                      {formatDate(job.createdAt)}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 13, color: '#94a3b8', whiteSpace: 'nowrap', marginLeft: 16 }}>
-                    {formatDate(job.createdAt)}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

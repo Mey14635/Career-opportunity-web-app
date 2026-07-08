@@ -1,10 +1,79 @@
 // src/pages/admin/views/RejectedJobsView.jsx
 import { useState } from 'react';
 import { Eye, FileText, RotateCcw, X } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { NAVY } from '../constants';
 
+// Helper: render content safely (HTML or plain text)
+function renderContent(content) {
+  if (!content) return null;
 
-// ─── JOB DETAIL MODAL ──────────────────────────────────────────
+  if (Array.isArray(content)) {
+    content = content.join('\n');
+  }
+
+  const str = String(content).trim();
+  if (!str) return null;
+
+  const isHtmlContent = /<[^>]+>/i.test(str);
+
+  if (isHtmlContent) {
+    let cleaned = str;
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/<li>\s*<p>/g, '<li>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/li>/g, '</li>');
+    cleaned = cleaned.replace(/<ul>\s*<p>/g, '<ul>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ul>/g, '</ul>');
+    cleaned = cleaned.replace(/<ol>\s*<p>/g, '<ol>');
+    cleaned = cleaned.replace(/<\/p>\s*<\/ol>/g, '</ol>');
+    cleaned = cleaned.replace(/<p>\s*\.\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
+    cleaned = cleaned.replace(/\n\s*\n/g, '\n');
+
+    const sanitized = DOMPurify.sanitize(cleaned, {
+      ADD_ATTR: ['target'],
+      ADD_TAGS: ['iframe'],
+    });
+
+    return <div className="rich-content" dangerouslySetInnerHTML={{ __html: sanitized }} />;
+  }
+
+  const items = str
+    .split(/(?:\.\s+|\n)/)
+    .map(item => item.trim())
+    .filter(item => item && item.length > 0);
+  if (items.length > 1) {
+    return (
+      <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
+        {items.map((item, idx) => (
+          <li key={idx}>{item}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  return <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 14, margin: 0 }}>{str}</p>;
+}
+
+// Helper: parse document list without format suffix
+function parseDocumentList(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .filter(Boolean)
+      .map(item => {
+        if (typeof item === 'string') return item;
+        return item.label || item.name || 'Document';
+      })
+      .filter(item => item && item.trim() !== '');
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map(item => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+// Job Detail Modal Component
 function JobDetailModal({ job, onClose }) {
   if (!job) return null;
 
@@ -16,27 +85,7 @@ function JobDetailModal({ job, onClose }) {
     return new Date(dateValue).toDateString();
   };
 
-  const parseList = (value) => {
-    if (!value) return [];
-    if (Array.isArray(value)) {
-      return value
-        .filter(Boolean)
-        .map(item => {
-          if (typeof item === 'string') return item;
-          const label = item.label || item.name || 'Document';
-          return item.format && item.format !== 'any'
-            ? `${label} (${item.formatLabel || item.format})`
-            : label;
-        })
-        .filter(item => item && item.trim() !== '');
-    }
-    if (typeof value === 'string') {
-      return value.split(',').map(item => item.trim()).filter(Boolean);
-    }
-    return [];
-  };
-
-  const documentsList = parseList(job.requiredDocuments || job.documentsRequired || job.requiredDocument);
+  const documentsList = parseDocumentList(job.requiredDocuments || job.documentsRequired || job.requiredDocument);
 
   return (
     <div
@@ -90,20 +139,29 @@ function JobDetailModal({ job, onClose }) {
           {job.companyName || job.employerId} &bull; {job.location || 'Location not specified'}
         </p>
 
+        {/* About the Role */}
         <div style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>Description</h3>
-          <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, margin: 0 }}>
-            {job.description || 'No description provided.'}
-          </p>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>
+            {job.about ? 'About the Role' : 'Description'}
+          </h3>
+          {renderContent(job.about || job.description) || <p style={{ color: '#94a3b8', fontSize: 14 }}>No description provided.</p>}
         </div>
 
+        {/* Responsibilities */}
+        {job.responsibilities && (
+          <div style={{ marginBottom: 16 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Responsibilities</h3>
+            {renderContent(job.responsibilities)}
+          </div>
+        )}
+
+        {/* Requirements */}
         <div style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>Requirements</h3>
-          <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, margin: 0 }}>
-            {job.requirement || job.requirements || 'No specific requirements listed.'}
-          </p>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Requirements</h3>
+          {renderContent(job.requirement || job.requirements) || <p style={{ color: '#94a3b8', fontSize: 14 }}>No specific requirements listed.</p>}
         </div>
 
+        {/* Role Details */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px', marginBottom: 16 }}>
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
@@ -133,9 +191,10 @@ function JobDetailModal({ job, onClose }) {
           </div>
         </div>
 
+        {/* Documents Required */}
         {documentsList.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>Required Documents</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Documents Required</h3>
             <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
               {documentsList.map((doc, idx) => (
                 <li key={idx}>{doc}</li>
@@ -144,9 +203,10 @@ function JobDetailModal({ job, onClose }) {
           </div>
         )}
 
+        {/* PDF */}
         {job.jobDescriptionPdfUrl && (
           <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>Job Description PDF</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Job Description PDF</h3>
             <a
               href={job.jobDescriptionPdfUrl}
               target="_blank"
@@ -174,7 +234,7 @@ function JobDetailModal({ job, onClose }) {
   );
 }
 
-// ─── MAIN COMPONENT ──────────────────────────────────────────────
+// Main Component
 export default function RejectedJobsView({ rejectedJobsData, triggerModal }) {
   const [selectedJob, setSelectedJob] = useState(null);
 

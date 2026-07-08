@@ -285,6 +285,11 @@ export default function PostJobView({ employerId, companyName, editingJob = null
       metrics: editingJob?.metrics || { views: 0, applications: 0 },
     };
 
+    // ─── FOR EDITING: Add updatedAt timestamp ────────────────────────────
+    if (editingJob) {
+      jobData.updatedAt = new Date();
+    }
+
     try {
       if (editingJob) {
         await updateJob(editingJob.id, jobData);

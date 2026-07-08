@@ -1,8 +1,13 @@
 // src/components/shared/JobDetailModal.jsx
-import { X, FileText } from 'lucide-react';
+import { X, File, Download } from 'lucide-react';
 import { NAVY } from '../../pages/admin/constants';
 
-export default function JobDetailModal({ job, onClose }) {
+export default function JobDetailModal({
+  job,
+  onClose,
+  renderContent,
+  parseDocumentList,
+}) {
   if (!job) return null;
 
   const formatDate = (dateValue) => {
@@ -13,16 +18,11 @@ export default function JobDetailModal({ job, onClose }) {
     return new Date(dateValue).toDateString();
   };
 
-  const parseList = (value) => {
-    if (!value) return [];
-    if (Array.isArray(value)) return value.filter(item => item && item.trim() !== '');
-    if (typeof value === 'string') {
-      return value.split(',').map(item => item.trim()).filter(Boolean);
-    }
-    return [];
-  };
+  const documentsList = parseDocumentList
+    ? parseDocumentList(job.requiredDocuments || job.documentsRequired || job.requiredDocument)
+    : [];
 
-  const documentsList = parseList(job.requiredDocument || job.documentsRequired);
+  const hasPdf = job.jobDescriptionPdfUrl && job.jobDescriptionPdfUrl.trim() !== '';
 
   return (
     <div
@@ -73,53 +73,103 @@ export default function JobDetailModal({ job, onClose }) {
 
         <h2 style={{ margin: '0 0 4px 0', fontSize: 22, fontWeight: 800, color: NAVY }}>{job.title}</h2>
         <p style={{ margin: '0 0 16px 0', fontSize: 14, color: '#64748b' }}>
-          {job.companyName || job.employerId || job.employerID} &bull; {job.location || 'Location not specified'}
+          {job.companyName || job.employerId} &bull; {job.location || 'Location not specified'}
         </p>
 
+        {/* About the Role / Description */}
         <div style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>Description</h3>
-          <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, margin: 0 }}>
-            {job.description || 'No description provided.'}
-          </p>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>
+            {job.about ? 'About the Role' : 'Description'}
+          </h3>
+          {renderContent
+            ? renderContent(job.about || job.description) || (
+                <p style={{ color: '#94a3b8', fontSize: 14 }}>No description provided.</p>
+              )
+            : <p style={{ color: '#475569', fontSize: 14 }}>{job.description || 'No description provided.'}</p>
+          }
         </div>
 
+        {/* Responsibilities */}
+        {job.responsibilities && (
+          <div style={{ marginBottom: 16 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Responsibilities</h3>
+            {renderContent
+              ? renderContent(job.responsibilities)
+              : <p style={{ color: '#475569', fontSize: 14 }}>{job.responsibilities}</p>
+            }
+          </div>
+        )}
+
+        {/* Requirements */}
         <div style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>Requirements</h3>
-          <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, margin: 0 }}>
-            {job.requirement || job.requirements || 'No specific requirements listed.'}
-          </p>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Requirements</h3>
+          {renderContent
+            ? renderContent(job.requirement || job.requirements) || (
+                <p style={{ color: '#94a3b8', fontSize: 14 }}>No specific requirements listed.</p>
+              )
+            : <p style={{ color: '#475569', fontSize: 14 }}>{job.requirement || job.requirements || 'No specific requirements listed.'}</p>
+          }
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px', marginBottom: 16 }}>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
-              Deadline
-            </p>
-            <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{formatDate(job.deadline)}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
-              Status
-            </p>
-            <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.status || 'N/A'}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
-              Duration
-            </p>
-            <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.duration || 'Not specified'}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
-              Positions
-            </p>
-            <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.positions || 'Not specified'}</p>
+        {/* ─── ROLE DETAILS ─────────────────────────────────────────────── */}
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 12 }}>Role Details</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
+            {job.startDate && job.startDate !== 'Not specified' && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
+                  Start Date
+                </p>
+                <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{formatDate(job.startDate)}</p>
+              </div>
+            )}
+            {job.department && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
+                  Department
+                </p>
+                <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.department}</p>
+              </div>
+            )}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
+                Duration
+              </p>
+              <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.duration || 'Not specified'}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
+                Open Positions
+              </p>
+              <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.positions || 'Not specified'}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
+                Job Type
+              </p>
+              <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.jobType || job.type || 'Not specified'}</p>
+            </div>
+            {job.stipend && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
+                  Stipend / Salary
+                </p>
+                <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{job.stipend}</p>
+              </div>
+            )}
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 2px 0' }}>
+                Deadline
+              </p>
+              <p style={{ margin: 0, fontSize: 14, color: '#1e293b' }}>{formatDate(job.deadline)}</p>
+            </div>
           </div>
         </div>
 
+        {/* Documents Required */}
         {documentsList.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>Required Documents</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Documents Required</h3>
             <ul style={{ margin: 0, paddingLeft: 20, color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
               {documentsList.map((doc, idx) => (
                 <li key={idx}>{doc}</li>
@@ -128,9 +178,10 @@ export default function JobDetailModal({ job, onClose }) {
           </div>
         )}
 
-        {job.jobDescriptionPdfUrl && (
+        {/* PDF */}
+        {hasPdf && (
           <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>Job Description PDF</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 8 }}>Job Description PDF</h3>
             <a
               href={job.jobDescriptionPdfUrl}
               target="_blank"
@@ -138,18 +189,21 @@ export default function JobDetailModal({ job, onClose }) {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                background: '#f1f5f9',
+                gap: 8,
+                padding: '8px 16px',
+                backgroundColor: '#f1f5f9',
                 color: NAVY,
                 borderRadius: '6px',
                 textDecoration: 'none',
-                fontSize: 13,
                 fontWeight: 600,
+                fontSize: 13,
                 border: '1px solid #e2e8f0',
+                transition: 'background-color 0.2s',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#e2e8f0')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
             >
-              <FileText size={16} /> View PDF
+              <File size={16} /> {job.pdfFileName || 'Download Job Description'} <Download size={14} />
             </a>
           </div>
         )}

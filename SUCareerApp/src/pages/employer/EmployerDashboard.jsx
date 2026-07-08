@@ -1,3 +1,4 @@
+// src/pages/employer/EmployerDashboard.jsx
 import { useState, useEffect, useRef } from 'react';
 import { FileText, Users } from 'lucide-react';
 import { signOut } from 'firebase/auth';
@@ -194,6 +195,30 @@ export default function EmployerDashboard() {
       setDashboardMessage({ type: 'error', text: 'Could not mark the notification as read.' });
     }
 
+    if (notification.type === 'job_edits_requested') {
+      const jobId = notification.targetId || notification.metadata?.jobId;
+      if (jobId) {
+        let job = myJobs.find(j => j.id === jobId);
+        if (!job) {
+          try {
+            const jobSnap = await getDoc(doc(db, 'opportunities', jobId));
+            if (jobSnap.exists()) {
+              job = { id: jobSnap.id, ...jobSnap.data() };
+            }
+          } catch {
+            // fallback
+          }
+        }
+        if (job) {
+          setEditingJob(job);
+          setActiveTab('edit-job');
+          return;
+        }
+      }
+      setActiveTab('my-jobs');
+      return;
+    }
+
     if (notification.type === 'student_application' || notification.action?.targetTab === 'ats') {
       const applicationId = notification.targetId || notification.action?.entityId || notification.metadata?.applicationId;
       const applicant = applicants.find((item) => item.id === applicationId || item.applicationId === applicationId);
@@ -269,17 +294,18 @@ export default function EmployerDashboard() {
     setActiveTab('my-jobs');
   };
 
+  // ─── BREADCRUMB – CLEAN ROUTING ─────────────────────────────────────────
   const getBreadcrumb = () => {
-    if (activeTab === 'post-role') return 'Dashboard > Post a Job';
-    if (activeTab === 'edit-job') return 'Dashboard > Edit Job';
-    if (selectedJob) return `Dashboard > ${selectedJob.title} > Applicant Pipeline`;
-    if (activeTab === 'ats') return 'Applicant Tracking System';
+    if (activeTab === 'post-role') return 'Post a Job';
+    if (activeTab === 'edit-job') return 'My Jobs > Edit Job';
+    if (selectedJob) return `My Jobs > ${selectedJob.title} > Applicant Pipeline`;
+    if (activeTab === 'ats') return 'Applicant Tracking';
     if (activeTab === 'profile') return 'Company Profile';
     if (activeTab === 'settings') return 'Account Settings';
     if (activeTab === 'analytics') return 'Reports & Analytics';
     if (activeTab === 'notifications') return 'Notifications';
-    if (activeTab === 'history') return 'Dashboard > Activity History';
-    if (activeTab === 'my-jobs') return 'Dashboard > My Jobs';
+    if (activeTab === 'history') return 'Activity History';
+    if (activeTab === 'my-jobs') return 'My Jobs';
     return 'Dashboard';
   };
 
@@ -386,6 +412,11 @@ export default function EmployerDashboard() {
                 setActiveTab('job-detail');
               }}
               onViewAllHistory={() => navigateTab('history')}
+              onViewAllJobs={() => {
+                setActiveTab('my-jobs');
+                setSelectedJob(null);
+                setEditingJob(null);
+              }}
             />
           );
         }

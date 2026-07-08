@@ -1,3 +1,4 @@
+// src/pages/employer/views/DashboardView.jsx
 import { Users, FileText, PlusCircle, Clock, AlertCircle } from 'lucide-react';
 import { NAVY, GOLD } from '../constants';
 
@@ -7,25 +8,24 @@ export default function DashboardView({
   companyName,
   onPostJob,
   onSelectJob,
-  recentActivities,
-  onViewAllHistory
+  onViewAllJobs,   // ← NEW PROP
 }) {
-  // ─── Filter applicants by status (case-insensitive) ──────────────
+  // Filter applicants by status (case-insensitive)
   const shortlistedCount = applicants.filter(a => 
     a.status?.toLowerCase() === 'shortlisted'
   ).length;
 
-  // ─── Sort jobs by createdAt (newest first) ────────────────────────
+  // Sort jobs by createdAt (newest first)
   const sortedJobs = [...myJobs].sort((a, b) => {
     const dateA = a.createdAt?.toDate?.() || new Date(0);
     const dateB = b.createdAt?.toDate?.() || new Date(0);
     return dateB - dateA;
   });
 
-  // ─── Only show active (open) jobs on dashboard ────────────────────
+  // Only show active (open) jobs on dashboard
   const activeJobs = sortedJobs.filter(j => j.status === 'open');
 
-  // ─── UPCOMING DEADLINES ──────────────────────────────────────────────
+  // UPCOMING DEADLINES
   const today = new Date();
   const sevenDaysFromNow = new Date();
   sevenDaysFromNow.setDate(today.getDate() + 7);
@@ -165,7 +165,7 @@ export default function DashboardView({
             {activeJobs.length > 3 && (
               <div style={{ textAlign: 'center' }}>
                 <button
-                  onClick={() => onSelectJob({ viewAll: true })}
+                  onClick={() => onViewAllJobs && onViewAllJobs()}
                   style={{ background: 'none', border: 'none', color: NAVY, fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                 >
                   View all {activeJobs.length} active jobs →
@@ -225,36 +225,6 @@ export default function DashboardView({
                 <div style={{ fontSize: 12 }}>All active jobs have deadlines beyond 7 days.</div>
               </div>
             )}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity (shows real student applications and job posts) */}
-      <div>
-        <h2 style={{ margin: '0 0 16px 0', fontSize: 16, fontWeight: 800, color: NAVY }}>Recent Activity</h2>
-        <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-          {recentActivities.length > 0 ? (
-            recentActivities.map((act, i) => (
-              <div key={act.id} style={{ padding: '16px 20px', borderBottom: i !== recentActivities.length - 1 ? '1px solid #f1f5f9' : 'none', display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{ width: 32, height: 32, borderRadius: '8px', backgroundColor: act.bg, color: act.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <act.icon size={16} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>{act.action}</div>
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{act.details}</div>
-                </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{act.time}</div>
-              </div>
-            ))
-          ) : (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
-              No recent activity. Post a job to get started.
-            </div>
-          )}
-          <div style={{ padding: '12px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'center' }}>
-            <button onClick={onViewAllHistory} style={{ background: 'none', border: 'none', color: NAVY, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-              View All History
-            </button>
           </div>
         </div>
       </div>

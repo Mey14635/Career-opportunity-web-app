@@ -108,16 +108,37 @@ export const createJob = async (jobData) => {
   return ref.id;
 };
 
+// ─── UPDATE JOB ─── FIXED ──────────────────────────────────────────────
 export const updateJob = async (jobId, jobData) => {
   const ref = doc(db, 'opportunities', jobId);
-  await updateDoc(ref, {
-    ...jobData,
-    additionalDocs: deleteField(),
-    documentsRequired: deleteField(),
-    editRequestReason: deleteField(),
-    requiredDocument: deleteField(),
-    updatedAt: Timestamp.now(),
+  
+  // ─── Clean up jobData to avoid issues ──────────────────────────────
+  const cleanData = { ...jobData };
+  
+  // Ensure metrics is a valid object
+  if (cleanData.metrics && typeof cleanData.metrics === 'object') {
+    // Keep metrics as-is
+  }
+  
+  // Remove any undefined values
+  Object.keys(cleanData).forEach(key => {
+    if (cleanData[key] === undefined) {
+      delete cleanData[key];
+    }
   });
+  
+  // ─── Build update payload ───────────────────────────────────────────
+  const updatePayload = {
+    ...cleanData,
+    updatedAt: Timestamp.now(),
+  };
+  
+  // ─── Delete fields that should be removed ──────────────────────────
+  // Only delete editRequestReason – the employer has addressed the edits
+  updatePayload.editRequestReason = deleteField();
+  
+  // ─── Execute update ─────────────────────────────────────────────────
+  await updateDoc(ref, updatePayload);
 };
 
 // ─── APPLICATIONS ─────────────────────────────────────────────────────────
@@ -146,7 +167,6 @@ const getInitials = (name) => {
   return `${words[0][0]}${words[1][0]}`.toUpperCase();
 };
 
-// ─── FIX: Return lowercase status to match badge expectations ──────────
 const formatApplicantStatus = (status) => {
   const normalizedStatus = String(status || 'submitted').trim().toLowerCase();
   if (normalizedStatus === 'shortlisted') return 'shortlisted';

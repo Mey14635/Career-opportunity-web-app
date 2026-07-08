@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+// src/App.jsx
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LandingPage from './pages/public/LandingPage';
 import LoginPage from './pages/public/Login';
 import EmployerAccess from './pages/public/EmployerAccess';
@@ -9,71 +10,80 @@ import StudentDashboard from './pages/student/StudentDashboard';
 import CompanyPublicView from './pages/public/CompanyPublicView';
 import ProtectedRoute from './routes/protectedRoute';
 
-function handleLogout() {
-  window.location.href = '/';
-}
-
-function handleEmployerLogin() {
-  window.location.href = '/employer-dashboard';
-}
-
 function App() {
+  const navigate = useNavigate();
+
+  // ─── Navigation handlers ──────────────────────────────────────────────
+  const handleLogout = () => navigate('/');
+
+  const handleEmployerLogin = () => navigate('/employer-dashboard');
+
+  const handleLandingNavigate = (route) => {
+    if (route === 'login') navigate('/login');
+    else if (route === 'employer-access') navigate('/employer-access');
+  };
+
+  const handleLoginNavigate = (action) => {
+    if (action === 'login') navigate('/admin-dashboard');
+    else if (action === 'back') navigate('/');
+  };
+
+  const handleEmployerAccessNavigate = (route) => {
+    if (route === 'landing') navigate('/');
+  };
+
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* ─── PUBLIC ROUTES ────────────────────────────────────────────────── */}
-        <Route path="/" element={<LandingPage onNavigate={(route) => {
-          if (route === 'login') window.location.href = '/login';
-          else if (route === 'employer-access') window.location.href = '/employer-access';
-        }} />} />
-        
-        <Route path="/login" element={<LoginPage 
-          onLogin={() => window.location.href = '/admin-dashboard'}
-          onBack={() => window.location.href = '/'}
-        />} />
+    <Routes>
+      <Route path="/" element={<LandingPage onNavigate={handleLandingNavigate} />} />
+      <Route
+        path="/login"
+        element={
+          <LoginPage
+            onLogin={() => handleLoginNavigate('login')}
+            onBack={() => handleLoginNavigate('back')}
+          />
+        }
+      />
+      <Route
+        path="/employer-access"
+        element={
+          <EmployerAccess
+            onNavigate={handleEmployerAccessNavigate}
+            onLogin={handleEmployerLogin}
+          />
+        }
+      />
+      <Route path="/help-center" element={<HelpCenter />} />
 
-        <Route path="/employer-access" element={<EmployerAccess 
-          onNavigate={(route) => {
-            if (route === 'landing') window.location.href = '/';
-          }}
-          onLogin={handleEmployerLogin}
-        />} />
+      <Route
+        path="/admin-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard onLogout={handleLogout} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/employer-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['employer']}>
+            <EmployerDashboard onLogout={handleLogout} />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/student-dashboard/*" element={<StudentDashboard />} />
 
-        <Route path="/help-center" element={<HelpCenter />} />
+      <Route
+        path="/company/:employerId"
+        element={
+          <ProtectedRoute allowedRoles={['student', 'employer', 'admin']}>
+            <CompanyPublicView />
+          </ProtectedRoute>
+        }
+      />
 
-        {/* ─── PROTECTED ROUTES ────────────────────────────────────────────── */}
-        <Route
-          path="/admin-dashboard"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminDashboard onLogout={handleLogout} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/employer-dashboard"
-          element={
-            <ProtectedRoute allowedRoles={['employer']}>
-              <EmployerDashboard onLogout={handleLogout} />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/student-dashboard/*" element={<StudentDashboard />} />
-
-        {/* ─── COMPANY PROFILE (all authenticated roles) ───────────────────── */}
-        <Route 
-          path="/company/:employerId" 
-          element={
-            <ProtectedRoute allowedRoles={['student', 'employer', 'admin']}>
-              <CompanyPublicView />
-            </ProtectedRoute>
-          } 
-        />
-
-        {/* ─── CATCH-ALL ────────────────────────────────────────────────────── */}
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
   );
 }
 

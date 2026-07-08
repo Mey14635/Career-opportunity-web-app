@@ -1,9 +1,14 @@
+// src/components/employer/EmployerSidebar.jsx
 import NavButton from '../../components/shared/NavButton';
 import { NAVY, GOLD } from '../../pages/employer/constants';
 import { LayoutDashboard, FileText, PlusCircle, Building2, BarChart2, Briefcase } from 'lucide-react';
 
 export default function EmployerSidebar({ active, onNavigate }) {
-  const isDashboardActive = active === 'dashboard' || active === 'history' || active === 'job-detail';
+  // ─── DASHBOARD: active for dashboard and history ──────────────────────
+  const isDashboardActive = active === 'dashboard' || active === 'history';
+
+  // ─── MY JOBS: active for my‑jobs, job‑detail, and edit‑job ────────────
+  const isMyJobsActive = active === 'my-jobs' || active === 'job-detail' || active === 'edit-job';
 
   return (
     <aside style={{ width: 260, backgroundColor: NAVY, flexShrink: 0, display: 'flex', flexDirection: 'column', height: '100vh', zIndex: 10 }}>
@@ -27,7 +32,7 @@ export default function EmployerSidebar({ active, onNavigate }) {
           label="Dashboard" 
         />
         <NavButton 
-          active={active === 'my-jobs'} 
+          active={isMyJobsActive} 
           onClick={() => onNavigate('my-jobs')} 
           icon={Briefcase} 
           label="My Jobs" 

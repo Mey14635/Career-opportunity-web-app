@@ -1,10 +1,8 @@
 // src/pages/admin/views/JobReviewsView.jsx
 import { useMemo, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Clock, AlertTriangle, Filter, Info } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { NAVY, GOLD, BG_GRAY } from '../constants';
-
-// ─── HELPERS ──────────────────────────────────────────────────────────────
 
 // Helper: Extract documents from job (handles both string and array formats)
 function getRequiredDocuments(job = {}) {
@@ -23,7 +21,7 @@ function getRequiredDocuments(job = {}) {
   return docs;
 }
 
-// Helper: Format document label (handles both string and object formats)
+// Helper: Format document label (just the label, no format suffix)
 function formatDocumentLabel(document) {
   if (typeof document === 'string') {
     return document;
@@ -33,14 +31,10 @@ function formatDocumentLabel(document) {
     return 'Document';
   }
 
-  const label = document.label || document.name || 'Document';
-  return document.format && document.format !== 'any'
-    ? `${label} (${document.formatLabel || document.format})`
-    : label;
+  return document.label || document.name || 'Document';
 }
 
-// ─── SAME parseList AS EMPLOYER VIEW ─────────────────────────────────────
-// Splits on periods with whitespace OR newlines, then returns array of non‑empty items.
+// Helper: Parse text into list items (splits on periods or newlines)
 function parseList(value) {
   if (!value) return [];
   if (Array.isArray(value)) {
@@ -48,10 +42,7 @@ function parseList(value) {
       .filter(Boolean)
       .map(item => {
         if (typeof item === 'string') return item;
-        const label = item.label || item.name || 'Document';
-        return item.format && item.format !== 'any'
-          ? `${label} (${item.formatLabel || item.format})`
-          : label;
+        return item.label || item.name || 'Document';
       })
       .filter(item => item && item.trim() !== '');
   }
@@ -66,11 +57,10 @@ function parseList(value) {
   return [];
 }
 
-// ─── RENDER CONTENT: detects HTML, else uses parseList ──────────────────
+// Helper: Render content (detects HTML, else uses parseList)
 function renderContent(content) {
   if (!content) return null;
 
-  // If it's an array, join with newlines for parsing
   if (Array.isArray(content)) {
     content = content.join('\n');
   }
@@ -78,11 +68,9 @@ function renderContent(content) {
   const str = String(content).trim();
   if (!str) return null;
 
-  // Check for HTML tags
   const isHtmlContent = /<[^>]+>/i.test(str);
   if (isHtmlContent) {
     let cleaned = str;
-    // Clean up empty tags and nested paragraphs
     cleaned = cleaned.replace(/<p>\s*<\/p>/g, '');
     cleaned = cleaned.replace(/<li>\s*<p>/g, '<li>');
     cleaned = cleaned.replace(/<\/p>\s*<\/li>/g, '</li>');
@@ -102,7 +90,6 @@ function renderContent(content) {
     return <div className="rich-content" dangerouslySetInnerHTML={{ __html: sanitized }} />;
   }
 
-  // Plain text: use parseList to get bullet points
   const items = parseList(str);
   if (items.length === 0) return <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>{str}</p>;
   if (items.length === 1) return <p style={{ color: '#475569', lineHeight: 1.7, fontSize: 15, marginBottom: 24 }}>{items[0]}</p>;
@@ -116,13 +103,26 @@ function renderContent(content) {
   );
 }
 
-// Helper: Sort queue data by createdAt descending (newest first)
-function sortByCreatedDescending(data) {
-  return [...data].sort((a, b) => {
-    const aTime = a.createdAt?.toDate?.()?.getTime() || new Date(a.createdAt).getTime() || 0;
-    const bTime = b.createdAt?.toDate?.()?.getTime() || new Date(b.createdAt).getTime() || 0;
-    return bTime - aTime;
-  });
+// Helper: Check if job is expired
+function isJobExpired(job) {
+  if (!job.deadline) return false;
+  const deadline = typeof job.deadline.toDate === 'function' ? job.deadline.toDate() : new Date(job.deadline);
+  return deadline < new Date();
+}
+
+// Helper: Get days left for a job
+function getDaysLeft(job) {
+  if (!job.deadline) return null;
+  const deadline = typeof job.deadline.toDate === 'function' ? job.deadline.toDate() : new Date(job.deadline);
+  const now = new Date();
+  return Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+}
+
+// Helper: Get days waiting (since creation)
+function getDaysWaiting(job) {
+  const created = job.createdAt?.toDate?.() || new Date(job.createdAt);
+  const now = new Date();
+  return Math.ceil((now - created) / (1000 * 60 * 60 * 24));
 }
 
 // Helper: Check if job was returned for edits
@@ -130,14 +130,80 @@ function isReturnedForEdits(job) {
   return job.pendingReason === 'unpublished' || job.pendingReason === 'edits_requested';
 }
 
-// ─── JOB REVIEW DETAILS COMPONENT ────────────────────────────────────────
+// ─── NEW: Helper to safely get timestamp ──────────────────────────────
+function getTimestamp(value) {
+  if (!value) return null;
+  if (typeof value.toDate === 'function') {
+    return value.toDate().getTime();
+  }
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (typeof value === 'number') {
+    return value;
+  }
+  return null;
+}
 
+// ─── NEW: Helper to check if job was edited after admin request ──────
+function isEditedAfterRequest(job) {
+  if (!job.editsRequestedAt) return false;
+  const requestedTime = getTimestamp(job.editsRequestedAt);
+  const updatedTime = getTimestamp(job.updatedAt);
+  if (requestedTime === null || updatedTime === null) return false;
+  return updatedTime > requestedTime;
+}
+
+// Sorting functions
+function sortByNewest(data) {
+  return [...data].sort((a, b) => {
+    const aTime = a.createdAt?.toDate?.()?.getTime() || new Date(a.createdAt).getTime() || 0;
+    const bTime = b.createdAt?.toDate?.()?.getTime() || new Date(b.createdAt).getTime() || 0;
+    return bTime - aTime;
+  });
+}
+
+function sortByPriority(data) {
+  const now = new Date();
+  return [...data].sort((a, b) => {
+    const aDeadline = a.deadline?.toDate?.() || new Date(a.deadline);
+    const bDeadline = b.deadline?.toDate?.() || new Date(b.deadline);
+    const aDaysLeft = Math.ceil((aDeadline - now) / (1000 * 60 * 60 * 24));
+    const bDaysLeft = Math.ceil((bDeadline - now) / (1000 * 60 * 60 * 24));
+    const aCreated = a.createdAt?.toDate?.() || new Date(a.createdAt);
+    const bCreated = b.createdAt?.toDate?.() || new Date(b.createdAt);
+    const aDaysWaiting = Math.ceil((now - aCreated) / (1000 * 60 * 60 * 24));
+    const bDaysWaiting = Math.ceil((now - bCreated) / (1000 * 60 * 60 * 24));
+
+    const aWaiting = aDaysWaiting >= 14;
+    const bWaiting = bDaysWaiting >= 14;
+    if (aWaiting && !bWaiting) return -1;
+    if (!aWaiting && bWaiting) return 1;
+
+    const aUrgent = aDaysLeft <= 7 && aDaysLeft > 0;
+    const bUrgent = bDaysLeft <= 7 && bDaysLeft > 0;
+    if (aUrgent && !bUrgent) return -1;
+    if (!aUrgent && bUrgent) return 1;
+
+    if (aDaysLeft <= 0 && bDaysLeft > 0) return -1;
+    if (aDaysLeft > 0 && bDaysLeft <= 0) return 1;
+
+    return bCreated - aCreated;
+  });
+}
+
+// Job Review Details Component
 export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelection, onRefresh }) {
   const docs = getRequiredDocuments(selectedJob);
   const returnedForEdits = isReturnedForEdits(selectedJob);
+  const editedAfterRequest = isEditedAfterRequest(selectedJob);
   const [editReasonOpen, setEditReasonOpen] = useState(false);
   const [editReason, setEditReason] = useState(selectedJob.editRequestReason || '');
   const [editReasonError, setEditReasonError] = useState('');
+
+  const [rejectReasonOpen, setRejectReasonOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectReasonError, setRejectReasonError] = useState('');
 
   const handleModalAction = (title, message, type, actionData) => {
     const wrappedActionData = {
@@ -179,6 +245,30 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
     );
   };
 
+  const submitRejectReason = () => {
+    const reason = rejectReason.trim();
+
+    if (!reason) {
+      setRejectReasonError('Please enter a reason for rejecting this job.');
+      return;
+    }
+
+    setRejectReasonOpen(false);
+    setRejectReasonError('');
+    handleModalAction(
+      'Reject Listing',
+      `Reject "${selectedJob.title}"? This action is permanent and the job will be moved to rejected.`,
+      'danger',
+      {
+        view: 'job',
+        id: selectedJob.id,
+        type: 'reject',
+        rejectReason: reason,
+        clearSelection: closeDetails,
+      }
+    );
+  };
+
   return (
     <div style={{ maxWidth: '1000px' }}>
       {onBack && (
@@ -190,9 +280,23 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
         <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 24, marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <h1 style={{ margin: '0 0 8px 0', color: NAVY, fontSize: 28, fontWeight: 800 }}>{selectedJob.title}</h1>
-            {selectedJob.pendingReason === 'unpublished' && (
+            {returnedForEdits && (
               <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 12px', borderRadius: '20px', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
                 Returned for edits
+              </span>
+            )}
+            {editedAfterRequest && (
+              <span style={{
+                background: '#dbeafe',
+                color: '#1e3a8a',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: 13,
+                fontWeight: 700,
+                border: '1px solid #bfdbfe',
+                marginLeft: 4,
+              }}>
+                ✏️ Edited after admin request
               </span>
             )}
           </div>
@@ -204,7 +308,6 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 40 }}>
           <div>
-            {/* ─── ABOUT / DESCRIPTION ───────────────────────────────────── */}
             <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>
               {selectedJob.about ? 'About the Role' : 'Description'}
             </h3>
@@ -215,7 +318,6 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
               );
             })()}
 
-            {/* ─── RESPONSIBILITIES ───────────────────────────────────── */}
             <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12, marginTop: 24 }}>Responsibilities</h3>
             {(() => {
               const content = selectedJob.responsibilities;
@@ -224,7 +326,6 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
               );
             })()}
 
-            {/* ─── REQUIREMENTS ───────────────────────────────────────── */}
             <h3 style={{ color: NAVY, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Requirements</h3>
             {(() => {
               const content = selectedJob.requirement || selectedJob.requirements;
@@ -294,12 +395,9 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
           </button>
           <button
             onClick={() => {
-              handleModalAction('Reject Listing', `Reject "${selectedJob.title}"? The job will be permanently moved to rejected.`, 'danger', {
-                view: 'job',
-                id: selectedJob.id,
-                type: 'reject',
-                clearSelection: closeDetails,
-              });
+              setRejectReason('');
+              setRejectReasonError('');
+              setRejectReasonOpen(true);
             }}
             style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#dc2626', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
           >
@@ -359,15 +457,56 @@ export function JobReviewDetails({ selectedJob, triggerModal, onBack, clearSelec
           </section>
         </div>
       )}
+
+      {rejectReasonOpen && (
+        <div
+          role="presentation"
+          onClick={() => setRejectReasonOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 2200, background: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Reject job reason"
+            onClick={(event) => event.stopPropagation()}
+            style={{ width: 'min(520px, 100%)', background: '#ffffff', borderRadius: 12, borderTop: '4px solid #dc2626', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' }}
+          >
+            <div style={{ padding: '24px 28px' }}>
+              <h3 style={{ margin: '0 0 8px', color: NAVY, fontSize: 18, fontWeight: 800 }}>Reason for rejection</h3>
+              <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>
+                Please provide a reason for rejecting this job. The employer will be notified.
+              </p>
+              <textarea
+                value={rejectReason}
+                onChange={(event) => setRejectReason(event.target.value)}
+                rows={5}
+                placeholder="Example: The job description lacks sufficient detail, and the salary range is not specified."
+                style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: 8, padding: 12, fontSize: 14, color: '#1e293b', resize: 'vertical', outline: 'none', fontFamily: 'inherit' }}
+              />
+              {rejectReasonError && <p style={{ margin: '8px 0 0', color: '#dc2626', fontSize: 12, fontWeight: 700 }}>{rejectReasonError}</p>}
+            </div>
+            <div style={{ padding: '16px 28px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button type="button" onClick={() => setRejectReasonOpen(false)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button type="button" onClick={submitRejectReason} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#dc2626', color: '#ffffff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Confirm Rejection
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── MAIN COMPONENT ──────────────────────────────────────────────────────
+// ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
 
 export default function JobReviewsView({ queueData, triggerModal, onRefresh, focusedJobId }) {
   const [selectedJobOverride, setSelectedJobOverride] = useState(null);
   const [dismissedFocusedJobId, setDismissedFocusedJobId] = useState('');
+  const [sortMode, setSortMode] = useState('newest');
+  const [filterMode, setFilterMode] = useState('all');
 
   const focusedJob = useMemo(
     () => queueData.find((job) => job.id === focusedJobId) || null,
@@ -385,6 +524,35 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
     setSelectedJobOverride(null);
   };
 
+  // Filter out expired jobs – they belong in Expired Jobs view
+  const activePendingJobs = queueData.filter(job => !isJobExpired(job));
+
+  // Apply filters
+  const filteredJobs = useMemo(() => {
+    let filtered = [...activePendingJobs];
+
+    if (filterMode === 'approaching') {
+      filtered = filtered.filter(job => {
+        const daysLeft = getDaysLeft(job);
+        return daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
+      });
+    } else if (filterMode === 'waiting') {
+      filtered = filtered.filter(job => {
+        const daysWaiting = getDaysWaiting(job);
+        return daysWaiting >= 14;
+      });
+    }
+    return filtered;
+  }, [activePendingJobs, filterMode]);
+
+  // Sort
+  const sortedQueue = useMemo(() => {
+    if (sortMode === 'priority') {
+      return sortByPriority(filteredJobs);
+    }
+    return sortByNewest(filteredJobs);
+  }, [filteredJobs, sortMode]);
+
   if (selectedJob) {
     return (
       <JobReviewDetails
@@ -400,29 +568,192 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
     );
   }
 
-  const sortedQueue = sortByCreatedDescending(queueData);
-
   return (
     <div style={{ maxWidth: '1200px' }}>
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ margin: '0 0 8px 0', fontSize: 24, fontWeight: 800, color: NAVY }}>Job Reviews</h1>
-        <p style={{ margin: 0, fontSize: 14, color: '#64748b' }}>Review employer listings before publishing to the active opportunities feed.</p>
+      <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <h1 style={{ margin: '0 0 8px 0', fontSize: 24, fontWeight: 800, color: NAVY }}>Job Reviews</h1>
+          <p style={{ margin: 0, fontSize: 14, color: '#64748b' }}>Review employer listings before publishing to the active opportunities feed.</p>
+          <p style={{ margin: '8px 0 0 0', fontSize: 13, color: '#94a3b8' }}>
+            {sortedQueue.length} pending job{sortedQueue.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10, width: '100%' }}>
+          {/* ─── COLORFUL EXPLANATION BADGE ─────────────────────────────── */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '8px 16px',
+              background: '#f0f4ff',
+              borderRadius: '8px',
+              border: '1px solid #dbeafe',
+              fontSize: 12,
+              color: '#475569',
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end',
+              width: '100%',
+            }}
+          >
+            <Info size={14} color="#3b82f6" style={{ flexShrink: 0 }} />
+            <span style={{ fontWeight: 600, color: '#1e293b' }}>How to use:</span>
+            <span style={{ color: '#64748b' }}>
+              <span style={{ color: '#dc2626', fontWeight: 600 }}>🔴 Red</span> = Waiting &gt;14 days (urgent review needed)
+            </span>
+            <span style={{ color: '#cbd5e1' }}>|</span>
+            <span style={{ color: '#64748b' }}>
+              <span style={{ color: '#d97706', fontWeight: 600 }}>🟠 Orange</span> = Approaching deadline (≤7 days left)
+            </span>
+            <span style={{ color: '#cbd5e1' }}>|</span>
+            <span style={{ color: '#64748b' }}>
+              <span style={{ color: '#1B3A6B', fontWeight: 600 }}>🔵 Blue</span> = Normal pending review
+            </span>
+          </div>
+
+          {/* ─── FILTER & SORT CONTROLS ────────────────────────────────── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end', width: '100%' }}>
+            {/* Filters */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Filter size={16} color="#94a3b8" />
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Filter:</span>
+              <button
+                onClick={() => setFilterMode('all')}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  border: filterMode === 'all' ? '2px solid #1B3A6B' : '1px solid #e2e8f0',
+                  background: filterMode === 'all' ? '#eef3ff' : 'white',
+                  color: filterMode === 'all' ? '#1B3A6B' : '#64748b',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilterMode('approaching')}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  border: filterMode === 'approaching' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+                  background: filterMode === 'approaching' ? '#fffbeb' : 'white',
+                  color: filterMode === 'approaching' ? '#d97706' : '#64748b',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Approaching (≤7 days)
+              </button>
+              <button
+                onClick={() => setFilterMode('waiting')}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  border: filterMode === 'waiting' ? '2px solid #dc2626' : '1px solid #e2e8f0',
+                  background: filterMode === 'waiting' ? '#fef2f2' : 'white',
+                  color: filterMode === 'waiting' ? '#dc2626' : '#64748b',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Waiting {'>'}14 days
+              </button>
+            </div>
+
+            {/* Sort */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Sort:</span>
+              <button
+                onClick={() => setSortMode('newest')}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  border: sortMode === 'newest' ? '2px solid #1B3A6B' : '1px solid #e2e8f0',
+                  background: sortMode === 'newest' ? '#eef3ff' : 'white',
+                  color: sortMode === 'newest' ? '#1B3A6B' : '#64748b',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Newest First
+              </button>
+              <button
+                onClick={() => setSortMode('priority')}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  border: sortMode === 'priority' ? '2px solid #dc2626' : '1px solid #e2e8f0',
+                  background: sortMode === 'priority' ? '#fef2f2' : 'white',
+                  color: sortMode === 'priority' ? '#dc2626' : '#64748b',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Priority (Deadline/Review)
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {sortedQueue.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '64px', background: 'white', borderRadius: 12, color: '#94a3b8' }}>All caught up! No pending jobs to review.</div>
+        <div style={{ textAlign: 'center', padding: '64px', background: 'white', borderRadius: 12, color: '#94a3b8' }}>
+          {filterMode !== 'all'
+            ? `No jobs match the "${filterMode === 'approaching' ? 'Approaching Deadline' : 'Waiting >14 days'}" filter.`
+            : 'All caught up! No pending jobs to review. All jobs have been processed or moved to expired.'}
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {sortedQueue.map(job => {
             const docs = getRequiredDocuments(job);
             const returnedForEdits = isReturnedForEdits(job);
+            const editedAfterRequest = isEditedAfterRequest(job);
+            const daysLeft = getDaysLeft(job);
+            const daysWaiting = getDaysWaiting(job);
+            const isApproaching = daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
+            const isWaitingLong = daysWaiting >= 14;
+
+            let cardBorderColor = '#e2e8f0';
+            let cardShadow = '0 1px 3px rgba(0,0,0,0.05)';
+            if (isWaitingLong) {
+              cardBorderColor = '#dc2626';
+              cardShadow = '0 4px 16px rgba(220, 38, 38, 0.15)';
+            } else if (isApproaching) {
+              cardBorderColor = '#f59e0b';
+              cardShadow = '0 4px 16px rgba(245, 158, 11, 0.12)';
+            }
+
             return (
               <div
                 key={job.id}
                 onClick={() => handleSelectJob(job)}
-                style={{ background: 'white', borderRadius: 12, padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; }}
+                style={{
+                  background: 'white',
+                  borderRadius: 12,
+                  padding: '24px 32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  border: `1.5px solid ${cardBorderColor}`,
+                  boxShadow: cardShadow,
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = cardShadow;
+                }}
               >
                 <div style={{ flex: 1, paddingRight: 24 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -440,10 +771,58 @@ export default function JobReviewsView({ queueData, triggerModal, onRefresh, foc
                         Returned for edits
                       </span>
                     )}
+                    {editedAfterRequest && (
+                      <span style={{
+                        background: '#dbeafe',
+                        color: '#1e3a8a',
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        border: '1px solid #bfdbfe',
+                        marginBottom: 4,
+                      }}>
+                        ✏️ Edited after admin request
+                      </span>
+                    )}
+                    {isWaitingLong && (
+                      <span style={{
+                        background: '#fef2f2',
+                        color: '#dc2626',
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        marginBottom: 4,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}>
+                        <AlertTriangle size={12} /> Waiting {daysWaiting} days
+                      </span>
+                    )}
+                    {isApproaching && !isWaitingLong && (
+                      <span style={{
+                        background: '#fef3c7',
+                        color: '#d97706',
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        marginBottom: 4,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}>
+                        <Clock size={12} /> {daysLeft} days left
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12 }}>{job.companyName || job.employerId || job.employerID}</div>
-                  <div style={{ fontSize: 13, color: '#94a3b8' }}>
-                    Application Deadline: <span style={{ fontWeight: 700, color: '#334155' }}>{job.deadline?.toDate?.()?.toDateString() || 'N/A'}</span>
+                  <div style={{ display: 'flex', gap: 24, fontSize: 13, color: '#94a3b8', flexWrap: 'wrap' }}>
+                    <span>Application Deadline: <span style={{ fontWeight: 700, color: '#334155' }}>{job.deadline?.toDate?.()?.toDateString() || 'N/A'}</span></span>
+                    <span>Created: <span style={{ fontWeight: 700, color: '#334155' }}>{job.createdAt?.toDate?.()?.toDateString() || 'N/A'}</span></span>
+                    <span>Days in Review: <span style={{ fontWeight: 700, color: isWaitingLong ? '#dc2626' : '#334155' }}>{daysWaiting}</span></span>
                   </div>
                 </div>
 

@@ -118,7 +118,7 @@ function Navbar() {
         </div>
         <div className="navbar-brand-group">
           <span className="navbar-brand">SU Career Portal</span>
-          <span className="navbar-subbrand">Student Portal</span>
+          <span className="navbar-subbrand">Student / Alumni Portal</span>
         </div>
       </div>
 
